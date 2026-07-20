@@ -1,0 +1,5 @@
+# Caddyfile — авто-HTTPS. Переменные {$DOMAIN} и {$EMAIL} задаются в docker-compose.
+{$DOMAIN} {
+    encode gzip
+    reverse_proxy backend:8000
+}

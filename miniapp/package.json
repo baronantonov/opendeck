@@ -1,0 +1,23 @@
+{
+  "name": "dj-school-miniapp",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@telegram-apps/sdk": "^3.0.0",
+    "@telegram-apps/ui": "^3.0.0",
+    "@tonconnect/ui": "^3.0.0",
+    "hls.js": "^1.5.0",
+    "react": "^18.3.0",
+    "react-dom": "^18.3.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.0",
+    "vite": "^5.4.0"
+  }
+}

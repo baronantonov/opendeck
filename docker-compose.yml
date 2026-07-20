@@ -1,0 +1,44 @@
+# Docker Compose: бэкенд + бот + Caddy (HTTPS автоматом через Let's Encrypt).
+# Один раз поднимает весь продакшн на VPS.
+#
+# 1. scp -r . user@VPS:/opt/dj-school
+# 2. ssh user@VPS && cd /opt/dj-school
+# 3. cp .env.example .env && nano .env   (BOT_TOKEN, MINI_APP_URL=https://... )
+# 4. DOMAIN=dj-school.ваш-домен.tld EMAIL=you@mail.tld docker compose up -d
+#
+# Caddy сам выпустит TLS-сертификат на DOMAIN и проксирует :80/:443 -> backend:8000.
+
+services:
+  backend:
+    build: .
+    command: uvicorn backend.main:app --host 0.0.0.0 --port 8000
+    env_file: .env
+    expose:
+      - "8000"
+    restart: unless-stopped
+
+  bot:
+    build: .
+    command: python -m bot.main
+    env_file: .env
+    restart: unless-stopped
+    depends_on:
+      - backend
+
+  caddy:
+    image: caddy:2
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN}
+      EMAIL: ${EMAIL}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    restart: unless-stopped
+
+volumes:
+  caddy_data:
+  caddy_config:

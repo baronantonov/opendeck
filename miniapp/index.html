@@ -506,7 +506,7 @@
       const isYT = src.includes('youtube.com/embed') || src.includes('youtu.be');
       const playerHTML = src
         ? (isYT
-            ? `<div class="vwrap" id="vw"><iframe id="yt" src="${src}?playsinline=1&rel=0&modestbr=1" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen style="position:absolute;inset:0;width:100%;height:100%;border:0;background:#000"></iframe></div>`
+            ? `<div class="vwrap" id="vw"><div id="ytplayer" style="position:absolute;inset:0;width:100%;height:100%"></div></div>`
             : `<div class="vwrap" id="vw"><video id="v" playsinline></video>
              <div class="wm" id="wm">${userName}</div>
              <div class="bigplay" id="bp"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></div>
@@ -523,33 +523,53 @@
         <button class="btn" id="finishBtn" style="display:none" onclick="completeLesson(${id})">Завершить урок (+50 GP)</button>
         <p class="hint" id="finishHint" style="text-align:center;color:var(--text-secondary);font-size:12px;margin-top:10px">Кнопка появится после просмотра урока до конца</p>`;
       if(src && !isYT) setupVideo(src);
-      else if(src && isYT) enableYTControls();
+      else if(src && isYT) enableYTControls(src);
     }
 
-    let vwVid=null, vwHls=null;
+    let vwVid=null, vwHls=null, ytPlayer=null;
 
     // Остановить ВСЁ видео при уходе со страницы / сворачивании
     function stopVideoAll(){
       if(vwVid){ try{ vwVid.pause(); }catch(e){} }
-      // YouTube через postMessage API
-      const yt = document.getElementById('yt');
-      if(yt && yt.contentWindow){ try{ yt.contentWindow.postMessage('{"event":"command","func":"pauseVideo","args":""}', '*'); }catch(e){} }
+      if(ytPlayer && ytPlayer.pauseVideo){ try{ ytPlayer.pauseVideo(); }catch(e){} }
     }
-    // YouTube должен разрешать управление извне
-    function enableYTControls(){
-      const yt = document.getElementById('yt');
-      if(yt){
-        // слушать событие окончания видео от YouTube
-        window.addEventListener('message', (e)=>{
-          try{
-            const d = (e.data && typeof e.data==='string') ? JSON.parse(e.data) : e.data;
-            if(d && d.event==='onStateChange' && d.info===0) markWatched();
-          }catch(_){}
+
+    // Официальный YouTube IFrame Player API — надёжная валидация досмотра урока
+    function enableYTControls(src){
+      // достаём ID видео из ссылки вида .../embed/XXXX или youtu.be/XXXX
+      const m = src.match(/(?:embed\/|youtu\.be\/|v=)([A-Za-z0-9_-]{6,})/);
+      const videoId = m ? m[1] : null;
+      if(!videoId) return;
+      const build = ()=>{
+        ytPlayer = new YT.Player('ytplayer', {
+          videoId: videoId,
+          playerVars: { playsinline:1, rel:0, modestbranding:1 },
+          events: {
+            onStateChange: (e)=>{
+              // 0 = ENDED (видео досмотрено до конца)
+              if(e.data === YT.PlayerState.ENDED) markWatched();
+            }
+          }
         });
-        const u = new URL(yt.src);
-        u.searchParams.set('enablejsapi','1');
-        u.searchParams.set('origin', location.origin);
-        yt.src = u.toString();
+        // подстраховка: если пользователь домотал почти до конца — тоже засчитать
+        setInterval(()=>{
+          try{
+            if(ytPlayer && ytPlayer.getDuration){
+              const d = ytPlayer.getDuration(), c = ytPlayer.getCurrentTime();
+              if(d > 0 && c / d >= 0.95) markWatched();
+            }
+          }catch(_){}
+        }, 2000);
+      };
+      // загрузить скрипт API один раз, потом строить плеер
+      if(window.YT && window.YT.Player){ build(); }
+      else {
+        window.onYouTubeIframeAPIReady = build;
+        if(!document.getElementById('yt-api')){
+          const s = document.createElement('script');
+          s.id = 'yt-api'; s.src = 'https://www.youtube.com/iframe_api';
+          document.head.appendChild(s);
+        }
       }
     }
 

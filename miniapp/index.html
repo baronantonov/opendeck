@@ -543,15 +543,13 @@
       const build = ()=>{
         ytPlayer = new YT.Player('ytplayer', {
           videoId: videoId,
-          playerVars: { playsinline:1, rel:0, modestbranding:1, fs:1 },
+          playerVars: { playsinline:1, rel:0, modestbranding:1, fs:1, controls:0, showinfo:0 },
           events: {
             onReady: (e)=>{
-              // разрешить кнопке фулскрина внутри плеера работать
               const f = e.target.getIframe();
               if(f){ f.setAttribute('allowfullscreen',''); f.setAttribute('allow','autoplay; encrypted-media; picture-in-picture; fullscreen'); }
             },
             onStateChange: (e)=>{
-              // 0 = ENDED (видео досмотрено до конца)
               if(e.data === YT.PlayerState.ENDED) markWatched();
             }
           }

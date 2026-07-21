@@ -22,7 +22,6 @@ passed = failed = 0
 def check(name, cond):
     global passed, failed
     print(("  PASS  " if cond else "  FAIL  ") + name)
-    (passed if cond else failed).__init__() if False else None
     if cond: passed += 1
     else: failed += 1
 
@@ -46,10 +45,12 @@ print("== Выдача доступа backend /api/grant ==")
 # поднимаем тот же backend через TestClient и имитируем on_paid
 os.environ["BOT_TOKEN"] = "TEST_BOT_TOKEN"
 os.environ["PRODAMUS_WEBHOOK_SECRET"] = "TEST_PRODAMUS_SECRET"
+os.environ["INTERNAL_API_KEY"] = "TEST_INTERNAL_KEY"
 from backend.main import app as backend_app
 client = TestClient(backend_app)
-r = client.post("/api/grant", json={"user_id": 777, "course_id": "dj-basics", "provider": "stars"})
-check("grant ok после successful_payment", r.json().get("ok") is True)
+r = client.post("/api/grant", json={"user_id": 777, "course_id": "dj-basics", "provider": "stars"},
+                headers={"Authorization": "Bearer TEST_INTERNAL_KEY"})
+check("grant ok после successful_payment (с токеном)", r.json().get("ok") is True)
 r2 = client.get("/api/lessons?course_id=dj-basics", headers={"X-Init-Data": "hash=zzz"})
 # без валидного init_data — bad_init_data (проверяем, что on_paid НЕ открыл бы доступ "автоматом")
 check("без init_data доступ не светится (защита)", r2.json().get("error") == "bad_init_data")

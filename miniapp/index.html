@@ -34,6 +34,7 @@
     .badge{
       display:inline-block;background:rgba(192,160,168,0.18);color:var(--text-secondary);
       font-size:12px;font-weight:600;padding:5px 12px;border-radius:999px;margin-bottom:18px}
+    .user-avatar{width:44px;aspect-ratio:1;border-radius:50%;overflow:hidden;display:inline-flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.08);color:var(--text-secondary);font-weight:600;font-size:16px;flex:none}
     .gp{
       display:flex;align-items:center;gap:8px;background:rgba(140,226,200,0.10);
       border:1px solid rgba(140,226,200,0.25);border-radius:16px;padding:12px 16px;margin-bottom:18px}
@@ -262,7 +263,10 @@
   <div class="wrap">
     <!-- TAB 1: Dashboard -->
     <section id="tab-home">
-      <div class="hello">Привет, <span id="uname">Друг</span>!</div>
+      <div class="hello" style="display:flex;align-items:center;gap:12px">
+        <div class="user-avatar" id="avatar-main"></div>
+        <span>Привет, <span id="uname">Друг</span>!</span>
+      </div>
       <div class="badge">Твой вайб: <span id="archetype">Куратор Вайба</span></div>
 
       <div class="manifest">
@@ -343,7 +347,7 @@
     <!-- TAB 4: Profile -->
     <section id="tab-profile" class="hidden">
       <div class="prof-head">
-        <div class="avatar" id="avatar">D</div>
+        <div class="user-avatar" id="avatar">D</div>
         <div class="nm" id="pname">Daniil</div>
       </div>
       <div class="banner">
@@ -415,9 +419,12 @@
     document.getElementById('archetype').textContent = state.user.archetype;
     document.getElementById('gp').textContent = state.user.groovePoints;
     function applyAvatar(){
-      const av = document.getElementById('avatar');
-      if(userPhoto){ av.style.backgroundImage = `url("${userPhoto}")`; av.style.backgroundSize = 'cover'; av.style.backgroundPosition = 'center'; av.textContent = ''; }
-      else { av.textContent = (state.user.name[0]||"Д"); }
+      document.querySelectorAll('.user-avatar').forEach(av=>{
+        if(av){
+          if(userPhoto){ av.style.backgroundImage = `url("${userPhoto}")`; av.style.backgroundSize = 'cover'; av.style.backgroundPosition = 'center'; av.textContent = ''; }
+          else { av.textContent = (state.user.name[0]||"Д"); }
+        }
+      });
     }
     applyAvatar();
     // ЗАГРУЗКА реального прогресса из базы при каждом входе

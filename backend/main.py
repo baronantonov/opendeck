@@ -4,12 +4,20 @@
 - валидирует Telegram init_data (X-Init-Data)
 - раздаёт уроки только оплаченным (GET /api/lessons)
 - принимает прогресс из приложения (POST /api/progress)
+- профиль пользователя (GET /api/profile)
 - выдаёт доступ по оплате (POST /api/grant) и по webhook Prodamus
 - ВСЁ хранится в SQLite (backend/db.py) — не теряется при перезапуске
 """
 from __future__ import annotations
 import os
 from pathlib import Path
+
+# Авто-загрузка .env, если есть
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
 
 from fastapi import FastAPI, Header, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -47,9 +55,16 @@ app.add_middleware(
 # --- Демо-курс (в проде — из БД / файла) ---
 COURSE = {
     "dj-basics": [
-        {"id": 1, "title": "Знакомство с пультами", "hls": "/video/lesson1/index.m3u8"},
-        {"id": 2, "title": "Beatmatching своими руками", "hls": "/video/lesson2/index.m3u8"},
-        {"id": 3, "title": "Первый сет: структура", "hls": "/video/lesson3/index.m3u8"},
+        {"id": 1, "title": "Знакомство: кто такой диджей и зачем он нужен"},
+        {"id": 2, "title": "История: от диско до наших дней"},
+        {"id": 3, "title": "Направления и оборудование: где найти себя"},
+        {"id": 4, "title": "Музыкальная теория: бит, ритм и колесо Камелота"},
+        {"id": 5, "title": "Интерфейс на телефоне: твой первый контроллер"},
+        {"id": 6, "title": "Основы сведения: BPM, темп и кнопка Sync"},
+        {"id": 7, "title": "Кроссфейдер и нюансы темпо"},
+        {"id": 8, "title": "Лупы и Beat Jump: лёгкое сведение"},
+        {"id": 9, "title": "Эффекты и фильтр: краски твоего сета"},
+        {"id": 10, "title": "Твой первый микс из 4–5 треков"},
     ]
 }
 
@@ -90,10 +105,31 @@ async def health():
     return {"ok": True}
 
 
+@app.get("/api/profile")
+async def profile(x_init_data: str = Header("", alias="X-Init-Data")):
+    uid = _user_id_from_init(x_init_data)
+    if uid is None:
+        return JSONResponse({"error": "bad_init_data"}, status_code=401)
+    user = db.get_user(uid)
+    gp = db.get_gp(uid)
+    completed = db.get_completed(uid, COURSE_ID)
+    badges = db.get_badges(uid, COURSE_ID)
+    total = len(COURSE.get(COURSE_ID, []))
+    return {
+        "user": user,
+        "gp": gp,
+        "completed": completed,
+        "total_lessons": total,
+        "badges": badges,
+        "archetype": "Куратор Вайба",
+    }
+
+
 @app.get("/", response_class=HTMLResponse)
 async def index():
     html = (MINI_APP_DIR / "index.html").read_text(encoding="utf-8")
-    return HTMLResponse(html)
+    from fastapi.responses import HTMLResponse as Resp
+    return Resp(content=html, headers={"Cache-Control": "no-cache, no-store, must-revalidate", "Pragma": "no-cache", "Expires": "0"})
 
 
 @app.get("/api/lessons")

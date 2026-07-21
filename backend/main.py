@@ -20,7 +20,12 @@ import backend.db as db
 
 db.init()  # создаём таблицы при старте, если их нет
 
-BOT_TOKEN = os.getenv("BOT_TOKEN", "TEST_BOT_TOKEN")
+BOT_TOKEN = os.getenv("BOT_TOKEN", "")
+if not BOT_TOKEN:
+    raise SystemExit("❌ BOT_TOKEN не задан! Установи переменную окружения.")
+INTERNAL_API_KEY = os.getenv("INTERNAL_API_KEY", "")
+if not INTERNAL_API_KEY:
+    raise SystemExit("❌ INTERNAL_API_KEY не задан! Без него /api/grant не защищён.")
 MINI_APP_DIR = Path(__file__).resolve().parent.parent / "miniapp"
 COURSE_ID = "dj-basics"
 
@@ -99,13 +104,17 @@ async def progress(p: Progress, x_init_data: str = Header("", alias="X-Init-Data
     uid = _user_id_from_init(x_init_data)
     if uid is None:
         return JSONResponse({"error": "bad_init_data"}, status_code=401)
+    if not db.has_paid(uid, p.course_id):
+        return JSONResponse({"error": "not_paid", "paid": False}, status_code=403)
     gp = db.complete_lesson(uid, p.course_id, p.lesson_id)
     badges = db.get_badges(uid, p.course_id)
     return {"ok": True, "gp": gp, "completed": db.get_completed(uid, p.course_id), "badges": badges}
 
 
 @app.post("/api/grant")
-async def grant(g: Grant):
+async def grant(g: Grant, authorization: str = Header(None)):
+    if authorization != f"Bearer {INTERNAL_API_KEY}":
+        return JSONResponse({"error": "unauthorized"}, status_code=403)
     db.add_payment(g.user_id, g.course_id, g.provider, status="paid")
     return {"ok": True}
 
@@ -114,7 +123,10 @@ async def grant(g: Grant):
 async def prodamus_webhook(req: Request, x_signature: str = Header(None)):
     import hashlib, hmac, json
     body = await req.body()
-    secret = os.getenv("PRODAMUS_WEBHOOK_SECRET", "TEST_PRODAMUS_SECRET").encode()
+    secret_raw = os.getenv("PRODAMUS_WEBHOOK_SECRET", "")
+    if not secret_raw:
+        return JSONResponse({"error": "webhook_not_configured"}, status_code=500)
+    secret = secret_raw.encode()
     expected = hmac.new(secret, body, hashlib.sha256).hexdigest()
     if not hmac.compare_digest(expected, x_signature or ""):
         return JSONResponse({"error": "bad_signature"}, status_code=400)

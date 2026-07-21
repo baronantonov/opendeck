@@ -8,7 +8,11 @@
 # ============================================================
 import sys, hashlib, time
 
-SECRET = "OPENDECK_SECRET"          # ДОЛЖЕН совпадать с nginx.conf (secure_link_md5)
+import os
+SECRET = os.environ.get("VIDEO_SECRET", "")
+if not SECRET:
+    print("❌ Установи VIDEO_SECRET!")
+    sys.exit(1)          # ДОЛЖЕН совпадать с nginx.conf (secure_link_md5)
 URI    = "/video/{n}/index.m3u8"    # путь как в nginx root (/srv/dj-school/video/{n}/index.m3u8)
 BASE   = "https://video.TVOY-DOMEN.tld"
 

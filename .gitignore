@@ -4,3 +4,9 @@ __pycache__/
 *.db
 cloudflared.exe
 .env
+tunnel-keys/id_ed25519
+*.log
+node_modules/
+.env.*
+dj_school.db
+.dockerignore

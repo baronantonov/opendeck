@@ -528,8 +528,8 @@
         <h2 style="font-size:20px;margin-bottom:14px">${esc(l.t)}</h2>
         ${playerHTML}
         <ul class="summary">${bullets}</ul>
-        <button class="btn" id="finishBtn" style="display:none" onclick="completeLesson(${id})">Завершить урок (+50 GP)</button>
-        <p class="hint" id="finishHint" style="text-align:center;color:var(--text-secondary);font-size:12px;margin-top:10px">Кнопка появится после просмотра урока до конца</p>`;
+        <button class="btn" id="finishBtn" style="opacity:0.4;pointer-events:none" onclick="completeLesson(${id})">Завершить урок (+50 GP)</button>
+        <p class="hint" id="finishHint" style="text-align:center;color:var(--text-secondary);font-size:12px;margin-top:10px">Досмотри видео до конца — и кнопка станет активной</p>`;
       if(src && !isYT) setupVideo(src);
       else if(src && isYT) enableYTControls(src);
     }
@@ -589,7 +589,7 @@
     function markWatched(){
       const btn = document.getElementById('finishBtn');
       const hint = document.getElementById('finishHint');
-      if(btn){ btn.style.display=''; }
+      if(btn){ btn.style.opacity='1'; btn.style.pointerEvents='auto'; }
       if(hint){ hint.style.display='none'; }
     }
     function setupVideo(src){

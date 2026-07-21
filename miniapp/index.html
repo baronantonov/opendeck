@@ -498,10 +498,11 @@
       });
     }
 
+    function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
     function openLesson(id, l){
       document.body.style.filter='';   // снять защитное размытие при открытии урока
       const box = document.getElementById('tab-course');
-      const bullets = (l.d||[]).map(x=>`<li>${x}</li>`).join('');
+      const bullets = (l.d||[]).map(x=>`<li>${esc(x)}</li>`).join('');
       const src = l.video || "";
       const isYT = src.includes('youtube.com/embed') || src.includes('youtu.be');
       const playerHTML = src
@@ -517,7 +518,7 @@
              </div></div>`)
         : `<div class="player"><svg class="play" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></div>`;
       box.innerHTML = `<button class="btn ghost" style="width:auto;padding:10px 16px;margin-bottom:14px" onclick="renderCourse()">← Назад</button>
-        <h2 style="font-size:20px;margin-bottom:14px">${l.t}</h2>
+        <h2 style="font-size:20px;margin-bottom:14px">${esc(l.t)}</h2>
         ${playerHTML}
         <ul class="summary">${bullets}</ul>
         <button class="btn" id="finishBtn" style="display:none" onclick="completeLesson(${id})">Завершить урок (+50 GP)</button>
@@ -526,10 +527,11 @@
       else if(src && isYT) enableYTControls(src);
     }
 
-    let vwVid=null, vwHls=null, ytPlayer=null;
+    let vwVid=null, vwHls=null, ytPlayer=null, ytTimer=null;
 
     // Остановить ВСЁ видео при уходе со страницы / сворачивании
     function stopVideoAll(){
+      if(ytTimer){ clearInterval(ytTimer); ytTimer=null; }
       if(vwVid){ try{ vwVid.pause(); }catch(e){} }
       if(ytPlayer && ytPlayer.pauseVideo){ try{ ytPlayer.pauseVideo(); }catch(e){} }
     }
@@ -555,7 +557,8 @@
           }
         });
         // подстраховка: если пользователь домотал почти до конца — тоже засчитать
-        setInterval(()=>{
+        if(ytTimer) clearInterval(ytTimer);
+        ytTimer = setInterval(()=>{
           try{
             if(ytPlayer && ytPlayer.getDuration){
               const d = ytPlayer.getDuration(), c = ytPlayer.getCurrentTime();
@@ -619,7 +622,11 @@
             method:'POST',
             headers:{'Content-Type':'application/json','X-Init-Data': tg.initData || ''},
             body: JSON.stringify({user_id: tgUser.id, course_id:'dj-basics', lesson_id:id})
-          }).catch(()=>{});
+          }).then(r=>{
+            if(!r.ok) tg.showPopup && tg.showPopup({title:'Ошибка', message:'Прогресс не сохранён ☁️'});
+          }).catch(()=>{
+            tg.showPopup && tg.showPopup({title:'Сеть', message:'Проверь подключение к интернету ☁️'});
+          });
         }catch(e){}
       }
       renderCourse();

@@ -514,7 +514,13 @@
       const isYT = src.includes('youtube.com/embed') || src.includes('youtu.be');
       const playerHTML = src
         ? (isYT
-            ? `<div class="vwrap" id="vw"><div id="ytplayer" style="position:absolute;inset:0;width:100%;height:100%"></div></div>`
+            ? `<div class="vwrap" id="vw">
+                         <div id="ytplayer" style="position:absolute;inset:0;width:100%;height:100%"></div>
+                         <div class="wm" id="wm">${userName}</div>
+                         <div class="vbar">
+                           <button onclick="ytPlayToggle()" title="Play/Pause"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></button>
+                           <div class="seek" id="seek" onclick="ytSeek(event)"><i id="seekbar"></i></div>
+                         </div></div>`
             : `<div class="vwrap" id="vw"><video id="v" playsinline></video>
              <div class="wm" id="wm">${userName}</div>
              <div class="bigplay" id="bp"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></div>
@@ -570,6 +576,8 @@
             if(ytPlayer && ytPlayer.getDuration){
               const d = ytPlayer.getDuration(), c = ytPlayer.getCurrentTime();
               if(d > 0 && c / d >= 0.95) markWatched();
+              // обновить полосу перемотки
+              const sb = document.getElementById('seekbar'); if(sb) sb.style.width = (c/(d||1)*100)+'%';
             }
           }catch(_){}
         }, 2000);
@@ -609,6 +617,19 @@
     function vwPlay(){ if(!vwVid) return; vwVid.paused?vwVid.play():vwVid.pause(); }
     function vwSpeed(){ if(!vwVid) return; const r=[1,1.25,1.5,0.75]; let i=r.indexOf(vwVid.playbackRate); i=(i+1)%r.length; vwVid.playbackRate=r[i]; document.querySelector('.vbar .spd').textContent=r[i]+'×'; }
     function vwSeek(e){ if(!vwVid) return; const b=document.getElementById('seek').getBoundingClientRect(); vwVid.currentTime=((e.clientX-b.left)/b.width)*(vwVid.duration||0); }
+
+    // YouTube-плеер: свои кнопки Play/Pause и полоса перемотки
+    function ytPlayToggle(){
+      if(!ytPlayer || !ytPlayer.getPlayerState) return;
+      const s = ytPlayer.getPlayerState();
+      if(s === 1) ytPlayer.pauseVideo(); else ytPlayer.playVideo();
+    }
+    function ytSeek(e){
+      if(!ytPlayer || !ytPlayer.getDuration) return;
+      const b = document.getElementById('seek').getBoundingClientRect();
+      const frac = (e.clientX-b.left)/b.width;
+      ytPlayer.seekTo(frac * ytPlayer.getDuration(), true);
+    }
 
     function completeLesson(id){
       if(!state.courseProgress.completedLessons.includes(id)){

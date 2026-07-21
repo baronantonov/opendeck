@@ -48,13 +48,17 @@ _SCHEMA = (
     " created_at TEXT DEFAULT (datetime('now'))"
     ");"
     "CREATE TABLE IF NOT EXISTS badges ("
-    " user_id INTEGER NOT NULL,"
-    " course_id TEXT NOT NULL DEFAULT 'dj-basics',"
-    " badge TEXT NOT NULL,"
-    " granted_at TEXT DEFAULT (datetime('now')),"
-    " PRIMARY KEY (user_id, course_id, badge)"
-    ");"
-)
+        " user_id INTEGER NOT NULL,"
+        " course_id TEXT NOT NULL DEFAULT 'dj-basics',"
+        " badge TEXT NOT NULL,"
+        " granted_at TEXT DEFAULT (datetime('now')),"
+        " PRIMARY KEY (user_id, course_id, badge)"
+        ");"
+        "CREATE TABLE IF NOT EXISTS webhook_processed ("
+        " order_id TEXT PRIMARY KEY,"
+        " processed_at TEXT DEFAULT (datetime('now'))"
+        ");"
+    )
 
 # GP za zavershyonnyy urok
 GP_PER_LESSON = 50
@@ -74,6 +78,7 @@ def _conn():
 def init():
     """Sozdat tablicy, esli ih net."""
     with _conn() as c:
+        c.execute("PRAGMA journal_mode=WAL")
         c.executescript(_SCHEMA)
 
 
@@ -164,3 +169,16 @@ def get_badges(user_id, course_id="dj-basics"):
             (user_id, course_id),
         ).fetchall()
     return [r["badge"] for r in rows]
+
+
+def is_webhook_processed(order_id: str) -> bool:
+    """Проверить, обработан ли уже этот order_id (идемпотентность)."""
+    with _conn() as c:
+        row = c.execute("SELECT 1 FROM webhook_processed WHERE order_id=?", (order_id,)).fetchone()
+    return row is not None
+
+
+def mark_webhook_processed(order_id: str):
+    """Записать order_id как обработанный."""
+    with _conn() as c:
+        c.execute("INSERT OR IGNORE INTO webhook_processed (order_id) VALUES (?)", (order_id,))

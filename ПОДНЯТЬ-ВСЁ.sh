@@ -11,7 +11,7 @@ echo ""
 echo "[1/3] бекенд: проверка + автоподъём если надо"
 pkill -f "uvicorn backend.main:app" 2>/dev/null
 sleep 1
-nohup python -m uvicorn backend.main:app --host 0.0.0.0 --port 8000 >> backend.log 2>&1 &
+nohup python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000 >> backend.log 2>&1 &
 
 # 2. туннель (постоянный, через SSH-ключ)
 echo "[2/3] туннель: поднимаю opendeck-tma.serveousercontent.com"

@@ -12,6 +12,7 @@ import os
 from pathlib import Path
 
 from fastapi import FastAPI, Header, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import BaseModel
 
@@ -31,6 +32,18 @@ COURSE_ID = "dj-basics"
 
 app = FastAPI(title="DJ School API")
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "https://opendeck-tma.serveousercontent.com",
+        "http://localhost:8000",
+        "http://127.0.0.1:8000",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 # --- Демо-курс (в проде — из БД / файла) ---
 COURSE = {
     "dj-basics": [
@@ -48,7 +61,6 @@ class Grant(BaseModel):
 
 
 class Progress(BaseModel):
-    user_id: int
     course_id: str = COURSE_ID
     lesson_id: int
 
@@ -106,6 +118,9 @@ async def progress(p: Progress, x_init_data: str = Header("", alias="X-Init-Data
         return JSONResponse({"error": "bad_init_data"}, status_code=401)
     if not db.has_paid(uid, p.course_id):
         return JSONResponse({"error": "not_paid", "paid": False}, status_code=403)
+    course_lessons = COURSE.get(p.course_id, [])
+    if not any(l["id"] == p.lesson_id for l in course_lessons):
+        return JSONResponse({"error": "bad_lesson_id"}, status_code=400)
     gp = db.complete_lesson(uid, p.course_id, p.lesson_id)
     badges = db.get_badges(uid, p.course_id)
     return {"ok": True, "gp": gp, "completed": db.get_completed(uid, p.course_id), "badges": badges}
@@ -132,6 +147,10 @@ async def prodamus_webhook(req: Request, x_signature: str = Header(None)):
         return JSONResponse({"error": "bad_signature"}, status_code=400)
     data = json.loads(body)
     if data.get("status") == "paid":
-        user_id, course_id = data["order_id"].split(":", 1)
+        order_id = data["order_id"]
+        if db.is_webhook_processed(order_id):
+            return {"ok": True, "duplicate": True}
+        user_id, course_id = order_id.split(":", 1)
         db.add_payment(int(user_id), course_id, "prodamus", status="paid")
+        db.mark_webhook_processed(order_id)
     return {"ok": True}

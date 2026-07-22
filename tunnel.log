@@ -41,3 +41,14 @@
 2026-07-20T15:15:17Z INF precheck component="Cloudflare API" details="API is reachable" run_id=e1d51426-24b2-490a-8d5c-0e38d17a5c80 status=pass target=api.cloudflare.com:443
 2026-07-20T15:15:17Z INF precheck complete hard_fail=false run_id=e1d51426-24b2-490a-8d5c-0e38d17a5c80 suggested_protocol=quic
 2026-07-20T15:15:17Z INF Registered tunnel connection connIndex=0 connection=173872de-1361-4acc-b0dd-9b260489c446 event=0 ip=198.41.200.233 location=hkg11 protocol=quic
+Pseudo-terminal will not be allocated because stdin is not a terminal.
+[32mForwarding HTTP traffic from https://opendeck-tma.serveousercontent.com
+[0mPseudo-terminal will not be allocated because stdin is not a terminal.
+[32mForwarding HTTP traffic from https://opendeck-tma.serveousercontent.com
+[0mPseudo-terminal will not be allocated because stdin is not a terminal.
+[32mForwarding HTTP traffic from https://opendeck-tma.serveousercontent.com
+[0mPseudo-terminal will not be allocated because stdin is not a terminal.
+[32mForwarding HTTP traffic from https://opendeck-tma.serveousercontent.com
+[0mPseudo-terminal will not be allocated because stdin is not a terminal.
+[32mForwarding HTTP traffic from https://opendeck-tma.serveousercontent.com
+[0m

@@ -178,11 +178,11 @@
       display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex:none;
       transition:background .25s, color .25s}
     .lesson.done .num{background:var(--accent-mint);color:#1c201e}
-    .lesson .ttl{font-size:17px;font-weight:600;flex:1;line-height:1.25;color:var(--accent-mint)}
-    .lesson .ttl .sub{display:block;font-size:12px;font-weight:400;color:var(--text-secondary);margin-top:2px}
+    .lesson .ttl{font-size:17px;font-weight:600;flex:1;line-height:1.25;color:var(--text-primary)}
+    .lesson .ttl .sub{display:block;font-size:12px;font-weight:400;color:var(--accent-mint);margin-top:2px}
     .lesson.locked{opacity:.45;cursor:default}
     .lesson .lock{width:18px;height:18px;color:var(--text-secondary);flex:none}
-    .lesson .ttl .hint{display:block;font-size:11px;font-weight:400;color:var(--accent-coral);margin-top:2px}
+    .lesson .ttl .hint{display:block;font-size:11px;font-weight:400;color:var(--text-secondary);margin-top:2px}
     .check{width:18px;height:18px;color:var(--accent-mint);flex:none}
     @media (prefers-reduced-motion:reduce){
       .lesson,.lesson.active{animation:none}
@@ -285,8 +285,8 @@
 
     .prof-avatar{width:110px;height:110px;border-radius:50%;font-size:40px;font-weight:700;margin:0 auto;
       display:flex;align-items:center;justify-content:center;
-      background:rgba(255,255,255,0.08);color:var(--text-secondary);
-      border:3px solid var(--bg-main);overflow:hidden;
+      background:rgba(255,255,255,0.08);color:var(--text-secondary);box-shadow:0 0 8px rgba(140,226,200,0.3);
+      border:2px solid var(--accent-mint);box-shadow:0 0 8px rgba(140,226,200,0.3);overflow:hidden;
       background-size:cover;background-position:center;background-repeat:no-repeat;
       position:relative;z-index:1}
     .prof-badge{display:inline-flex;align-items:center;gap:6px;margin-top:12px;
@@ -540,25 +540,33 @@
   </nav>
 
   <script>
-    const tg = window.Telegram.WebApp;
-    tg.ready(); tg.expand();
+    const tg = (window.Telegram && window.Telegram.WebApp) || {};
+    try { tg.ready && tg.ready(); } catch(e){}
+    try { tg.expand && tg.expand(); } catch(e){}
+    try { tg.disableVerticalSwipes && tg.disableVerticalSwipes(); } catch(e){}
     try { tg.setHeaderColor && tg.setHeaderColor('#2b302e'); tg.setBackgroundColor && tg.setBackgroundColor('#2b302e'); } catch(e){}
 
     // ---- Защита контента (лучшее из возможного в вебе) ----
     // Блокируем контекстное меню / долгое нажатие / выделение
     document.addEventListener('contextmenu', e=>e.preventDefault());
     document.addEventListener('selectstart', e=>e.preventDefault());
-    // Размытие окна ТОЛЬКО при реальном сворачивании приложения (защита превью на iPhone)
-    function blurOn(){ document.body.style.filter='blur(20px)'; }
+    // Размытие ТОЛЬКО на iOS при сворачивании (защита превью многозадачности).
+    // В Telegram Desktop (tdesktop/web) события focus/pagehide ведут себя иначе и могут
+    // оставить окно навсегда в blur(20px) → приложение «заморожено», кнопки не жмутся.
+    // Поэтому блюрим строго на iOS и всегда снимаем размытие при показе/старте.
+    function blurOn(){ if(tg.platform === 'ios'){ document.body.style.filter='blur(20px)'; } }
     function blurOff(){ document.body.style.filter=''; }
     if(tg.isWebView){
       document.addEventListener('visibilitychange', ()=>{
-        if(document.hidden){ blurOn(); stopVideoAll(); }   // свернули – размыть + поставить на паузу
+        if(document.hidden){ blurOn(); stopVideoAll(); }
         else { blurOff(); }
       });
-      document.addEventListener('pagehide', ()=>{ blurOn(); stopVideoAll(); });
       window.addEventListener('focus', blurOff);
+      if(tg.onEvent){ try { tg.onEvent('viewportChanged', blurOff); } catch(e){} }
     }
+    // Гарантированно снимаем защитное размытие сразу после инициализации
+    blurOff();
+    setTimeout(blurOff, 300);
 
     // ---- Состояние: инициализация, имя и фото из Telegram ----
     const tgUser = (tg.initDataUnsafe && tg.initDataUnsafe.user) || {};

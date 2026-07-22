@@ -541,6 +541,9 @@
 
   <script>
     const tg = (window.Telegram && window.Telegram.WebApp) || {};
+    // Базовый URL бэкенда (API). Фронт теперь на GitHub Pages, а API — на туннеле Serveo.
+    // Относительные пути (/api/...) не сработают, поэтому используем абсолютный URL.
+    const API_BASE = 'https://opendeck-tma.serveousercontent.com';
     try { tg.ready && tg.ready(); } catch(e){}
     try { tg.expand && tg.expand(); } catch(e){}
     try { tg.disableVerticalSwipes && tg.disableVerticalSwipes(); } catch(e){}
@@ -665,7 +668,7 @@
     // (каждый пользователь начинает с урока 1, если ещё ничего не прошёл)
     function loadProfile(){
       try{
-        fetch('/api/profile', {headers:{'X-Init-Data': tg.initData || ''}})
+        fetch(API_BASE + '/api/profile', {headers:{'X-Init-Data': tg.initData || ''}})
           .then(r=>r.ok?r.json():null)
           .then(j=>{
             if(j){
@@ -678,7 +681,7 @@
     }
     function loadProgress(){
       try{
-        fetch('/api/lessons?course_id=dj-basics', {headers:{'X-Init-Data': tg.initData || ''}})
+        fetch(API_BASE + '/api/lessons?course_id=dj-basics', {headers:{'X-Init-Data': tg.initData || ''}})
           .then(r=>r.ok?r.json():null)
           .then(j=>{
             if(j && Array.isArray(j.completed)){
@@ -873,7 +876,7 @@
         burst();
         // СОХРАНИТЬ В БАЗУ и получить актуальные GP
         try{
-          fetch('/api/progress', {
+          fetch(API_BASE + '/api/progress', {
             method:'POST',
             headers:{'Content-Type':'application/json','X-Init-Data': tg.initData || ''},
             body: JSON.stringify({course_id:'dj-basics', lesson_id:id})

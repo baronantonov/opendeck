@@ -1,0 +1,949 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Open Deck DJ School</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Unbounded:wght@600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --bg-main:#2b302e;
+      --text-primary:#ffffff;
+      --text-secondary:#c0a0a8;
+      --accent-mint:#8ce2c8;
+      --accent-coral:#f5926e;
+    }
+    *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+    html,body{margin:0;padding:0}
+    body{
+      font-family:'Inter',sans-serif;color:var(--text-primary);
+      background:var(--bg-main);
+      min-height:100vh;
+      min-height:100dvh;
+      padding-bottom:calc(env(safe-area-inset-bottom) + 84px);
+      -webkit-font-smoothing:antialiased;
+    }
+    h1,h2,h3{font-family:'Unbounded',sans-serif;margin:0}
+    .wrap{padding:calc(env(safe-area-inset-top) + 20px) 18px 12px;max-width:520px;margin:0 auto}
+
+    /* ---- Dashboard ---- */
+    /* ---- Компактный хедер ---- */
+    .dash-head{
+      display:flex;align-items:center;gap:14px;margin-bottom:14px;
+      padding:12px 16px;background:rgba(255,255,255,0.03);border-radius:18px;
+      border:1px solid rgba(255,255,255,0.06);
+      animation:heroIn .5s cubic-bezier(.34,1.4,.64,1) both}
+    .dash-head .user-avatar{width:44px;height:44px;flex:none;background-size:cover;background-position:center;background-repeat:no-repeat}
+    .dash-head .dash-info{flex:1;min-width:0}
+    .dash-head .dash-name{font-family:'Unbounded',sans-serif;font-weight:700;font-size:17px;color:var(--text-primary);margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .dash-head .dash-meta{display:flex;flex-wrap:wrap;column-gap:8px;row-gap:3px;font-size:12px;color:var(--text-secondary);align-items:center}
+    .dash-head .dash-meta .gp-v{color:var(--accent-mint);font-weight:700}
+    .dash-head .dash-meta .dot{opacity:.35}
+    .dash-head .dash-meta .st{font-weight:600;color:var(--text-primary)}
+    .user-avatar{width:44px;aspect-ratio:1;border-radius:50%;overflow:hidden;display:inline-flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.08);color:var(--text-secondary);font-weight:600;font-size:16px;flex:none}
+    .gp{
+      display:flex;align-items:center;gap:8px;background:rgba(140,226,200,0.10);
+      border:1px solid rgba(140,226,200,0.25);border-radius:16px;padding:12px 16px;margin-bottom:18px}
+    .gp .diamond{width:20px;height:20px;color:var(--accent-mint);
+      animation:spinSoft 9s linear infinite;transform-origin:50% 55%}
+    @keyframes spinSoft{0%{transform:rotate(0)}50%{transform:rotate(12deg)}100%{transform:rotate(0)}}
+    .gp .bal{color:var(--accent-mint);font-weight:700;font-size:16px}
+    .gp .lbl{color:var(--text-secondary);font-size:13px}
+
+    .hero{
+      border-radius:22px;padding:20px;margin-bottom:14px;
+      background:linear-gradient(135deg,rgba(245,146,110,0.30),rgba(140,226,200,0.18));
+      border:1px solid rgba(255,255,255,0.08);
+      animation:heroPulse 5s ease-in-out infinite}
+    @keyframes heroPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.012)}}
+    /* ---- Анимации: шиммер, свечение, качание ---- */
+    @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+    @keyframes glowPulse{0%,100%{text-shadow:0 0 4px rgba(140,226,200,0.25)}50%{text-shadow:0 0 20px rgba(140,226,200,0.55)}}
+    @keyframes sway{0%,100%{transform:rotate(0deg) translateY(0)}33%{transform:rotate(.6deg) translateY(-1px)}66%{transform:rotate(-.5deg) translateY(-1px)}}
+    .shim{position:relative;overflow:hidden}
+    .shim::after{content:'';position:absolute;inset:0;pointer-events:none;
+      background:linear-gradient(90deg,transparent 0%,rgba(255,255,255,0.06) 50%,transparent 100%);
+      background-size:200% 100%;animation:shimmer 5s ease-in-out infinite}
+    .dash-head{border-radius:18px}
+    .dash-head.shim::after{border-radius:18px}
+    .hero.shim::after{border-radius:22px}
+    .free.shim::after{border-radius:16px}
+    .hero .hero-progress-num .st{display:inline-block;animation:glowPulse 3s ease-in-out infinite}
+    .m-row .m-btn{animation:sway 5s ease-in-out infinite}
+    .m-row .m-btn:nth-child(2){animation-delay:.35s}
+    .m-row .m-btn:nth-child(3){animation-delay:.7s}
+    .m-row .m-btn:hover{animation-play-state:paused;transform:translateY(-2px)}
+    .m-panel{transition:max-height .55s cubic-bezier(.25,.46,.45,.94),opacity .4s ease,margin .3s ease,padding .3s ease,box-shadow .3s}
+    .m-panel.open{box-shadow:0 0 24px rgba(140,226,200,0.06)}
+    .hero .tag{font-size:12px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.06em}
+    .hero .hero-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px}
+    .hero .hero-meta{display:flex;flex-direction:column;align-items:flex-end;gap:2px}
+    .hero .hero-progress-num{font-family:'Unbounded',sans-serif;font-weight:800;font-size:56px;color:var(--text-primary);line-height:1;flex:none}
+    .hero .hero-progress-num .st{color:var(--accent-mint);display:inline-block;animation:glowPulse 3s ease-in-out infinite}
+    .hero .hero-progress-num .of{font-size:24px;font-weight:600;color:var(--text-secondary);opacity:.6;vertical-align:super}
+    .hero-title-row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px}
+    .hero-title-row h2{flex:1;margin:0}
+    .hero-duration{font-size:11px;color:var(--text-secondary);opacity:.6;margin:-10px 0 14px;letter-spacing:.02em}
+    .hero h2{font-size:20px;margin:6px 0 16px}
+    .progress{height:8px;border-radius:999px;background:rgba(255,255,255,0.12);overflow:hidden;margin-bottom:16px}
+    .progress > i{display:block;height:100%;background:var(--accent-mint);border-radius:999px;transition:width .6s ease}
+    .btn{
+      width:100%;border:0;border-radius:999px;background:var(--accent-coral);color:#fff;
+      font-family:'Unbounded',sans-serif;font-weight:700;font-size:15px;padding:14px;cursor:pointer;
+      display:flex;align-items:center;justify-content:center;gap:8px;transition:transform .15s ease;
+      animation:heroIn .5s cubic-bezier(.34,1.4,.64,1) both}
+    @keyframes heroIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+    .btn:hover{transform:translateY(-2px)}
+    .btn:active{transform:scale(.97)}
+    .btn.mint{background:var(--accent-mint);color:#1c201e}
+    .btn.ghost{background:rgba(255,255,255,0.08);color:var(--text-primary)}
+
+    /* ---- Манифест: кнопки по горизонтали + дроп-панель ---- */
+    .manifest{margin-bottom:14px}
+    .m-row{
+      display:flex;gap:8px;margin-bottom:0;
+      animation:heroIn .5s cubic-bezier(.34,1.4,.64,1) both}
+    .m-row .m-btn{
+      flex:1;font-family:'Unbounded',sans-serif;font-weight:800;font-size:12px;letter-spacing:.03em;
+      padding:12px 10px;border-radius:999px;background:rgba(255,255,255,0.05);
+      border:1px solid rgba(255,255,255,0.08);
+      cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;
+      transition:background .25s,border-color .25s,transform .2s,box-shadow .3s;user-select:none;
+      white-space:nowrap;min-width:0;
+      -webkit-tap-highlight-color:transparent}
+    .m-row .m-btn:hover{transform:translateY(-1px);background:rgba(255,255,255,0.09)}
+    .m-row .m-btn:active{transform:scale(.96)}
+    .m-row .m-btn .arr{transition:transform .35s ease;font-size:10px;opacity:.6}
+    .m-row .m-btn.open .arr{transform:rotate(180deg)}
+    .m-row .m-btn:nth-child(1){color:var(--accent-coral)!important;border-color:rgba(245,146,110,0.25)}
+    .m-row .m-btn:nth-child(1).open,
+    .m-row .m-btn:nth-child(1):hover{background:rgba(245,146,110,0.12);border-color:rgba(245,146,110,0.45);box-shadow:0 0 20px rgba(245,146,110,0.08)}
+    .m-row .m-btn:nth-child(2){color:var(--text-secondary)!important;border-color:rgba(192,160,168,0.2)}
+    .m-row .m-btn:nth-child(2).open,
+    .m-row .m-btn:nth-child(2):hover{background:rgba(192,160,168,0.12);border-color:rgba(192,160,168,0.3);box-shadow:0 0 20px rgba(192,160,168,0.08)}
+    .m-row .m-btn:nth-child(3){color:var(--accent-mint)!important;border-color:rgba(140,226,200,0.25)}
+    .m-row .m-btn:nth-child(3).open,
+    .m-row .m-btn:nth-child(3):hover{background:rgba(140,226,200,0.12);border-color:rgba(140,226,200,0.45);box-shadow:0 0 20px rgba(140,226,200,0.08)}
+    .m-panel{
+      overflow:hidden;max-height:0;opacity:0;margin-top:0;
+      transition:max-height .55s cubic-bezier(.25,.46,.45,.94),opacity .4s ease,margin .3s ease,padding .3s ease;
+      background:rgba(255,255,255,0.02);border-radius:16px;
+      border:1px solid transparent;line-height:1.65;font-size:13px;color:var(--text-secondary)}
+    .m-panel.open{max-height:420px;opacity:1;margin-top:10px;padding:18px 18px;
+      border-color:rgba(255,255,255,0.05)}
+    .m-panel .mt{font-weight:600;color:var(--text-primary);font-size:14px;margin-bottom:8px;display:block}
+    .quote{
+      font-size:14px;line-height:1.65;color:var(--text-secondary);text-align:center;
+      margin:0 0 14px;padding:20px 24px;
+      background:rgba(255,255,255,0.03);
+      border-radius:18px;
+      border:1px solid rgba(255,255,255,0.06)}
+    .quote .qm{color:var(--accent-coral);font-weight:500;margin-top:14px;font-size:14px}
+    .quote .ql{color:var(--accent-mint);font-family:'Unbounded',sans-serif;font-weight:800;font-size:18px;margin-bottom:10px;letter-spacing:.02em}
+    .stat{display:flex;gap:10px;margin-bottom:14px}
+    .stat .card{flex:1;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.06);
+      border-radius:16px;padding:14px;text-align:center;
+      animation:heroIn .5s cubic-bezier(.34,1.4,.64,1) both}
+    .stat .card:nth-child(1){animation-delay:.05s}
+    .stat .card:nth-child(2){animation-delay:.13s}
+    .stat .card:nth-child(3){animation-delay:.21s}
+    .stat .card .n{font-family:'Unbounded';font-weight:800;font-size:20px;color:var(--accent-mint)}
+    .stat .card .l{font-size:11px;color:var(--text-secondary);margin-top:2px}
+    .free{display:flex;align-items:center;gap:12px;background:rgba(140,226,200,0.10);
+      border:1px solid rgba(140,226,200,0.25);border-radius:16px;padding:14px;margin-bottom:14px;
+      animation:heroIn .5s cubic-bezier(.34,1.4,.64,1) both}
+    .free .ic{width:38px;height:38px;color:var(--accent-mint);flex:none}
+    .free .t{font-size:13px;line-height:1.4}
+    .free .t b{color:var(--text-primary)}
+
+    /* ---- Course list ---- */
+    .lesson{
+      display:flex;align-items:center;gap:14px;background:rgba(255,255,255,0.05);
+      border-radius:16px;padding:14px 16px;margin-bottom:10px;cursor:pointer;
+      border:1px solid transparent;transition:border-color .2s, transform .25s ease, box-shadow .3s;
+      animation:lessonIn .45s cubic-bezier(.34,1.4,.64,1) both}
+    /* появление по очереди */
+    @keyframes lessonIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+    .lesson:hover{transform:translateY(-2px)}
+    .lesson.active{border-color:var(--accent-coral);box-shadow:0 0 18px rgba(245,146,110,0.25);
+      animation:lessonSway 3.4s ease-in-out infinite}
+    /* лёгкое покачивание активного урока */
+    @keyframes lessonSway{0%,100%{transform:rotate(-1deg)}50%{transform:rotate(1deg)}}
+    .lesson.done{opacity:.5}
+    .lesson .num{
+      width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,0.10);
+      display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex:none;
+      transition:background .25s, color .25s}
+    .lesson.done .num{background:var(--accent-mint);color:#1c201e}
+    .lesson .ttl{font-size:17px;font-weight:600;flex:1;line-height:1.25;color:var(--text-primary)}
+    .lesson .ttl .sub{display:block;font-size:12px;font-weight:400;color:var(--accent-mint);margin-top:2px}
+    .lesson.locked{opacity:.45;cursor:default}
+    .lesson .lock{width:18px;height:18px;color:var(--text-secondary);flex:none}
+    .lesson .ttl .hint{display:block;font-size:11px;font-weight:400;color:var(--text-secondary);margin-top:2px}
+    .check{width:18px;height:18px;color:var(--accent-mint);flex:none}
+    @media (prefers-reduced-motion:reduce){
+      .lesson,.lesson.active{animation:none}
+      .lesson:hover{transform:none}}
+
+    /* ---- Мобильная адаптация ---- */
+    @media (max-width:480px){
+      .wrap{padding:calc(env(safe-area-inset-top) + 14px) 14px 12px}
+      .dash-head{padding:10px 14px;gap:12px}
+      .dash-head .user-avatar{width:38px;height:38px}
+      .dash-head .dash-name{font-size:16px}
+      .dash-head .dash-meta{font-size:11px;column-gap:6px}
+      .quote{padding:16px 16px;font-size:13px}
+      .quote .ql{font-size:16px}
+      .hero{padding:16px}
+      .hero-title-row{gap:8px}
+      .hero h2{font-size:17px}
+      .hero .hero-progress-num{font-size:42px}
+      .hero .hero-progress-num .of{font-size:18px}
+      .hero-duration{font-size:10px;margin:-8px 0 12px}
+      .m-row .m-btn{font-size:11px;padding:10px 8px;gap:4px}
+      .m-panel.open{padding:14px 14px;font-size:12px}
+      .btn{font-size:14px;padding:13px}
+      .free{padding:12px 14px;gap:10px}
+      .free .ic{width:32px;height:32px}
+      .free .t{font-size:12px}
+    }
+    @media (max-width:360px){
+      .dash-head .dash-meta{font-size:10px;column-gap:4px;row-gap:2px}
+      .dash-head .dash-name{font-size:14px}
+      .quote{padding:14px 12px;font-size:12px}
+      .quote .ql{font-size:14px}
+      .hero{padding:14px}
+      .hero-title-row{gap:6px}
+      .hero h2{font-size:15px}
+      .hero .hero-progress-num{font-size:34px}
+      .hero .hero-progress-num .of{font-size:14px}
+      .hero-duration{font-size:9px;margin:-6px 0 10px}
+      .m-row .m-btn{font-size:10px;padding:8px 6px}
+      .m-panel.open{padding:12px 12px;font-size:11px}
+      .btn{font-size:13px;padding:11px}
+      .free{padding:10px 12px}
+      .free .ic{width:28px;height:28px}
+    }
+    @media (prefers-reduced-motion:reduce){
+      .shim::after{animation:none!important}
+      .m-row .m-btn{animation:none!important}
+      .hero .hero-progress-num .st{animation:none!important}
+      .hero{animation:none!important}
+      .dash-head{animation:none!important}}
+
+    .player{width:100%;aspect-ratio:16/9;background:#1c201e;border-radius:16px;
+      display:flex;align-items:center;justify-content:center;color:var(--text-secondary);margin-bottom:14px}
+    .player .play{width:54px;height:54px;color:var(--accent-coral)}
+    .summary{color:var(--text-secondary);font-size:14px;line-height:1.6;margin:0 0 18px;padding-left:18px}
+    .summary li{margin-bottom:6px}
+
+    /* ---- Upgrade ---- */
+    .offer{
+      border-radius:22px;padding:22px;margin-bottom:16px;
+      background:linear-gradient(160deg,#1c201e,#2b302e);border:1px solid rgba(245,146,110,0.30)}
+    .offer .pill{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.08em;
+      text-transform:uppercase;color:var(--accent-coral);margin-bottom:10px}
+    .offer h2{font-size:21px;margin-bottom:14px}
+    .price{display:flex;align-items:baseline;gap:10px;margin-bottom:6px;flex-wrap:wrap}
+    .price del{color:var(--text-secondary);font-size:15px}
+    .price .disc{color:var(--accent-mint);font-size:13px;font-weight:600}
+    .price .final{font-family:'Unbounded';font-weight:800;font-size:34px;color:var(--accent-coral)}
+    .seats{color:var(--text-secondary);font-size:13px;margin-bottom:16px}
+    .incl{margin:0 0 16px;padding:0;list-style:none}
+    .incl li{display:flex;gap:10px;align-items:flex-start;font-size:14px;line-height:1.45;
+      color:var(--text-primary);padding:9px 0;border-top:1px solid rgba(255,255,255,0.07)}
+    .incl li:first-child{border-top:0}
+    .incl .ic{width:18px;height:18px;color:var(--accent-mint);flex:none;margin-top:1px}
+    .incl b{color:var(--accent-mint);font-weight:600}
+    .sessions{display:flex;flex-direction:column;gap:8px;margin:0 0 16px}
+    .sess{display:flex;gap:12px;align-items:center;background:rgba(255,255,255,0.04);
+      border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:12px 14px}
+    .sess .n{width:30px;height:30px;border-radius:50%;flex:none;display:flex;align-items:center;
+      justify-content:center;font-family:'Unbounded';font-weight:800;font-size:13px;
+      background:rgba(245,146,110,0.18);color:var(--accent-coral)}
+    .sess .tt{font-size:14px;font-weight:500}
+    .sess .ds{font-size:12px;color:var(--text-secondary)}
+
+    /* ---- Profile ---- */
+    .prof-head{display:flex;align-items:center;gap:14px;margin-bottom:20px}
+    .avatar{width:56px;height:56px;border-radius:50%;background:rgba(192,160,168,0.25);
+      display:flex;align-items:center;justify-content:center;color:var(--text-secondary);font-weight:700;font-size:20px;flex:none}
+    .prof-head .nm{font-family:'Unbounded';font-weight:700;font-size:18px}
+
+    /* ---- Профиль: карточка ---- */
+    .prof-card{text-align:center;padding:28px 20px 24px;position:relative;overflow:hidden;
+      background:linear-gradient(180deg,rgba(245,146,110,0.08) 0%,rgba(140,226,200,0.04) 50%,transparent 100%);
+      border-radius:22px;border:1px solid rgba(255,255,255,0.06);margin-bottom:16px}
+    .prof-card::after{content:'';position:absolute;inset:0;pointer-events:none;
+      background:linear-gradient(135deg,transparent 0%,rgba(245,146,110,0.035) 25%,rgba(140,226,200,0.035) 50%,transparent 75%);
+      background-size:200% 200%;animation:shimmer 5s ease-in-out infinite;border-radius:22px}
+    @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+    .prof-avatar-wrap{position:relative;display:inline-block;margin-bottom:0}
+
+    .prof-avatar{width:110px;height:110px;border-radius:50%;font-size:40px;font-weight:700;margin:0 auto;
+      display:flex;align-items:center;justify-content:center;
+      background:rgba(255,255,255,0.08);color:var(--text-secondary);box-shadow:0 0 8px rgba(140,226,200,0.3);
+      border:2px solid var(--accent-mint);box-shadow:0 0 8px rgba(140,226,200,0.3);overflow:hidden;
+      background-size:cover;background-position:center;background-repeat:no-repeat;
+      position:relative;z-index:1}
+    .prof-badge{display:inline-flex;align-items:center;gap:6px;margin-top:12px;
+      padding:6px 16px;border-radius:999px;background:linear-gradient(135deg,rgba(140,226,200,0.15),rgba(245,146,110,0.10));
+      border:1px solid rgba(140,226,200,0.30);box-shadow:0 0 12px rgba(140,226,200,0.06)}
+    .prof-badge .ico{font-size:15px;line-height:1}
+    .prof-badge .txt{font-size:12px;font-weight:600;color:var(--accent-mint);letter-spacing:.02em}
+    .prof-name{font-family:'Unbounded',sans-serif;font-weight:700;font-size:20px;margin-top:10px;color:var(--text-primary)}
+    .prof-stats{display:flex;gap:10px;margin-top:18px}
+    .prof-stat{flex:1;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06);
+      border-radius:16px;padding:14px 8px;text-align:center;
+      animation:heroIn .45s cubic-bezier(.34,1.4,.64,1) both}
+    .prof-stat:nth-child(1){border-color:rgba(140,226,200,0.20);animation-delay:.05s}
+    .prof-stat:nth-child(2){border-color:rgba(245,146,110,0.20);animation-delay:.13s}
+    .prof-stat:nth-child(3){border-color:rgba(192,160,168,0.20);animation-delay:.21s}
+    .prof-stat .n{font-family:'Unbounded',sans-serif;font-weight:800;font-size:22px;color:var(--accent-mint)}
+    .prof-stat:nth-child(2) .n{color:var(--accent-coral)}
+    .prof-stat:nth-child(3) .n{color:var(--text-secondary)}
+    .prof-stat .l{font-size:11px;color:var(--text-secondary);margin-top:3px;line-height:1.3}
+    .dash-head{cursor:pointer;transition:background .2s}
+    .dash-head:active{background:rgba(255,255,255,0.06)}
+    .banner{
+      background:linear-gradient(135deg,var(--accent-coral),var(--accent-mint));color:#2b302e;border-radius:18px;padding:16px;margin-bottom:14px}
+    .banner .t{font-weight:700;font-size:15px;margin-bottom:10px}
+    .row{display:flex;align-items:center;gap:12px;background:rgba(255,255,255,0.05);
+      border-radius:14px;padding:14px 16px;margin-bottom:10px;cursor:pointer;
+      transition:background .2s, transform .2s ease, border-color .2s;
+      border:1px solid rgba(255,255,255,0.06);
+      animation:heroIn .45s cubic-bezier(.34,1.4,.64,1) both}
+    .row:hover{background:rgba(255,255,255,0.09);transform:translateX(3px);border-color:rgba(255,255,255,0.12)}
+    .row .ic-wrap{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex:none}
+    .row .ic{width:18px;height:18px;color:#fff}
+    .row .t{font-size:14px;flex:1;color:var(--text-primary)}
+    .row .sub{font-size:11px;color:var(--text-secondary);white-space:nowrap;opacity:.7}
+
+    /* ---- Bottom nav ---- */
+    .nav{
+      position:fixed;left:0;right:0;bottom:0;z-index:10;
+      display:flex;justify-content:space-around;align-items:center;
+      padding:10px 8px calc(env(safe-area-inset-bottom) + 10px);
+      background:rgba(43,48,46,0.72);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+      border-top:1px solid rgba(255,255,255,0.06)}
+    .nav button{
+      background:none;border:0;color:var(--text-secondary);cursor:pointer;
+      display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10px;flex:1;padding:4px;
+      transition:color .3s ease}
+    .nav button svg{width:24px;height:24px;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;
+      transition:transform .4s cubic-bezier(.34,1.56,.64,1), filter .3s ease}
+    /* мягкая заливка активной иконки + лёгкое покачивание */
+    .nav button.active{color:var(--accent-coral)}
+    .nav button.active svg{
+      fill:rgba(245,146,110,0.14);stroke:var(--accent-coral);
+      filter:drop-shadow(0 0 6px rgba(245,146,110,0.35));
+      animation:sway 3.2s ease-in-out infinite}
+    @keyframes sway{
+      0%,100%{transform:rotate(-3deg)}
+      50%{transform:rotate(3deg)}}
+    @media (prefers-reduced-motion:reduce){.nav button.active svg{animation:none}}
+
+    .hidden{display:none}
+    .modal-mask{position:fixed;inset:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:20;padding:24px}
+    .modal{background:#2b302e;border:1px solid rgba(255,255,255,0.1);border-radius:20px;padding:24px;max-width:340px;text-align:center}
+    .modal h3{font-size:18px;margin-bottom:10px}
+    .modal p{color:var(--text-secondary);font-size:14px;margin:0 0 18px}
+
+    /* success particles */
+    .burst{position:fixed;inset:0;pointer-events:none;z-index:30;display:flex;align-items:center;justify-content:center}
+    .burst span{position:absolute;width:10px;height:10px;border-radius:50%;animation:pop .9s ease-out forwards}
+    @keyframes pop{from{transform:translate(0,0) scale(1);opacity:1}to{transform:translate(var(--x),var(--y)) scale(0);opacity:0}}
+
+    /* ---- Защита контента ---- */
+    *{ -webkit-touch-callout:none; -webkit-user-select:none; -khtml-user-select:none;
+        -moz-user-select:none; -ms-user-select:none; user-select:none; }
+    input,textarea{ -webkit-user-select:text; user-select:text; }
+    img,video{ -webkit-user-drag:none; pointer-events:none; }
+
+    /* ---- Видеоплеер: контролы ---- */
+    .vwrap{position:relative;width:100%;aspect-ratio:16/9;background:#1c201e;border-radius:16px;overflow:hidden;margin-bottom:14px}
+    .vwrap video{position:absolute;inset:0;width:100%;height:100%;background:#000;pointer-events:auto}
+    .vwrap .wm{position:absolute;z-index:4;right:8px;bottom:40px;font-size:12px;font-weight:600;
+      color:rgba(255,255,255,0.55);text-shadow:0 1px 3px rgba(0,0,0,0.8);pointer-events:none;
+      letter-spacing:.02em;animation:wmpan 14s linear infinite}
+    @keyframes wmpan{0%{transform:translateX(0)}50%{transform:translateX(-12px)}100%{transform:translateX(0)}}
+    .vwrap .bigplay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+      background:rgba(28,32,30,0.45);z-index:2}
+    .vwrap .bigplay svg{width:60px;height:60px;color:var(--accent-coral)}
+    .vbar{position:absolute;left:0;right:0;bottom:0;z-index:3;display:flex;align-items:center;gap:8px;
+      padding:8px 10px;background:linear-gradient(transparent,rgba(0,0,0,0.65));opacity:0;transition:opacity .2s}
+    .vwrap.showbar .vbar{opacity:1}
+    /* Поворот телефона боком (горизонтально) → видео на весь экран смартфона */
+    @media (orientation:landscape) and (max-height:560px){
+      .vwrap{position:fixed;inset:0;z-index:95;width:100vw;height:100vh;height:100dvh;
+        aspect-ratio:auto;border-radius:0;margin:0;background:#000}
+      .vwrap video, .vwrap iframe{object-fit:contain}
+      .vwrap .wm{bottom:14px;right:14px;font-size:14px}
+    }
+    .vbar button{background:rgba(255,255,255,0.12);border:0;color:#fff;border-radius:8px;
+      width:34px;height:34px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex:none}
+    .vbar button svg{width:18px;height:18px}
+    .vbar .spd{font-size:13px;font-weight:700;color:#fff;min-width:40px;text-align:center}
+    .vbar .seek{flex:1;height:4px;border-radius:4px;background:rgba(255,255,255,0.25);position:relative;cursor:pointer}
+    .vbar .seek > i{position:absolute;left:0;top:0;height:100%;background:var(--accent-coral);border-radius:4px}
+    /* Защита доступности: отключаем все мягкие анимации, если в системе включён "уменьшить движение" */
+    @media (prefers-reduced-motion:reduce){
+      .hero,.btn,.gp .diamond,.stat .card,.free,.free .ic,.row,.lesson,.lesson.active,.nav button.active svg{
+        animation:none !important}
+      .btn:hover,.row:hover,.lesson:hover{transform:none}
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <!-- TAB 1: Dashboard -->
+    <section id="tab-home">
+      <div class="dash-head shim" onclick="switchTab('profile')">
+        <div class="user-avatar" id="avatar-main"></div>
+        <div class="dash-info">
+          <div class="dash-name">Привет, <span id="uname">Друг</span>!</div>
+          <div class="dash-meta">
+            <span><span id="archetype">Куратор Вайба</span></span>
+            <span class="dot">·</span>
+            <span><span class="gp-v" id="gp">150</span> GP</span>
+            <span class="dot">·</span>
+            <span><span class="st" id="done-n">2</span>/10 ур.</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="quote">
+        <div class="ql">Open Deck: «Свободная дека»</div>
+        <div>Это о смелости быть собой. О том, чтобы не бояться ошибок, а видеть в них стиль. О том, чтобы не следовать трендам, а создавать свой вайб.</div>
+        <div class="qm">Мы не относимся к музыке слишком серьезно – мы играем в нее, так же, как играем в жизнь: с легкостью, открытостью и любопытством.</div>
+      </div>
+
+      <div class="manifest">
+        <div class="m-row">
+          <div class="m-btn" onclick="toggleManifest(0)">
+            Open Deck <span class="arr">▼</span>
+          </div>
+          <div class="m-btn" onclick="toggleManifest(1)">
+            Open Heart <span class="arr">▼</span>
+          </div>
+          <div class="m-btn" onclick="toggleManifest(2)">
+            Open Mind <span class="arr">▼</span>
+          </div>
+        </div>
+        <div class="m-panel" id="m-panel">
+          <span class="mt" id="m-title"></span>
+          <div id="m-body"></div>
+        </div>
+      </div>
+
+      <div class="hero shim">
+        <div class="hero-head">
+          <div class="tag">Текущий урок</div>
+        </div>
+        <div class="hero-title-row">
+          <h2 id="next-lesson">Основы сведения</h2>
+          <div class="hero-progress-num"><span class="st" id="lesson-n">2</span><span class="of">/10</span></div>
+        </div>
+        <div class="hero-duration">время прохождения 15–20 минут</div>
+        <div class="progress"><i id="bar" style="width:20%"></i></div>
+        <button class="btn" onclick="goCourse()">▶ Продолжить обучение</button>
+      </div>
+
+      <div class="free shim">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l2.4 7.4H22l-6 4.4 2.3 7.2L12 17l-6.3 4 2.3-7.2-6-4.4h7.6z"/></svg>
+        <div class="t"><b>Первое занятие – бесплатно!</b><br>Почувствуй вкус к музыке без риска. Начни с урока 1.</div>
+      </div>
+    </section>
+
+    <!-- TAB 2: Course -->
+    <section id="tab-course" class="hidden"></section>
+
+    <!-- TAB 3: Upgrade -->
+    <section id="tab-upgrade" class="hidden">
+      <div class="offer">
+        <div class="pill">High-Ticket · Ограничено</div>
+        <h2>Персональное Менторство с FREEDA DJ</h2>
+        <p style="color:var(--text-secondary);font-size:14px;line-height:1.5;margin:0 0 16px">
+          Ускорение прогресса в 10 раз. Лично проведу тебя от первых битов до уверенного сета –
+          с разбором твоей музыки, твоих ошибок и твоего звучания.
+        </p>
+
+        <div class="sessions">
+          <div class="sess"><div class="n">1</div><div><div class="tt">Знакомство и аудит</div><div class="ds">Разбираем твой вкус, цели и базу. Составляем дорожную карту.</div></div></div>
+          <div class="sess"><div class="n">2</div><div><div class="tt">Техника и сведение</div><div class="ds">Ставим руки: beatmatching, миксы, работа с темпо и эффектами.</div></div></div>
+          <div class="sess"><div class="n">3</div><div><div class="tt">Твой первый сет</div><div class="ds">Собираем микс вместе, разбираем драматургию и чтение танцпола.</div></div></div>
+          <div class="sess"><div class="n">4</div><div><div class="tt">Выпуск и план роста</div><div class="ds">Финальный разбор, обратная связь и стратегия развития на месяцы.</div></div></div>
+        </div>
+
+        <ul class="incl">
+          <li><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg><span><b>4 сессии</b> по 1.5 часа (онлайн, 1-на-1)</span></li>
+          <li><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg><span><b>Персональная дорожная карта</b> обучения под тебя</span></li>
+          <li><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg><span><b>Разбор твоих миксов</b> с конкретной обратной связью</span></li>
+          <li><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg><span><b>Доступ к записям</b> всех сессий</span></li>
+          <li><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg><span><b>Поддержка</b> в чате между сессиями</span></li>
+        </ul>
+
+        <div class="price">
+          <del>$300</del>
+          <span class="disc" id="discount">Твоя скидка за 150 GP: −$100</span>
+        </div>
+        <div class="price"><span class="final">$197</span></div>
+        <div class="seats">Осталось 2 места из 5 в этом месяце</div>
+        <button class="btn" onclick="bookMentor()">Забронировать место</button>
+      </div>
+
+      <div class="offer" style="border-color:rgba(140,226,200,0.30)">
+        <div class="pill" style="color:var(--accent-mint)">Следующий уровень</div>
+        <h2>Курс «Advanced DJ»</h2>
+        <p style="color:var(--text-secondary);font-size:14px;margin:0 0 14px">Переход от техники к искусству: глубокое сведение, эффекты, живые сеты и авторский почерк.</p>
+        <button class="btn mint" onclick="alert('Откроется позже')">Подробнее</button>
+      </div>
+    </section>
+
+    <!-- TAB 4: Profile -->
+    <section id="tab-profile" class="hidden">
+      <div class="prof-card">
+        <div class="prof-avatar-wrap">
+          <div class="prof-avatar" id="avatar-big" style="font-size:32px;font-weight:700">D</div>
+          <div class="prof-badge">
+            <span class="ico">🎧</span>
+            <span class="txt" id="prof-archetype">Куратор Вайба</span>
+          </div>
+        </div>
+        <div class="prof-name" id="prof-name">Daniil</div>
+        <div class="prof-stats">
+          <div class="prof-stat"><div class="n" id="prof-gp">0</div><div class="l">Groove Points</div></div>
+          <div class="prof-stat"><div class="n" id="prof-done">0</div><div class="l">уроков пройдено</div></div>
+          <div class="prof-stat"><div class="n">10</div><div class="l">всего уроков</div></div>
+        </div>
+      </div>
+      <div class="row" onclick="openChat()"><div class="ic-wrap" style="background:rgba(140,226,200,0.20)"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div><span class="t">Open Deck DJ Camp</span><span class="sub">чат →</span></div>
+      <div style="height:1px;background:rgba(255,255,255,0.06);margin:14px 0 12px;border-radius:2px"></div>
+      <div class="row" onclick="alert('Поддержка')"><div class="ic-wrap" style="background:rgba(245,146,110,0.20)"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg></div><span class="t">Поддержка</span></div>
+      <div class="row" onclick="alert('Правила')"><div class="ic-wrap" style="background:rgba(192,160,168,0.20)"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v16H4z"/><path d="M8 8h8M8 12h8M8 16h5"/></svg></div><span class="t">Правила и офферта</span></div>
+    </section>
+  </div>
+
+  <!-- Bottom navigation -->
+  <nav class="nav" id="nav">
+    <button data-tab="home" class="active" onclick="switchTab('home')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10l9-8 9 8v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/><path d="M9 21V12h6v9"/></svg>Главная</button>
+    <button data-tab="course" onclick="switchTab('course')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M10 9.2a1 1 0 0 1 1.1-1l4 2.3a1 1 0 0 1 0 1.7l-4 2.3A1 1 0 0 1 10 14.8z" fill="currentColor" stroke="none"/></svg>Курс</button>
+    <button data-tab="upgrade" onclick="switchTab('upgrade')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>Развитие</button>
+    <button data-tab="profile" onclick="switchTab('profile')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="7" r="3.5"/><path d="M5 19v-2a3 3 0 0 1 3-3h8a3 3 0 0 1 3 3v2"/><rect x="3" y="5.5" width="3.5" height="5" rx="1.5"/><rect x="17.5" y="5.5" width="3.5" height="5" rx="1.5"/></svg>Профиль</button>
+  </nav>
+
+  <script>
+    const tg = (window.Telegram && window.Telegram.WebApp) || {};
+    try { tg.ready && tg.ready(); } catch(e){}
+    try { tg.expand && tg.expand(); } catch(e){}
+    try { tg.disableVerticalSwipes && tg.disableVerticalSwipes(); } catch(e){}
+    try { tg.setHeaderColor && tg.setHeaderColor('#2b302e'); tg.setBackgroundColor && tg.setBackgroundColor('#2b302e'); } catch(e){}
+
+    // ---- Защита контента (лучшее из возможного в вебе) ----
+    // Блокируем контекстное меню / долгое нажатие / выделение
+    document.addEventListener('contextmenu', e=>e.preventDefault());
+    document.addEventListener('selectstart', e=>e.preventDefault());
+    // Размытие ТОЛЬКО на iOS при сворачивании (защита превью многозадачности).
+    // В Telegram Desktop (tdesktop/web) события focus/pagehide ведут себя иначе и могут
+    // оставить окно навсегда в blur(20px) → приложение «заморожено», кнопки не жмутся.
+    // Поэтому блюрим строго на iOS и всегда снимаем размытие при показе/старте.
+    function blurOn(){ if(tg.platform === 'ios'){ document.body.style.filter='blur(20px)'; } }
+    function blurOff(){ document.body.style.filter=''; }
+    if(tg.isWebView){
+      document.addEventListener('visibilitychange', ()=>{
+        if(document.hidden){ blurOn(); stopVideoAll(); }
+        else { blurOff(); }
+      });
+      window.addEventListener('focus', blurOff);
+      if(tg.onEvent){ try { tg.onEvent('viewportChanged', blurOff); } catch(e){} }
+    }
+    // Гарантированно снимаем защитное размытие сразу после инициализации
+    blurOff();
+    setTimeout(blurOff, 300);
+
+    // ---- Если открыто НЕ внутри Telegram (нет init_data) ----
+    // Например, юзер скопировал ссылку и открыл в обычном браузере.
+    // Тогда TG API недоступен, init_data пустой -> бэкенд даст 401 и курс не загрузится.
+    // Вместо "сломанного" UI показываем понятный баннер.
+    if(!tg.initData){
+      const warn = document.createElement('div');
+      warn.style.cssText = 'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;padding:24px;background:var(--bg-main);text-align:center';
+      warn.innerHTML = '<div style="max-width:320px">'
+        + '<div style="font-size:40px;margin-bottom:12px">🎧</div>'
+        + '<h2 style="font-family:Unbounded,sans-serif;color:var(--text-primary);margin:0 0 10px">Open Deck DJ School</h2>'
+        + '<p style="color:var(--text-secondary);font-size:14px;line-height:1.5;margin:0 0 16px">'
+        + 'Это приложение работает только <b>внутри Telegram</b>. Откройте его через бота: '
+        + 'найдите <b>@OpenDeck_bot</b> и нажмите <b>/start → «🎧 Открыть курс DJ»</b>.</p>'
+        + '<p style="color:var(--text-secondary);font-size:12px;opacity:.7;margin:0">'
+        + 'Открытие по прямой ссылке в браузере не даёт доступа к курсу.</p>'
+        + '</div>';
+      document.body.appendChild(warn);
+      // не запускаем загрузку профиля/курса — всё равно 401
+      throw new Error('not_in_telegram');
+    }
+
+    // ---- Состояние: инициализация, имя и фото из Telegram ----
+    const tgUser = (tg.initDataUnsafe && tg.initDataUnsafe.user) || {};
+    const userName = tgUser.first_name || (tgUser.username ? "@"+tgUser.username : "Друг");
+    const userPhoto = tgUser.photo_url || "";
+    const state = {
+      user: { name: userName, archetype: "Куратор Вайба", groovePoints: 0 },
+      courseProgress: { currentLessonId: null, completedLessons: [] },
+      lessons: [
+        { t:"Знакомство: кто такой диджей и зачем он нужен", video:"https://www.youtube.com/embed/_x8ONg58GeU", d:["Знакомство с Ташей (FREEDA DJ): мой путь от первого бита до фестивалей.","Кто такой диджей, его функция на вечеринке и где применяется диджеинг сегодня.","Диджей – это не избранные, а любой, кто ведёт энергию через музыку."] },
+        { t:"История: от диско до наших дней", d:["Краткая история появления диджеинга и как он менялся десятилетиями.","Путь электронной музыки: от диско-эры до современных стилей.","Поймёшь контекст – откуда растут ноги у того, что крутишь сегодня."] },
+        { t:"Направления и оборудование: где найти себя", d:["Виды диджеинга: коммерческий, ивент, андерграунд, фестивальный, радио, проводник практик.","Какое бывает оборудование и в каких сферах используется.","Выбери своё направление – это снимет страх «а я не такой, как все»."] },
+        { t:"Музыкальная теория: бит, ритм и колесо Камелота", d:["Из чего строится музыка: бит, ритм, тональности, дорожки в треке.","Колесо Камелота – как подбирать треки, что звучат «родственно».","Строение трека: интро, ямы, дропы, аутро – читаем музыку как книгу."] },
+        { t:"Интерфейс на телефоне: твой первый контроллер", d:["Обзор программы на телефоне и из чего состоит контроллер.","Дека, частоты, кнопка плей, фейдеры, фильтр – что делает каждая ручка.","Перестань бояться экрана: всё логично, когда разобрал по частям."] },
+        { t:"Основы сведения: BPM, темп и кнопка Sync", d:["Процесс сведения двух треков: BPM, темп, микширование.","Как сводить в одной тональности, стиле и темпе – и зачем нужна кнопка Sync.","Первый реальный микс: два трека становятся единым потоком."] },
+        { t:"Кроссфейдер и нюансы темпо", d:["Техника сведения через кроссфейдер – плавный переход между деками.","Нюансы темпо: режимы Wide, 6, 10, 16 и когда их применять.","Поймёшь, как держать энергию ровной, без рывков."] },
+        { t:"Лупы и Beat Jump: лёгкое сведение", d:["Лупы (петли) – простой способ зациклить кусок и свести без спешки.","Beat Jump: прыжки по битам для точного попадания.","Это приёмы, что делают сведение расслабленным, а не нервным."] },
+        { t:"Эффекты и фильтр: краски твоего сета", d:["Что такое эффекты и обзор доступных в бесплатной версии.","Простое применение эффекта при сведении, работа с падами.","Фильтр – аккуратно, чтобы украсить, а не сломать момент."] },
+        { t:"Твой первый микс из 4–5 треков", d:["Особенности построения микса и основы композиции.","Сводим микс из 4–5 треков, комбинируя все способы сведения.","Финал курса: готов первый сет и точка опоры в жизни."] }
+      ]
+    };
+
+    function updateUI(){
+      const dc = state.courseProgress.completedLessons.length;
+      const tc = state.lessons.length;
+      const gp = state.user.groovePoints;
+      const pct = Math.round(dc/tc*100);
+      document.getElementById('uname').textContent = state.user.name;
+      document.getElementById('archetype').textContent = state.user.archetype;
+      document.getElementById('gp').textContent = gp;
+      const de = document.getElementById('done-n'); if(de) de.textContent = dc;
+      const ln = document.getElementById('lesson-n'); if(ln) ln.textContent = Math.min(dc+1, tc);
+      const be = document.getElementById('bar'); if(be) be.style.width = pct + '%';
+      const nl = document.getElementById('next-lesson');
+      const curId = Math.min(dc + 1, tc);
+      if(nl && state.lessons[curId-1]){
+        nl.textContent = state.lessons[curId-1].t;
+      }
+      document.getElementById('discount').textContent = `Твоя скидка за ${gp} GP: −$100`;
+      // профиль
+      const pb = document.getElementById('avatar-big');
+      if(pb && userPhoto) {
+        pb.style.backgroundImage = `url("${userPhoto}")`;
+        pb.style.backgroundSize = 'cover';
+        pb.style.backgroundPosition = 'center';
+        pb.textContent = '';
+      } else if(pb) {
+        pb.textContent = (state.user.name[0]||"Д");
+      }
+      document.getElementById('prof-name') && (document.getElementById('prof-name').textContent = state.user.name);
+      document.getElementById('prof-archetype') && (document.getElementById('prof-archetype').textContent = state.user.archetype);
+      document.getElementById('prof-gp') && (document.getElementById('prof-gp').textContent = gp);
+      document.getElementById('prof-done') && (document.getElementById('prof-done').textContent = dc);
+    }
+    updateUI();
+    function applyAvatar(){
+      document.querySelectorAll('.user-avatar').forEach(av=>{
+        if(av){
+          if(userPhoto){
+            av.style.backgroundImage = `url("${userPhoto}")`;
+            av.style.backgroundSize = 'cover';
+            av.style.backgroundPosition = 'center';
+            av.style.backgroundRepeat = 'no-repeat';
+            av.style.backgroundColor = 'transparent';
+            av.textContent = '';
+          } else {
+            av.style.backgroundImage = '';
+            av.textContent = (state.user.name[0]||"Д");
+          }
+        }
+      });
+    }
+    applyAvatar();
+    // ЗАГРУЗКА реального прогресса из базы при каждом входе
+    // (каждый пользователь начинает с урока 1, если ещё ничего не прошёл)
+    function loadProfile(){
+      try{
+        fetch('/api/profile', {headers:{'X-Init-Data': tg.initData || ''}})
+          .then(r=>r.ok?r.json():null)
+          .then(j=>{
+            if(j){
+              state.courseProgress.completedLessons = j.completed.slice();
+              state.user.groovePoints = j.gp || 0;
+              updateUI();
+            }
+          }).catch(()=>{});
+      }catch(e){}
+    }
+    function loadProgress(){
+      try{
+        fetch('/api/lessons?course_id=dj-basics', {headers:{'X-Init-Data': tg.initData || ''}})
+          .then(r=>r.ok?r.json():null)
+          .then(j=>{
+            if(j && Array.isArray(j.completed)){
+              state.courseProgress.completedLessons = j.completed.slice();
+              loadProfile();
+            } else { loadProfile(); }
+          }).catch(()=> loadProfile());
+      }catch(e){}
+    }
+    loadProgress();
+    document.getElementById('prof-name') && (document.getElementById('prof-name').textContent = state.user.name);
+
+
+
+    function switchTab(tab){
+      stopVideoAll();   // остановить видео при уходе с урока
+      ['home','course','upgrade','profile'].forEach(t=>{
+        document.getElementById('tab-'+t).classList.toggle('hidden', t!==tab);
+      });
+      document.querySelectorAll('#nav button').forEach(b=>{
+        b.classList.toggle('active', b.dataset.tab===tab);
+      });
+      if(tab==='course') renderCourse();
+    }
+    function goCourse(){ switchTab('course'); }
+
+    function renderCourse(){
+      const box = document.getElementById('tab-course');
+      box.innerHTML = '<h2 style="font-size:20px;margin-bottom:14px">Курс «Pocket DJ»</h2>';
+      const comp = state.courseProgress.completedLessons.slice().sort((a,b)=>a-b);
+      const lastDone = comp.length ? comp[comp.length-1] : 0;
+      const maxOpen = lastDone + 1; // доступен следующий после пройденного
+      state.lessons.forEach((l, i)=>{
+        const id = i+1;
+        const done = comp.includes(id);
+        const open = id <= maxOpen;          // пройден или следующий
+        // «текущий» = первый непройденный (следующий открытый)
+        state.courseProgress.currentLessonId = maxOpen;
+        const locked = !open;
+        const active = id === state.courseProgress.currentLessonId;
+        const el = document.createElement('div');
+        el.className = 'lesson' + (done?' done':'') + (active?' active':'') + (locked?' locked':'');
+        const parts = l.t.split(':');
+        const main = parts[0];
+        const sub = parts.slice(1).join(':').trim();
+        let iconHTML;
+        if(done){
+          iconHTML = '<svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg>';
+        } else if(locked){
+          iconHTML = '<svg class="lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>';
+        } else {
+          iconHTML = id;
+        }
+        const hint = locked ? '<span class="hint">Откроется после предыдущего урока</span>' : '';
+        const ttlHTML = `<div class="ttl">${main}${sub?`<span class="sub">${sub}</span>`:''}${hint}</div>`;
+        el.innerHTML = `<div class="num">${iconHTML}</div>${ttlHTML}`;
+        el.style.animationDelay = (i * 55) + 'ms';
+        if(open){ el.onclick = ()=> openLesson(id, l); }
+        box.appendChild(el);
+      });
+    }
+
+    function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+    function openLesson(id, l){
+      document.body.style.filter='';   // снять защитное размытие при открытии урока
+      const box = document.getElementById('tab-course');
+      const bullets = (l.d||[]).map(x=>`<li>${esc(x)}</li>`).join('');
+      const src = l.video || "";
+      const isYT = src.includes('youtube.com/embed') || src.includes('youtu.be');
+      const playerHTML = src
+        ? (isYT
+            ? `<div class="vwrap" id="vw">
+                         <div id="ytplayer" style="position:absolute;inset:0;width:100%;height:100%"></div>
+                         <div class="wm" id="wm">${esc(userName)}</div>
+                         <div class="vbar">
+                           <button onclick="ytPlayToggle()" title="Play/Pause"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></button>
+                           <div class="seek" id="seek" onclick="ytSeek(event)"><i id="seekbar"></i></div>
+                         </div></div>`
+            : `<div class="vwrap" id="vw"><video id="v" playsinline></video>
+             <div class="wm" id="wm">${esc(userName)}</div>
+             <div class="bigplay" id="bp"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></div>
+             <div class="vbar">
+               <button onclick="vwPlay()" title="Play/Pause"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></button>
+               <div class="seek" id="seek" onclick="vwSeek(event)"><i id="seekbar"></i></div>
+               <button class="spd" onclick="vwSpeed()" title="Скорость">1×</button>
+             </div></div>`)
+        : `<div class="player"><svg class="play" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></div>`;
+      box.innerHTML = `<button class="btn ghost" style="width:auto;padding:10px 16px;margin-bottom:14px" onclick="renderCourse()">← Назад</button>
+        <h2 style="font-size:20px;margin-bottom:14px">${esc(l.t)}</h2>
+        ${playerHTML}
+        <ul class="summary">${bullets}</ul>
+        <button class="btn" id="finishBtn" style="opacity:0.4;pointer-events:none" onclick="completeLesson(${id})">Завершить урок (+50 GP)</button>
+        <p class="hint" id="finishHint" style="text-align:center;color:var(--text-secondary);font-size:12px;margin-top:10px">Досмотри видео до конца – и кнопка станет активной</p>`;
+      if(src && !isYT) setupVideo(src);
+      else if(src && isYT) enableYTControls(src);
+    }
+
+    let vwVid=null, vwHls=null, ytPlayer=null, ytTimer=null;
+
+    // Остановить ВСЁ видео при уходе со страницы / сворачивании
+    function stopVideoAll(){
+      if(ytTimer){ clearInterval(ytTimer); ytTimer=null; }
+      if(vwVid){ try{ vwVid.pause(); }catch(e){} }
+      if(ytPlayer && ytPlayer.pauseVideo){ try{ ytPlayer.pauseVideo(); }catch(e){} }
+    }
+
+    // Официальный YouTube IFrame Player API – надёжная валидация досмотра урока
+    function enableYTControls(src){
+      // достаём ID видео из ссылки вида .../embed/XXXX или youtu.be/XXXX
+      const m = src.match(/(?:embed\/|youtu\.be\/|v=)([A-Za-z0-9_-]{6,})/);
+      const videoId = m ? m[1] : null;
+      if(!videoId) return;
+      const build = ()=>{
+        ytPlayer = new YT.Player('ytplayer', {
+          videoId: videoId,
+          playerVars: { playsinline:1, rel:0, modestbranding:1, fs:1, controls:0, showinfo:0 },
+          events: {
+            onReady: (e)=>{
+              const f = e.target.getIframe();
+              if(f){ f.setAttribute('allowfullscreen',''); f.setAttribute('allow','autoplay; encrypted-media; picture-in-picture; fullscreen'); }
+            },
+            onStateChange: (e)=>{
+              if(e.data === YT.PlayerState.ENDED) markWatched();
+            }
+          }
+        });
+        // подстраховка: если пользователь домотал почти до конца – тоже засчитать
+        if(ytTimer) clearInterval(ytTimer);
+        ytTimer = setInterval(()=>{
+          try{
+            if(ytPlayer && ytPlayer.getDuration){
+              const d = ytPlayer.getDuration(), c = ytPlayer.getCurrentTime();
+              if(d > 0 && c / d >= 0.95) markWatched();
+              // обновить полосу перемотки
+              const sb = document.getElementById('seekbar'); if(sb) sb.style.width = (c/(d||1)*100)+'%';
+            }
+          }catch(_){}
+        }, 2000);
+      };
+      // загрузить скрипт API один раз, потом строить плеер
+      if(window.YT && window.YT.Player){ build(); }
+      else {
+        window.onYouTubeIframeAPIReady = build;
+        if(!document.getElementById('yt-api')){
+          const s = document.createElement('script');
+          s.id = 'yt-api'; s.src = 'https://www.youtube.com/iframe_api';
+          document.head.appendChild(s);
+        }
+      }
+    }
+
+    function markWatched(){
+      const btn = document.getElementById('finishBtn');
+      const hint = document.getElementById('finishHint');
+      if(btn){ btn.style.opacity='1'; btn.style.pointerEvents='auto'; }
+      if(hint){ hint.style.display='none'; }
+    }
+    function setupVideo(src){
+      const v=document.getElementById('v'); vwVid=v;
+      const bp=document.getElementById('bp');
+      if(src.endsWith('.m3u8') && window.Hls && Hls.isSupported()){
+        vwHls=new Hls(); vwHls.loadSource(src); vwHls.attachMedia(v);
+      } else { v.src=src; }
+      bp.onclick=()=>{ v.play(); bp.style.display='none'; };
+      v.addEventListener('timeupdate',()=>{ const s=document.getElementById('seekbar'); if(s) s.style.width=(v.currentTime/(v.duration||1)*100)+'%';
+        if(v.duration && v.currentTime/v.duration >= 0.95) markWatched(); });
+      v.addEventListener('ended', ()=> markWatched());
+      const vw=document.getElementById('vw');
+      vw.addEventListener('click',()=>vw.classList.add('showbar'));
+      setTimeout(()=>vw&&vw.classList.remove('showbar'),2500);
+    }
+    function vwPlay(){ if(!vwVid) return; vwVid.paused?vwVid.play():vwVid.pause(); }
+    function vwSpeed(){ if(!vwVid) return; const r=[1,1.25,1.5,0.75]; let i=r.indexOf(vwVid.playbackRate); i=(i+1)%r.length; vwVid.playbackRate=r[i]; document.querySelector('.vbar .spd').textContent=r[i]+'×'; }
+    function vwSeek(e){ if(!vwVid) return; const b=document.getElementById('seek').getBoundingClientRect(); vwVid.currentTime=((e.clientX-b.left)/b.width)*(vwVid.duration||0); }
+
+    // YouTube-плеер: свои кнопки Play/Pause и полоса перемотки
+    function ytPlayToggle(){
+      if(!ytPlayer || !ytPlayer.getPlayerState) return;
+      const s = ytPlayer.getPlayerState();
+      if(s === 1) ytPlayer.pauseVideo(); else ytPlayer.playVideo();
+    }
+    function ytSeek(e){
+      if(!ytPlayer || !ytPlayer.getDuration) return;
+      const b = document.getElementById('seek').getBoundingClientRect();
+      const frac = (e.clientX-b.left)/b.width;
+      ytPlayer.seekTo(frac * ytPlayer.getDuration(), true);
+    }
+
+    function completeLesson(id){
+      if(!state.courseProgress.completedLessons.includes(id)){
+        state.courseProgress.completedLessons.push(id);
+        burst();
+        // СОХРАНИТЬ В БАЗУ и получить актуальные GP
+        try{
+          fetch('/api/progress', {
+            method:'POST',
+            headers:{'Content-Type':'application/json','X-Init-Data': tg.initData || ''},
+            body: JSON.stringify({course_id:'dj-basics', lesson_id:id})
+          }).then(r=>{
+            if(r.ok) return r.json();
+            tg.showPopup && tg.showPopup({title:'Ошибка', message:'Прогресс не сохранён ☁️'});
+            return null;
+          }).then(j=>{
+            if(j){
+              state.user.groovePoints = j.gp;
+              state.courseProgress.completedLessons = j.completed.slice();
+              updateUI();
+            }
+          }).catch(()=>{
+            tg.showPopup && tg.showPopup({title:'Сеть', message:'Проверь подключение к интернету ☁️'});
+          });
+        }catch(e){}
+      }
+      renderCourse();
+    }
+
+    function burst(){
+      const b = document.createElement('div'); b.className='burst';
+      const colors=['#8ce2c8','#f5926e','#c0a0a8','#ffffff'];
+      for(let i=0;i<24;i++){
+        const s=document.createElement('span');
+        const ang=Math.random()*Math.PI*2, dist=60+Math.random()*120;
+        s.style.setProperty('--x', Math.cos(ang)*dist+'px');
+        s.style.setProperty('--y', Math.sin(ang)*dist+'px');
+        s.style.background=colors[i%colors.length];
+        s.style.animationDelay=(Math.random()*0.1)+'s';
+        b.appendChild(s);
+      }
+      document.body.appendChild(b);
+      setTimeout(()=>b.remove(), 1000);
+    }
+
+    function bookMentor(){
+      const m=document.createElement('div'); m.className='modal-mask';
+      m.innerHTML=`<div class="modal"><h3>Бронирование</h3><p>Это демо. Реальная оплата подключится позже.</p><button class="btn" onclick="this.closest('.modal-mask').remove()">Понятно</button></div>`;
+      document.body.appendChild(m);
+    }
+
+    function openChat(){
+      const link='https://t.me/+S9cLCiFHbWQzY2Iy';
+      if(tg.openTelegramLink) tg.openTelegramLink(link);
+      else location.href=link;
+    }
+
+    function toggleManifest(idx){
+      const panel = document.getElementById('m-panel');
+      const btns = document.querySelectorAll('.m-row .m-btn');
+      if(!panel || !btns.length) return;
+
+      const data = [
+        { title: 'Звук Тишины в Шумном Мире', body: 'Мы живем в эпоху бесконечного шума. Информационный перегруз, постоянное сравнение, гонка за внешними маркерами успеха. В этом хаосе легко потерять свою истинную частоту, заглушить внутренний голос. Open Deck – это не школа диджеинга в традиционном смысле. Это, скорее, ретрит для души, возможность найти ту самую тишину, в которой рождается подлинное творчество.' },
+        { title: 'Открытость как Акт Мужества', body: 'Искусство – это всегда риск. Риск быть непонятым, неуслышанным. Но настоящий художник понимает, что только через полную открытость, через обнажение своего сердца, он может создать нечто по-настоящему глубокое и резонансное. Мы не стремимся к техническому совершенству ради совершенства. Мы стремимся к эмоциональной искренности. Когда ты выходишь к пульту, ты не просто сводишь треки. Ты делишься частью своей души. И чем более открыто ты это делаешь, тем сильнее отклик.' },
+        { title: 'Разрушение Барьеров, Создание Потока', body: 'Правила, жанры, ожидания – все это лишь рамки, которые мы сами себе ставим. Истинное творчество начинается там, где эти рамки исчезают. Мы не учим тебя следовать трендам. Мы учим тебя их создавать. Мы не учим тебя бояться ошибок. Мы учим тебя видеть в них новую возможность, новый путь. Музыка – это поток. И твоя задача как диджея – не контролировать его, а стать его частью, позволить ему течь сквозь тебя. Когда твой разум открыт, ты не просто играешь музыку – ты являешься музыкой.' }
+      ];
+
+      const isSame = btns[idx].classList.contains('open');
+      btns.forEach((b,i) => { b.classList.toggle('open', !isSame && i === idx); });
+      if(isSame){
+        panel.classList.remove('open');
+      } else {
+        document.getElementById('m-title').textContent = data[idx].title;
+        document.getElementById('m-body').textContent = data[idx].body;
+        panel.classList.add('open');
+      }
+    }
+  </script>
+</body>
+</html>

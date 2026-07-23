@@ -541,6 +541,9 @@
 
   <script>
     const tg = (window.Telegram && window.Telegram.WebApp) || {};
+    // Базовый URL бэкенда (API). Фронт теперь на GitHub Pages, а API — на туннеле Serveo.
+    // Относительные пути (/api/...) не сработают, поэтому используем абсолютный URL.
+    const API_BASE = 'https://opendeck-tma.serveousercontent.com';
     try { tg.ready && tg.ready(); } catch(e){}
     try { tg.expand && tg.expand(); } catch(e){}
     try { tg.disableVerticalSwipes && tg.disableVerticalSwipes(); } catch(e){}
@@ -567,6 +570,27 @@
     // Гарантированно снимаем защитное размытие сразу после инициализации
     blurOff();
     setTimeout(blurOff, 300);
+
+    // ---- Если открыто НЕ внутри Telegram (нет init_data) ----
+    // Например, юзер скопировал ссылку и открыл в обычном браузере.
+    // Тогда TG API недоступен, init_data пустой -> бэкенд даст 401 и курс не загрузится.
+    // Вместо "сломанного" UI показываем понятный баннер.
+    if(!tg.initData){
+      const warn = document.createElement('div');
+      warn.style.cssText = 'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;padding:24px;background:var(--bg-main);text-align:center';
+      warn.innerHTML = '<div style="max-width:320px">'
+        + '<div style="font-size:40px;margin-bottom:12px">🎧</div>'
+        + '<h2 style="font-family:Unbounded,sans-serif;color:var(--text-primary);margin:0 0 10px">Open Deck DJ School</h2>'
+        + '<p style="color:var(--text-secondary);font-size:14px;line-height:1.5;margin:0 0 16px">'
+        + 'Это приложение работает только <b>внутри Telegram</b>. Откройте его через бота: '
+        + 'найдите <b>@OpenDeck_bot</b> и нажмите <b>/start → «🎧 Открыть курс DJ»</b>.</p>'
+        + '<p style="color:var(--text-secondary);font-size:12px;opacity:.7;margin:0">'
+        + 'Открытие по прямой ссылке в браузере не даёт доступа к курсу.</p>'
+        + '</div>';
+      document.body.appendChild(warn);
+      // не запускаем загрузку профиля/курса — всё равно 401
+      throw new Error('not_in_telegram');
+    }
 
     // ---- Состояние: инициализация, имя и фото из Telegram ----
     const tgUser = (tg.initDataUnsafe && tg.initDataUnsafe.user) || {};
@@ -644,7 +668,7 @@
     // (каждый пользователь начинает с урока 1, если ещё ничего не прошёл)
     function loadProfile(){
       try{
-        fetch('/api/profile', {headers:{'X-Init-Data': tg.initData || ''}})
+        fetch(API_BASE + '/api/profile', {headers:{'X-Init-Data': tg.initData || ''}})
           .then(r=>r.ok?r.json():null)
           .then(j=>{
             if(j){
@@ -657,7 +681,7 @@
     }
     function loadProgress(){
       try{
-        fetch('/api/lessons?course_id=dj-basics', {headers:{'X-Init-Data': tg.initData || ''}})
+        fetch(API_BASE + '/api/lessons?course_id=dj-basics', {headers:{'X-Init-Data': tg.initData || ''}})
           .then(r=>r.ok?r.json():null)
           .then(j=>{
             if(j && Array.isArray(j.completed)){
@@ -730,7 +754,10 @@
       const playerHTML = src
         ? (isYT
             ? `<div class="vwrap" id="vw">
-                         <div id="ytplayer" style="position:absolute;inset:0;width:100%;height:100%"></div>
+                         <iframe id="ytplayer" style="position:absolute;inset:0;width:100%;height:100%;border:0"
+                           src="https://www.youtube.com/embed/${ytId(src)}?playsinline=1&rel=0&modestbranding=1&fs=1&enablejsapi=1"
+                           allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+                           allowfullscreen></iframe>
                          <div class="wm" id="wm">${esc(userName)}</div>
                          <div class="vbar">
                            <button onclick="ytPlayToggle()" title="Play/Pause"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></button>
@@ -764,43 +791,40 @@
       if(ytPlayer && ytPlayer.pauseVideo){ try{ ytPlayer.pauseVideo(); }catch(e){} }
     }
 
-    // Официальный YouTube IFrame Player API – надёжная валидация досмотра урока
-    function enableYTControls(src){
-      // достаём ID видео из ссылки вида .../embed/XXXX или youtu.be/XXXX
+    // Достаём ID видео из ссылки вида .../embed/XXXX или youtu.be/XXXX
+    function ytId(src){
       const m = src.match(/(?:embed\/|youtu\.be\/|v=)([A-Za-z0-9_-]{6,})/);
-      const videoId = m ? m[1] : null;
-      if(!videoId) return;
-      const build = ()=>{
-        ytPlayer = new YT.Player('ytplayer', {
-          videoId: videoId,
-          playerVars: { playsinline:1, rel:0, modestbranding:1, fs:1, controls:0, showinfo:0 },
-          events: {
-            onReady: (e)=>{
-              const f = e.target.getIframe();
-              if(f){ f.setAttribute('allowfullscreen',''); f.setAttribute('allow','autoplay; encrypted-media; picture-in-picture; fullscreen'); }
-            },
-            onStateChange: (e)=>{
-              if(e.data === YT.PlayerState.ENDED) markWatched();
+      return m ? m[1] : '';
+    }
+    // YouTube грузится через прямой <iframe> (надёжнее в webview Telegram),
+    // управление (play/pause/seek) — опционально через postMessage API.
+    function enableYTControls(src){
+      const id = ytId(src);
+      if(!id) return;
+      // Попытка подключить YT API для кнопок Play/Pause и полосы перемотки.
+      // Если API не загрузится (блок webview) — видео всё равно играет через iframe.
+      const onApi = ()=>{
+        try{
+          ytPlayer = new YT.Player('ytplayer', {
+            events: {
+              onStateChange: (e)=>{ if(e.data === YT.PlayerState.ENDED) markWatched(); }
             }
-          }
-        });
-        // подстраховка: если пользователь домотал почти до конца – тоже засчитать
-        if(ytTimer) clearInterval(ytTimer);
-        ytTimer = setInterval(()=>{
-          try{
-            if(ytPlayer && ytPlayer.getDuration){
-              const d = ytPlayer.getDuration(), c = ytPlayer.getCurrentTime();
-              if(d > 0 && c / d >= 0.95) markWatched();
-              // обновить полосу перемотки
-              const sb = document.getElementById('seekbar'); if(sb) sb.style.width = (c/(d||1)*100)+'%';
-            }
-          }catch(_){}
-        }, 2000);
+          });
+          if(ytTimer) clearInterval(ytTimer);
+          ytTimer = setInterval(()=>{
+            try{
+              if(ytPlayer && ytPlayer.getDuration){
+                const d = ytPlayer.getDuration(), c = ytPlayer.getCurrentTime();
+                if(d > 0 && c / d >= 0.95) markWatched();
+                const sb = document.getElementById('seekbar'); if(sb) sb.style.width = (c/(d||1)*100)+'%';
+              }
+            }catch(_){}
+          }, 2000);
+        }catch(_){}
       };
-      // загрузить скрипт API один раз, потом строить плеер
-      if(window.YT && window.YT.Player){ build(); }
+      if(window.YT && window.YT.Player){ onApi(); }
       else {
-        window.onYouTubeIframeAPIReady = build;
+        window.onYouTubeIframeAPIReady = onApi;
         if(!document.getElementById('yt-api')){
           const s = document.createElement('script');
           s.id = 'yt-api'; s.src = 'https://www.youtube.com/iframe_api';
@@ -852,7 +876,7 @@
         burst();
         // СОХРАНИТЬ В БАЗУ и получить актуальные GP
         try{
-          fetch('/api/progress', {
+          fetch(API_BASE + '/api/progress', {
             method:'POST',
             headers:{'Content-Type':'application/json','X-Init-Data': tg.initData || ''},
             body: JSON.stringify({course_id:'dj-basics', lesson_id:id})

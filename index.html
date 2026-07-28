@@ -175,6 +175,17 @@
       border:1px solid rgba(255,255,255,0.04)} /* APPLE: приглушена — второстепенная, тише hero */
     .quote .qm{color:var(--accent-coral);font-weight:500;margin-top:14px;font-size:14px}
     .quote .ql{color:var(--accent-mint);font-family:'Unbounded',sans-serif;font-weight:800;font-size:18px;margin-bottom:10px;letter-spacing:.02em}
+    /* ---- Сворачиваемая цитата-философия: заголовок = тапабельная шапка, тело прячется ---- */
+    .quote{padding:0;overflow:hidden;cursor:pointer;transition:border-color .2s}
+    .quote-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:16px 20px}
+    .quote-head .ql{margin-bottom:0;flex:1}
+    .quote-head .qarr{font-size:11px;opacity:.6;color:var(--text-secondary);transition:transform .35s ease;flex:none}
+    .quote.open .quote-head .qarr{transform:rotate(180deg)}
+    .quote-body{max-height:0;opacity:0;overflow:hidden;transition:max-height .5s cubic-bezier(.25,.46,.45,.94),opacity .4s ease,padding .3s ease;
+      padding:0 20px;text-align:center}
+    .quote.open .quote-body{max-height:320px;opacity:1;padding:0 20px 18px}
+    /* мгновенный отклик на pointer-down для шапки цитаты */
+    .quote:active{border-color:rgba(140,226,200,0.25)}
     .stat{display:flex;gap:10px;margin-bottom:14px}
     .stat .card{flex:1;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.06);
       border-radius:16px;padding:14px;text-align:center;
@@ -448,10 +459,15 @@
         </div>
       </div>
 
-      <div class="quote">
-        <div class="ql">Open Deck: «Свободная дека»</div>
-        <div>Это о смелости быть собой. О том, чтобы не бояться ошибок, а видеть в них стиль. О том, чтобы не следовать трендам, а создавать свой вайб.</div>
-        <div class="qm">Мы не относимся к музыке слишком серьезно – мы играем в нее, так же, как играем в жизнь: с легкостью, открытостью и любопытством.</div>
+      <div class="quote" id="quote" onclick="toggleQuote()">
+        <div class="quote-head">
+          <div class="ql">Open Deck: «Свободная дека»</div>
+          <span class="qarr">▼</span>
+        </div>
+        <div class="quote-body">
+          <div>Это о смелости быть собой. О том, чтобы не бояться ошибок, а видеть в них стиль. О том, чтобы не следовать трендам, а создавать свой вайб.</div>
+          <div class="qm">Мы не относимся к музыке слишком серьезно – мы играем в нее, так же, как играем в жизнь: с легкостью, открытостью и любопытством.</div>
+        </div>
       </div>
 
       <div class="manifest">
@@ -974,6 +990,11 @@
       const link='https://t.me/+S9cLCiFHbWQzY2Iy';
       if(tg.openTelegramLink) tg.openTelegramLink(link);
       else location.href=link;
+    }
+
+    function toggleQuote(){
+      const q = document.getElementById('quote');
+      if(q) q.classList.toggle('open');
     }
 
     function toggleManifest(idx){

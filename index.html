@@ -83,8 +83,10 @@
     .hero .hero-progress-num{font-family:'Unbounded',sans-serif;font-weight:800;font-size:38px;color:var(--text-primary);line-height:1;flex:none}
     .hero .hero-progress-num .st{color:var(--accent-mint);display:inline-block;animation:glowPulse 3s ease-in-out infinite}
     .hero .hero-progress-num .of{font-size:18px;font-weight:600;color:var(--text-secondary);opacity:.6;vertical-align:super}
-    .hero-title-row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px}
-    .hero-title-row h2{flex:1;margin:0}
+    .hero-title-row{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:8px}
+    .hero-title-row h2{flex:1;margin:0;min-width:0}
+    /* APPLE: заголовок и цифра выровнены по ЦЕНТРУ, не по верху — убирает «висящую» последнюю строку */
+    .hero .hero-progress-num{flex:none;align-self:center;text-align:right;line-height:1}
     /* APPLE: заголовок урока — главный фокус (крупнее, чем цифра) */
     .hero h2{font-size:23px;margin:8px 0 6px;line-height:1.28}
     .hero-duration{font-size:11px;color:var(--text-secondary);opacity:.65;margin:0 0 4px;letter-spacing:.02em}
@@ -177,13 +179,15 @@
     .quote .ql{color:var(--accent-mint);font-family:'Unbounded',sans-serif;font-weight:800;font-size:18px;margin-bottom:10px;letter-spacing:.02em}
     /* ---- Сворачиваемая цитата-философия: заголовок = тапабельная шапка, тело прячется ---- */
     .quote{padding:0;overflow:hidden;cursor:pointer;transition:border-color .2s}
-    .quote-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:16px 20px}
-    .quote-head .ql{margin-bottom:0;flex:1}
-    .quote-head .qarr{font-size:11px;opacity:.6;color:var(--text-secondary);transition:transform .35s ease;flex:none}
-    .quote.open .quote-head .qarr{transform:rotate(180deg)}
-    .quote-body{max-height:0;opacity:0;overflow:hidden;transition:max-height .5s cubic-bezier(.25,.46,.45,.94),opacity .4s ease,padding .3s ease;
-      padding:0 20px;text-align:center}
-    .quote.open .quote-body{max-height:320px;opacity:1;padding:0 20px 18px}
+    .quote-head{display:flex;align-items:center;gap:8px;padding:12px 16px}
+    .quote-head .ql{margin-bottom:0;flex:1;min-width:0;font-size:16px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    /* APPLE: стрелка — тонкий chevron вбок (не ломает текст), компактная, справа */
+    .quote-head .qarr{font-size:11px;opacity:.55;color:var(--accent-mint);transition:transform .3s ease;flex:none;
+      display:inline-block;transform:rotate(-90deg);width:14px;text-align:center}
+    .quote.open .quote-head .qarr{transform:rotate(0deg)}
+    .quote-body{max-height:0;opacity:0;overflow:hidden;transition:max-height .45s cubic-bezier(.25,.46,.45,.94),opacity .35s ease,padding .25s ease;
+      padding:0 16px;text-align:center;font-size:13px}
+    .quote.open .quote-body{max-height:280px;opacity:1;padding:0 16px 14px}
     /* мгновенный отклик на pointer-down для шапки цитаты */
     .quote:active{border-color:rgba(140,226,200,0.25)}
     .stat{display:flex;gap:10px;margin-bottom:14px}

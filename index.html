@@ -622,9 +622,13 @@
           <div class="prof-stat"><div class="n">10</div><div class="l">всего уроков</div></div>
         </div>
       </div>
-      <!-- PLAY: Invite card -->
+      <!-- PLAY: Invite card with progress (Точка В) -->
       <div class="invite-card" onclick="shareInvite()">
-        <div class="t">Пригласи напарника и получи <b>+30 GP</b> за каждую регистрацию!<br>А если друг купит курс — ещё <b>+200 GP</b> 🎧</div>
+        <div class="t" id="ref-header">Пригласи напарника и получи <b>+30 GP</b> за каждую регистрацию!<br>А если друг купит курс — ещё <b>+200 GP</b> 🎧</div>
+        <div id="ref-friends" style="font-size:12px;color:var(--text-secondary);margin-bottom:8px">Загрузка...</div>
+        <div style="height:6px;background:rgba(255,255,255,0.1);border-radius:4px;margin:0 0 10px;overflow:hidden">
+          <div id="ref-bar" style="height:100%;width:0%;background:linear-gradient(90deg,var(--accent-coral),var(--accent-mint));border-radius:4px;transition:width .5s"></div>
+        </div>
         <button class="btn" style="width:auto;padding:10px 28px;display:inline-flex;background:var(--accent-coral);font-size:13px">Пригласить друга</button>
         <div class="sub" id="ref-link-hint">ссылка: t.me/OpenDeckBot/app...</div>
       </div>
@@ -705,7 +709,7 @@
     const userName = tgUser.first_name || (tgUser.username ? "@"+tgUser.username : "Друг");
     const userPhoto = tgUser.photo_url || "";
     const state = {
-      user: { name: userName, archetype: "Куратор Вайба", groovePoints: 0, referralCode: '' },
+      user: { name: userName, archetype: "Куратор Вайба", groovePoints: 0, referralCode: '', referralFriends: 0, referralGpEarned: 0 },
       courseProgress: { currentLessonId: null, completedLessons: [] },
       lessons: [
         { t:"Знакомство: кто такой диджей и зачем он нужен", video:"https://www.youtube.com/embed/_x8ONg58GeU", d:["Знакомство с Ташей (FREEDA DJ): мой путь от первого бита до фестивалей.","Кто такой диджей, его функция на вечеринке и где применяется диджеинг сегодня.","Диджей – это не избранные, а любой, кто ведёт энергию через музыку."] },
@@ -792,6 +796,8 @@
         if(j){
           state.user.groovePoints = j.user.groove_points;
           state.user.referralCode = j.user.referral_code || '';
+          state.user.referralFriends = j.referral_friends || 0;
+          state.user.referralGpEarned = j.referral_gp_earned || 0;
           state.courseProgress.completedLessons = (j.course.completed_lessons || []).slice();
           state.user.archetype = j.user.archetype || 'Куратор Вайба';
           updateUI();
@@ -808,6 +814,8 @@
           state.courseProgress.completedLessons = j.completed.slice();
           state.user.groovePoints = j.gp || 0;
           state.user.referralCode = j.referral_code || '';
+          state.user.referralFriends = j.referral_friends || 0;
+          state.user.referralGpEarned = j.referral_gp_earned || 0;
           updateUI();
         }}).catch(()=>{});
     }
@@ -863,6 +871,18 @@
     function updateUIRefLink(){
       const hint = document.getElementById('ref-link-hint');
       if(hint && state.user.referralCode) hint.textContent = 't.me/OpenDeckBot/app?startapp=ref_' + state.user.referralCode;
+      const fc = document.getElementById('ref-friends');
+      if(fc){
+        const n = state.user.referralFriends || 0;
+        const gp = state.user.referralGpEarned || 0;
+        // milestones: 1 friend → bronze, 3 → silver, 5 → gold, 10 → platinum
+        const milestones = [1,3,5,10];
+        const next = milestones.find(m => m > n) || milestones[milestones.length-1];
+        const pct = Math.min(100, (n / next) * 100);
+        fc.textContent = '👥 ' + n + ' друг' + (n===1?'':'ей') + ' • ' + gp + ' GP заработано';
+        const bar = document.getElementById('ref-bar');
+        if(bar) bar.style.width = pct + '%';
+      }
     }
 
     function switchTab(tab){
@@ -1060,6 +1080,12 @@
               state.user.groovePoints = j.gp;
               state.courseProgress.completedLessons = j.completed.slice();
               updateUI();
+              // ---- PLAY: после Урока 1 — предложить пригласить друга (Точка Б) ----
+              if(id === 1){
+                setTimeout(()=>{
+                  showToast('🎵', 'Позови напарника в дуэт!<br><b>Дарим по 50 GP</b> вам обоим 🎧<br><br><button class="btn" style="font-size:13px;padding:8px 20px;background:var(--accent-coral)" onclick="shareInvite()">Пригласить друга</button>');
+                }, 800);
+              }
               // ---- Редирект на Upgrade после прохождения ВСЕГО курса (п.2) ----
               if(state.courseProgress.completedLessons.length >= state.lessons.length){
                 setTimeout(()=>{

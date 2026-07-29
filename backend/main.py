@@ -237,6 +237,8 @@ async def api_init(body: InitRequest):
         "user": _user_response(uid),
         "course": _course_response(uid),
         "bonus": bonus,
+        "referral_friends": db.get_referral_stats(uid)["friends_count"],
+        "referral_gp_earned": db.get_referral_stats(uid)["gp_earned"],
     }
 
 
@@ -252,6 +254,7 @@ async def profile(x_init_data: str = Header("", alias="X-Init-Data")):
     completed = db.get_completed(uid, COURSE_ID)
     badges = db.get_badges(uid, COURSE_ID)
     total = len(COURSE.get(COURSE_ID, []))
+    ref_stats = db.get_referral_stats(uid)
     return {
         "user": user,
         "gp": gp,
@@ -260,6 +263,8 @@ async def profile(x_init_data: str = Header("", alias="X-Init-Data")):
         "badges": badges,
         "referral_code": user["referral_code"] if user else "",
         "referred_by": user["referred_by"] if user else None,
+        "referral_friends": ref_stats["friends_count"],
+        "referral_gp_earned": ref_stats["gp_earned"],
         "archetype": user["archetype"] if user else "Куратор Вайба",
     }
 

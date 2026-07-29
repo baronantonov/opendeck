@@ -187,6 +187,25 @@ def get_user(user_id):
         return dict(row) if row else None
 
 
+def get_referral_stats(user_id: int) -> dict:
+    """Вернуть {friends_count, gp_earned} по рефералам пользователя."""
+    with _conn() as c:
+        ref_code = c.execute(
+            "SELECT referral_code FROM users WHERE user_id=?",
+            (user_id,)).fetchone()
+        if not ref_code or not ref_code["referral_code"]:
+            return {"friends_count": 0, "gp_earned": 0}
+        code = ref_code["referral_code"]
+        friends = c.execute(
+            "SELECT COUNT(*) FROM users WHERE referred_by=?",
+            (code,)).fetchone()[0]
+        gp = c.execute(
+            "SELECT COALESCE(SUM(amount),0) FROM transactions "
+            "WHERE user_id=? AND action_type LIKE 'referral_%'",
+            (user_id,)).fetchone()[0]
+        return {"friends_count": int(friends), "gp_earned": int(gp)}
+
+
 def get_user_by_referral_code(code: str) -> Optional[dict]:
     """Найти пользователя по referral_code."""
     with _conn() as c:

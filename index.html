@@ -845,7 +845,7 @@
       try { if(tg.switchInlineQuery){ tg.switchInlineQuery(fullMsg); return; } } catch(_){}
       
       // 3 — window.location.href на t.me/share/url (навигация в webview → Telegram)
-      const shareUrl = 'https://t.me/share/url?url=' + encodeURIComponent(link) + '&text=' + encodeURIComponent(fullMsg);
+      const shareUrl = 'https://t.me/share/url?text=' + encodeURIComponent(fullMsg);
       try { window.location.href = shareUrl; } catch(_){}
     }
     function resetGpSlider(){

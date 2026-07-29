@@ -836,14 +836,22 @@
       if(!code){ showToast('⚠️', 'Код приглашения пока не загружен'); return; }
       const link = 'https://t.me/OpenDeckBot/app?startapp=ref_' + code;
       const shareText = '🎧 Мой музыкальный архетип — ' + state.user.archetype + '. Залетай в Open Deck, забирай 50 Groove Points на старт и узнай свой вайб!';
-      // Telegram WebApp: открыть выбор адресата и вставить приглашение
-      if(tg.switchInlineQuery){
-        try {
-          tg.switchInlineQuery(shareText + '\n' + link, {chat_types: ['users', 'groups']});
-          return; // TG сам показывает UI выбора
-        } catch(e){ /* fallback */ }
-      }
-      // Fallback: копировать ссылку в буфер
+      // Попытка 1: switchInlineQuery (нативный выбор контакта)
+      try {
+        if(tg.switchInlineQuery){
+          tg.switchInlineQuery(shareText + '\n' + link);
+          return;
+        }
+      } catch(e){}
+      // Попытка 2: openTelegramLink с share URL (выбор собеседника/группы/канала)
+      try {
+        if(tg.openTelegramLink){
+          const shareUrl = 'https://t.me/share/url?url=' + encodeURIComponent(link) + '&text=' + encodeURIComponent(shareText);
+          tg.openTelegramLink(shareUrl);
+          return;
+        }
+      } catch(e){}
+      // Попытка 3: clipboard (если предыдущие не сработали)
       if(navigator.clipboard){
         navigator.clipboard.writeText(link).then(()=> showToast('✅', 'Ссылка скопирована! Делись с друзьями'));
       } else {

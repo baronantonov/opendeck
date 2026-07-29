@@ -239,6 +239,10 @@
     @media (prefers-reduced-motion:reduce){
       .lesson,.lesson.active{animation:none}
       .lesson:hover{transform:none}}
+    /* APPLE: отключаем анимации на LOW-устройствах (User-Agent performance class) */
+    body.reduce-motion .shim::after{animation:none !important;display:none}
+    body.reduce-motion .sway,.reduce-motion [class*="sway"]{animation:none !important}
+    body.reduce-motion .gp .diamond{animation:none !important}
 
     /* ---- Мобильная адаптация ---- */
     @media (max-width:480px){
@@ -656,12 +660,28 @@
   <script>
     const tg = (window.Telegram && window.Telegram.WebApp) || {};
     // Базовый URL бэкенда (API). Фронт теперь на GitHub Pages, а API — на туннеле Serveo.
-    // Относительные пути (/api/...) не сработают, поэтому используем абсолютный URL.
     const API_BASE = 'https://opendeck-tma.serveousercontent.com';
     try { tg.ready && tg.ready(); } catch(e){}
     try { tg.expand && tg.expand(); } catch(e){}
     try { tg.disableVerticalSwipes && tg.disableVerticalSwipes(); } catch(e){}
     try { tg.setHeaderColor && tg.setHeaderColor('#2b302e'); tg.setBackgroundColor && tg.setBackgroundColor('#2b302e'); } catch(e){}
+
+    // ---- Haptic Feedback (ощущение нативности) ----
+    function haptic(method){
+      try { if(tg.HapticFeedback) tg.HapticFeedback[method](method==='notificationOccurred'?'success':'light'); } catch(_){}
+    }
+
+    // ---- Closing Confirmation (не даём случайно закрыть) ----
+    try { tg.enableClosingConfirmation && tg.enableClosingConfirmation(); } catch(_){}
+
+    // ---- Performance Class (адаптация под слабые устройства) ----
+    // Telegram Android передаёт в User-Agent: {performance_class} = LOW|AVERAGE|HIGH
+    const ua = navigator.userAgent;
+    const perfMatch = ua.match(/;\s*(LOW|AVERAGE|HIGH)\s*\)/);
+    const perfClass = perfMatch ? perfMatch[1] : 'AVERAGE';
+    if (perfClass === 'LOW') {
+      document.body.classList.add('reduce-motion');
+    }
 
     // ---- Защита контента (лучшее из возможного в вебе) ----
     // Блокируем контекстное меню / долгое нажатие / выделение
@@ -788,6 +808,17 @@
     // ---- PLAY: инициализация через /api/init — заменяет loadProfile+loadProgress ---- 
     function initApp(){
       const startParam = (tg.initDataUnsafe && tg.initDataUnsafe.start_param) || null;
+      // DeviceStorage — загружаем кеш мгновенно, пока летит API
+      if(tg.DeviceStorage){
+        try {
+          const cached = tg.DeviceStorage.get('completed');
+          if(cached){
+            const arr = JSON.parse(cached);
+            if(Array.isArray(arr)) state.courseProgress.completedLessons = arr.slice();
+            updateUI();
+          }
+        } catch(_){}
+      }
       fetch(API_BASE + '/api/init', {
         method:'POST',
         headers:{'Content-Type':'application/json'},
@@ -801,6 +832,10 @@
           state.courseProgress.completedLessons = (j.course.completed_lessons || []).slice();
           state.user.archetype = j.user.archetype || 'Куратор Вайба';
           updateUI();
+          // Сохранить в DeviceStorage (Bot API 9.0+)
+          if(tg.DeviceStorage){
+            try { tg.DeviceStorage.set('completed', JSON.stringify(state.courseProgress.completedLessons)); } catch(_){}
+          }
           if(j.bonus && j.bonus.message){
             setTimeout(()=> showToast('🎁', j.bonus.message), 600);
           }
@@ -835,18 +870,9 @@
       const code = state.user.referralCode;
       if(!code){ showToast('⚠️', 'Код приглашения пока не загружен'); return; }
       const deepLink = 'https://t.me/OpenDeck_bot/app?startapp=ref_' + code;
-      const shareText = '🎧 Мой музыкальный архетип — ' + state.user.archetype + '. Залетай в Open Deck, забирай 50 Groove Points на старт и узнай свой вайб!';
-      
-      // 1 — скопировать ссылку в буфер (всегда)
-      try { if(navigator.clipboard) navigator.clipboard.writeText(deepLink + '\n\n' + shareText); } catch(_){}
-      
-      // 2 — switchInlineQuery (нативный выбор контакта, нужен inline-режим бота)
-      try { if(tg.switchInlineQuery){ tg.switchInlineQuery(shareText + '\n\n' + deepLink); return; } } catch(_){}
-      
-      // 3 — t.me/share/url через location.href (открывает нативный выбор адресата)
-      // Ссылка в url= → Telegram сам рендерит карточку Mini App с кнопкой «Открыть»
-      const shareUrl = 'https://t.me/share/url?url=' + encodeURIComponent(deepLink) + '&text=' + encodeURIComponent(shareText);
-      try { window.location.href = shareUrl; } catch(_){}
+      haptic('notificationOccurred');
+      navigator.clipboard.writeText(deepLink).catch(()=>{});
+      showToast('✅', 'Ссылка скопирована!<br>Вставь в чат — появится кнопка «Открыть»');
     }
     function resetGpSlider(){
       const gp = state.user.groovePoints;
@@ -883,6 +909,7 @@
     }
 
     function switchTab(tab){
+      haptic('impactOccurred');
       stopVideoAll();   // остановить видео при уходе с урока
       ['home','course','upgrade','profile'].forEach(t=>{
         document.getElementById('tab-'+t).classList.toggle('hidden', t!==tab);
@@ -935,6 +962,9 @@
     function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
     function openLesson(id, l){
       document.body.style.filter='';   // снять защитное размытие при открытии урока
+      // BackButton — показать при открытии урока
+      try { tg.BackButton && tg.BackButton.show(); } catch(_){}
+      try { tg.BackButton && tg.BackButton.onClick(function(){ renderCourse(); try { tg.BackButton.hide(); } catch(_){} }); } catch(_){}
       const box = document.getElementById('tab-course');
       const bullets = (l.d||[]).map(x=>`<li>${esc(x)}</li>`).join('');
       const src = l.video || "";
@@ -1061,6 +1091,7 @@
     function completeLesson(id){
       if(!state.courseProgress.completedLessons.includes(id)){
         state.courseProgress.completedLessons.push(id);
+        haptic('notificationOccurred');
         burst();
         // СОХРАНИТЬ В БАЗУ и получить актуальные GP
         try{
@@ -1077,6 +1108,10 @@
               state.user.groovePoints = j.gp;
               state.courseProgress.completedLessons = j.completed.slice();
               updateUI();
+              // Сохранить в DeviceStorage
+              if(tg.DeviceStorage){
+                try { tg.DeviceStorage.set('completed', JSON.stringify(state.courseProgress.completedLessons)); } catch(_){}
+              }
               // ---- PLAY: после Урока 1 — предложить пригласить друга (Точка Б) ----
               if(id === 1){
                 setTimeout(()=>{
@@ -1116,9 +1151,44 @@
     }
 
     function bookMentor(){
-      const m=document.createElement('div'); m.className='modal-mask';
-      m.innerHTML=`<div class="modal"><h3>Бронирование</h3><p>Это демо. Реальная оплата подключится позже.</p><button class="btn" onclick="this.closest('.modal-mask').remove()">Понятно</button></div>`;
-      document.body.appendChild(m);
+      const finalPrice = parseInt(document.getElementById('gp-final')?.textContent?.replace('$','') || '300');
+      const gpToSpend = parseInt(document.getElementById('gp-slider')?.value || '0');
+      showToast('⏳', 'Создаём счёт...');
+      const btn = document.querySelector('.offer .btn');
+      if(btn) btn.disabled = true;
+      fetch(API_BASE + '/api/create-invoice', {
+        method:'POST',
+        headers:{'Content-Type':'application/json','X-Init-Data': tg.initData || ''},
+        body: JSON.stringify({ course_id:'mentoring', price: finalPrice })
+      }).then(r=>r.ok ? r.json() : r.json().then(()=>null)).then(data=>{
+        if(btn) btn.disabled = false;
+        if(!data || !data.invoice_link){
+          showToast('❌', 'Не удалось создать счёт. Попробуй позже.');
+          return;
+        }
+        // Применить списание GP, если выбрано
+        if(gpToSpend > 0){
+          fetch(API_BASE + '/api/gp/apply', {
+            method:'POST',
+            headers:{'Content-Type':'application/json','X-Init-Data': tg.initData || ''},
+            body: JSON.stringify({ amount: gpToSpend })
+          }).catch(()=>{});
+        }
+        tg.openInvoice(data.invoice_link, (status) => {
+          if(status === 'paid'){
+            showToast('✅', 'Оплачено! Персональное менторство — твоё 🎉');
+            // перезагрузить профиль
+            setTimeout(()=> initApp(), 500);
+          } else if(status === 'cancelled'){
+            showToast('👋', 'Платёж отменён');
+          } else {
+            showToast('❌', 'Ошибка оплаты. Попробуй ещё раз.');
+          }
+        });
+      }).catch(()=>{
+        if(btn) btn.disabled = false;
+        showToast('❌', 'Ошибка сети. Проверь подключение.');
+      });
     }
 
     function openChat(){

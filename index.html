@@ -834,9 +834,9 @@
     function shareInvite(){
       const code = state.user.referralCode;
       if(!code){ showToast('⚠️', 'Код приглашения пока не загружен'); return; }
-      const link = 'https://t.me/OpenDeckBot/app?startapp=ref_' + code;
+      const link = 'https://t.me/OpenDeckBot?start=ref_' + code;
       const shareText = '🎧 Мой музыкальный архетип — ' + state.user.archetype + '. Залетай в Open Deck, забирай 50 Groove Points на старт и узнай свой вайб!';
-      const fullMsg = shareText + '\n' + link;
+      const fullMsg = shareText + '\n\n' + link;
       
       // 1 — скопировать в буфер (всегда)
       try { if(navigator.clipboard) navigator.clipboard.writeText(fullMsg); } catch(_){}
@@ -845,7 +845,7 @@
       try { if(tg.switchInlineQuery){ tg.switchInlineQuery(fullMsg); return; } } catch(_){}
       
       // 3 — window.location.href на t.me/share/url (навигация в webview → Telegram)
-      const shareUrl = 'https://t.me/share/url?url=' + encodeURIComponent(link) + '&text=' + encodeURIComponent(shareText);
+      const shareUrl = 'https://t.me/share/url?url=' + encodeURIComponent(link) + '&text=' + encodeURIComponent(fullMsg);
       try { window.location.href = shareUrl; } catch(_){}
     }
     function resetGpSlider(){

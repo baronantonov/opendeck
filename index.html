@@ -834,9 +834,9 @@
     function shareInvite(){
       const code = state.user.referralCode;
       if(!code){ showToast('⚠️', 'Код приглашения пока не загружен'); return; }
-      const link = 'https://t.me/OpenDeck_bot?start=ref_' + code;
-      const shareText = '🎧 Мой музыкальный архетип — ' + state.user.archetype + '. Залетай в Open Deck, забирай 50 Groove Points на старт и узнай свой вайб!';
-      const fullMsg = shareText + '\n\n' + link;
+      const link = 'https://t.me/OpenDeck_bot/app?startapp=ref_' + code;
+      const shareText = link + '\n\n🎧 Мой музыкальный архетип — ' + state.user.archetype + '. Залетай в Open Deck, забирай 50 Groove Points на старт и узнай свой вайб!';
+      const fullMsg = shareText;
       
       // 1 — скопировать в буфер (всегда)
       try { if(navigator.clipboard) navigator.clipboard.writeText(fullMsg); } catch(_){}

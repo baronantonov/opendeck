@@ -107,14 +107,14 @@
     .play-deck{
       width:112px;height:112px;border-radius:50%;border:0;cursor:pointer;
       background:radial-gradient(circle at 32% 28%, #ffb894, var(--accent-coral) 62%, #d96b48);
-      box-shadow:0 10px 34px rgba(245,146,110,0.5), inset 0 -5px 14px rgba(0,0,0,0.28), inset 0 4px 10px rgba(255,255,255,0.35);
+      box-shadow:0 0 60px rgba(245,146,110,0.55), 0 10px 34px rgba(245,146,110,0.5), inset 0 -5px 14px rgba(0,0,0,0.28), inset 0 4px 10px rgba(255,255,255,0.35);
       display:flex;align-items:center;justify-content:center;
       margin:0 auto;position:relative;
       transition:transform .12s ease, box-shadow .2s ease;
       -webkit-tap-highlight-color:transparent}
-    .play-deck svg{width:44px;height:44px;fill:#fff;margin-left:6px;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.3))}
+    .play-deck svg{width:56px;height:56px;fill:#fff;margin-left:8px;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.4))}
     /* мгновенный отклик на pointer-down — как нажатие физической кнопки деки */
-    .play-deck:active{transform:scale(.93);box-shadow:0 4px 14px rgba(245,146,110,0.45), inset 0 2px 8px rgba(0,0,0,0.35)}
+    .play-deck:active{transform:scale(.93);box-shadow:0 0 40px rgba(245,146,110,0.65), 0 4px 14px rgba(245,146,110,0.45), inset 0 2px 8px rgba(0,0,0,0.35)}
     .play-deck-wrap{text-align:center;padding:18px 0 6px}
     .play-deck-label{font-size:13px;color:var(--text-primary);font-weight:600;margin-top:14px;letter-spacing:.01em}
     /* ссылка на Upgrade под кнопкой — спокойная, не конкурирует с Play */
@@ -180,8 +180,8 @@
     /* ---- Сворачиваемая цитата-философия: заголовок = тапабельная шапка, тело прячется ---- */
     .quote{padding:0;overflow:hidden;cursor:pointer;transition:border-color .2s}
     .quote-head{display:flex;align-items:center;gap:8px;padding:12px 16px}
-    .quote-head .ql{margin-bottom:0;flex:1;min-width:0;font-size:16px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    /* APPLE: стрелка — тонкий chevron вбок (не ломает текст), компактная, справа */
+    .quote-head .ql{margin-bottom:0;flex:1;min-width:0;font-size:20px;line-height:1.2;overflow:hidden}
+    .quote-head .ql-sub{display:block;font-size:13px;font-weight:400;color:var(--text-secondary);margin-top:1px;letter-spacing:.02em;opacity:.7}
     .quote-head .qarr{font-size:11px;opacity:.55;color:var(--accent-mint);transition:transform .3s ease;flex:none;
       display:inline-block;transform:rotate(-90deg);width:14px;text-align:center}
     .quote.open .quote-head .qarr{transform:rotate(0deg)}
@@ -503,7 +503,7 @@
 
       <div class="quote" id="quote" onclick="toggleQuote()">
         <div class="quote-head">
-          <div class="ql">Open Deck: «Свободная дека»</div>
+          <div class="ql">Open Deck<span class="ql-sub">Свободная дека</span></div>
           <span class="qarr">▼</span>
         </div>
         <div class="quote-body">
@@ -623,14 +623,13 @@
         </div>
       </div>
       <!-- PLAY: Invite card with progress (Точка В) -->
-      <div class="invite-card" onclick="shareInvite()">
+      <div class="invite-card">
         <div class="t" id="ref-header">Пригласи напарника и получи <b>+30 GP</b> за каждую регистрацию!<br>А если друг купит курс — ещё <b>+200 GP</b> 🎧</div>
         <div id="ref-friends" style="font-size:12px;color:var(--text-secondary);margin-bottom:8px">Загрузка...</div>
         <div style="height:6px;background:rgba(255,255,255,0.1);border-radius:4px;margin:0 0 10px;overflow:hidden">
           <div id="ref-bar" style="height:100%;width:0%;background:linear-gradient(90deg,var(--accent-coral),var(--accent-mint));border-radius:4px;transition:width .5s"></div>
         </div>
-        <button class="btn" style="width:auto;padding:10px 28px;display:inline-flex;background:var(--accent-coral);font-size:13px">Пригласить друга</button>
-        <div class="sub" id="ref-link-hint">ссылка: t.me/OpenDeckBot/app...</div>
+        <button class="btn" style="width:auto;padding:10px 28px;display:inline-flex;background:var(--accent-coral);font-size:13px" onclick="shareInvite()">Пригласить друга</button>
       </div>
       <div class="row" onclick="openChat()"><div class="ic-wrap" style="background:rgba(140,226,200,0.20)"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div><span class="t">Open Deck DJ Camp</span><span class="sub">чат →</span></div>
       <div style="height:1px;background:rgba(255,255,255,0.06);margin:14px 0 12px;border-radius:2px"></div>
@@ -733,8 +732,6 @@
       document.getElementById('uname').textContent = state.user.name;
       document.getElementById('archetype').textContent = state.user.archetype;
       document.getElementById('gp').textContent = gp;
-      const rl = document.getElementById('ref-link-hint');
-      if(rl && state.user.referralCode) rl.textContent = 't.me/OpenDeckBot/app?startapp=ref_' + state.user.referralCode;
       const de = document.getElementById('done-n'); if(de) de.textContent = dc;
       const ln = document.getElementById('lesson-n'); if(ln) ln.textContent = Math.min(dc+1, tc);
       const be = document.getElementById('bar'); if(be) be.style.width = pct + '%';
@@ -835,18 +832,20 @@
       const code = state.user.referralCode;
       if(!code){ showToast('⚠️', 'Код приглашения пока не загружен'); return; }
       const link = 'https://t.me/OpenDeckBot/app?startapp=ref_' + code;
-      const hint = document.getElementById('ref-link-hint');
-      if(hint) hint.textContent = link;
-      // Telegram share via switchInlineQuery
-      const shareText = '🎧 Мой музыкальный архетип — ' + state.user.archetype + '. Залетай в Open Deck, забирай 50 Groove Points на старт и узнай свой вайб! ' + link;
+      const shareText = '🎧 Мой музыкальный архетип — ' + state.user.archetype + '. Залетай в Open Deck, забирай 50 Groove Points на старт и узнай свой вайб!';
+      // Telegram WebApp: открыть выбор адресата и вставить приглашение
       if(tg.switchInlineQuery){
-        tg.switchInlineQuery(shareText, ['users', 'groups', 'channels']);
-      } else if(navigator.share){
-        navigator.share({ title:'Open Deck', text: shareText });
-      } else {
-        navigator.clipboard.writeText(link).then(()=> showToast('✅', 'Ссылка скопирована! Делись с друзьями'));
+        try {
+          tg.switchInlineQuery(shareText + '\n' + link, {chat_types: ['users', 'groups']});
+          return; // TG сам показывает UI выбора
+        } catch(e){ /* fallback */ }
       }
-      showToast('🎧', 'Ссылка скопирована! Делись с друзьями');
+      // Fallback: копировать ссылку в буфер
+      if(navigator.clipboard){
+        navigator.clipboard.writeText(link).then(()=> showToast('✅', 'Ссылка скопирована! Делись с друзьями'));
+      } else {
+        showToast('✅', 'Твоя ссылка: ' + link);
+      }
     }
     function resetGpSlider(){
       const gp = state.user.groovePoints;
@@ -869,13 +868,10 @@
       document.getElementById('gp-balance').textContent = (state.user.groovePoints - v);
     }
     function updateUIRefLink(){
-      const hint = document.getElementById('ref-link-hint');
-      if(hint && state.user.referralCode) hint.textContent = 't.me/OpenDeckBot/app?startapp=ref_' + state.user.referralCode;
       const fc = document.getElementById('ref-friends');
       if(fc){
         const n = state.user.referralFriends || 0;
         const gp = state.user.referralGpEarned || 0;
-        // milestones: 1 friend → bronze, 3 → silver, 5 → gold, 10 → platinum
         const milestones = [1,3,5,10];
         const next = milestones.find(m => m > n) || milestones[milestones.length-1];
         const pct = Math.min(100, (n / next) * 100);

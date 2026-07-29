@@ -14,17 +14,16 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from aiogram import Bot, Dispatcher, F
 from aiogram.types import (
     InlineKeyboardButton, InlineKeyboardMarkup, Message, PreCheckoutQuery,
-    SuccessfulPayment, WebAppInfo, LabeledPrice,
+    SuccessfulPayment, WebAppInfo, InlineQuery,
+    InlineQueryResultArticle, InputTextMessageContent,
 )
 from aiogram.enums import ParseMode
 from aiogram.client.default import DefaultBotProperties
 
 import httpx
 from bot import config
-from bot.payments import get_provider
 
 COURSE_ID = "dj-basics"
-COURSE_TITLE = "Базовый курс DJing (3 урока)"
 
 
 def main_kb() -> InlineKeyboardMarkup:
@@ -40,36 +39,6 @@ async def cmd_start(msg: Message):
     )
 
 
-async def on_buy(cb):
-    method = cb.data.split(":", 1)[1]
-    provider = get_provider(method)
-    inv = await provider.create_invoice(cb.from_user.id, COURSE_ID, COURSE_TITLE)
-    if method == "stars":
-        # Нативный путь TG: provider_token пустой => валюта XTR (Stars)
-        await cb.bot.send_invoice(
-            chat_id=cb.from_user.id,
-            title=COURSE_TITLE,
-            description="Видеокурс по DJing: от пультов до первого сета.",
-            payload=COURSE_ID,
-            provider_token="",          # пустой = Stars
-            currency="XTR",
-            prices=[LabeledPrice(label="Курс DJing", amount=config.STARS_PRICE)],
-        )
-    elif method == "ton":
-        await cb.message.answer(
-            f"Оплата за TON. Переведите {inv.meta['amount_ton']} TON на {inv.url_or_payload} "
-            f"в Mini App (TON Connect)."
-        )
-    else:  # prodamus — открываем ВНЕ webview (openLink), чтобы не словить бан
-        if inv.meta.get("not_configured"):
-            await cb.message.answer("Оплата МИР/СБП пока не настроена. Напиши админу или выбери Stars/TON.")
-        else:
-            await cb.message.answer(
-                f"Оплата МИР/СБП по ссылке (откроется в браузере):\n{inv.url_or_payload}"
-            )
-    await cb.answer()
-
-
 async def on_pre_checkout(q: PreCheckoutQuery):
     # Подтверждаем готовность принять Stars-оплату
     await q.bot.answer_pre_checkout_query(q.id, ok=True)
@@ -79,12 +48,61 @@ async def on_paid(msg: Message):
     payment: SuccessfulPayment = msg.successful_payment
     course_id = payment.invoice_payload
     async with httpx.AsyncClient() as c:
-        await c.post(f"{config.BACKEND_URL}/api/grant", json={
+        r = await c.post(f"{config.BACKEND_URL}/api/grant", json={
             "user_id": msg.from_user.id,
             "course_id": course_id,
             "provider": "stars",
-        })
+            "charge_id": payment.telegram_payment_charge_id,
+        }, headers={"Authorization": f"Bearer {config.INTERNAL_API_KEY}"})
+        if r.status_code == 200:
+            # начислить реферальный бонус инвайтер
+            try:
+                await c.post(f"{config.BACKEND_URL}/api/referral/purchase", json={
+                    "user_id": msg.from_user.id,
+                }, headers={"Authorization": f"Bearer {config.INTERNAL_API_KEY}"})
+            except Exception:
+                pass  # не критично
     await msg.answer("✅ Оплата прошла! Открывай курс в Mini App и смотри уроки.")
+
+
+async def on_inline(query: InlineQuery):
+    """Обработчик inline-режима: пересылает приглашение (текст с deep link)."""
+    text = query.query or ""
+    if not text.strip():
+        return
+    await query.answer(
+        results=[
+            InlineQueryResultArticle(
+                id="1",
+                title="🎧 Пригласить друга в Open Deck",
+                description=text.split("\n", 1)[0] if "\n" in text else text,
+                input_message_content=InputTextMessageContent(
+                    message_text=text,
+                ),
+            )
+        ],
+        cache_time=0,
+    )
+
+
+async def on_web_app_data(msg: Message):
+    """Получает данные из tg.sendData() — отправляет приглашение с Mini App карточкой."""
+    import json
+    if not msg.web_app_data:
+        return
+    try:
+        data = json.loads(msg.web_app_data.data)
+    except Exception:
+        return
+    if data.get("action") != "invite":
+        return
+    code = data.get("code", "")
+    archetype = data.get("archetype", "Куратор Вайба")
+    if not code:
+        return
+    deep_link = f"https://t.me/OpenDeck_bot/app?startapp=ref_{code}"
+    text = f"{deep_link}\n\n🎧 Мой музыкальный архетип — {archetype}. Залетай в Open Deck, забирай 50 Groove Points на старт и узнай свой вайб!"
+    await msg.answer(text)
 
 
 async def main():
@@ -93,9 +111,10 @@ async def main():
     bot = Bot(token=config.BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
     dp = Dispatcher()
     dp.message.register(cmd_start, F.text == "/start")
-    dp.callback_query.register(on_buy, F.data.startswith("buy:"))
     dp.pre_checkout_query.register(on_pre_checkout)
     dp.message.register(on_paid, F.successful_payment)
+    dp.inline_query.register(on_inline)
+    dp.message.register(on_web_app_data, F.web_app_data)
     print("🤖 Бот запущен. /start в Telegram.")
     await dp.start_polling(bot)
 

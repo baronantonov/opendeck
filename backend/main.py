@@ -13,7 +13,7 @@
   POST /webhooks/prodamus       — вебхук оплаты
 """
 from __future__ import annotations
-import os, json
+import os, json, httpx
 from pathlib import Path
 
 try:
@@ -71,6 +71,23 @@ COURSE = {
         {"id": 10, "title": "Твой первый микс из 4–5 треков"},
     ]
 }
+
+# --- PLAY remap: основной курс = старые уроки 5-10 (новые 1-6), бонусы = старые 1-4 ---
+MAIN_OLD_IDS = [5, 6, 7, 8, 9, 10]
+MAIN_NEW_IDS = [1, 2, 3, 4, 5, 6]
+BONUS_OLD_IDS = [1, 2, 3, 4]
+OLD_TO_NEW = {old: new for old, new in zip(MAIN_OLD_IDS, MAIN_NEW_IDS)}
+NEW_TO_OLD = {new: old for new, old in zip(MAIN_NEW_IDS, MAIN_OLD_IDS)}
+TOTAL_MAIN = len(MAIN_OLD_IDS)
+
+COURSE_MAIN = [
+    {"id": i + 1, "title": COURSE[COURSE_ID][MAIN_OLD_IDS[i] - 1]["title"]}
+    for i in range(TOTAL_MAIN)
+]
+COURSE_BONUS = [
+    {"id": i + 1, "title": COURSE[COURSE_ID][i]["title"], "bonus": True}
+    for i in range(4)
+]
 
 
 # ---------------------------------------------------------------------------
@@ -131,16 +148,23 @@ def _user_response(uid: int) -> dict:
 
 def _course_response(uid: int) -> dict:
     """Собрать блок course."""
-    completed = db.get_completed(uid, COURSE_ID)
-    total = len(COURSE.get(COURSE_ID, []))
-    current = (max(completed) + 1) if completed else 1
-    if current > total:
-        current = total
+    raw_completed = db.get_completed(uid, COURSE_ID)
+    remap_main = lambda ids: [OLD_TO_NEW[x] for x in ids if x in MAIN_OLD_IDS]
+    main_completed = remap_main(raw_completed)
+    main_total = TOTAL_MAIN
+    current = (max(main_completed) + 1) if main_completed else 1
+    if current > main_total:
+        current = main_total
+    bonus_completed = len([x for x in raw_completed if x in BONUS_OLD_IDS])
+    bonus_total = len(BONUS_OLD_IDS)
     return {
         "course_id": COURSE_ID,
-        "completed_lessons": completed,
-        "total_lessons": total,
+        "completed_lessons": main_completed,
+        "total_lessons": main_total,
         "current_lesson_id": current,
+        "bonus_lessons": bonus_completed,
+        "total_bonus_lessons": bonus_total,
+        "bonus_unlocked": len(main_completed) >= main_total,
     }
 
 
@@ -253,13 +277,13 @@ async def profile(x_init_data: str = Header("", alias="X-Init-Data")):
     gp = db.get_gp(uid)
     completed = db.get_completed(uid, COURSE_ID)
     badges = db.get_badges(uid, COURSE_ID)
-    total = len(COURSE.get(COURSE_ID, []))
+    main_completed = [OLD_TO_NEW[x] for x in completed if x in MAIN_OLD_IDS]
     ref_stats = db.get_referral_stats(uid)
     return {
         "user": user,
         "gp": gp,
-        "completed": completed,
-        "total_lessons": total,
+        "completed": main_completed,
+        "total_lessons": TOTAL_MAIN,
         "badges": badges,
         "referral_code": user["referral_code"] if user else "",
         "referred_by": user["referred_by"] if user else None,
@@ -269,8 +293,7 @@ async def profile(x_init_data: str = Header("", alias="X-Init-Data")):
     }
 
 
-# ---- GET /api/lessons (unchanged) ----
-
+# ---- GET /api/lessons /api/lessons-bonus — основная часть / бонусы ----
 @app.get("/api/lessons")
 async def lessons(
     x_init_data: str = Header("", alias="X-Init-Data"),
@@ -279,13 +302,31 @@ async def lessons(
     uid = _user_id_from_init(x_init_data)
     if uid is None:
         return JSONResponse({"error": "bad_init_data", "paid": False}, status_code=401)
-    paid = db.has_paid(uid, course_id)
-    completed = db.get_completed(uid, course_id)
+    completed = [OLD_TO_NEW[x] for x in db.get_completed(uid, course_id) if x in MAIN_OLD_IDS]
     return {
-        "paid": paid,
+        "paid": db.has_paid(uid, course_id),
         "course_id": course_id,
-        "lessons": COURSE.get(course_id, []),
+        "lessons": COURSE_MAIN,
         "completed": completed,
+        "total": TOTAL_MAIN,
+    }
+
+
+@app.get("/api/lessons-bonus")
+async def lessons_bonus(
+    x_init_data: str = Header("", alias="X-Init-Data"),
+    course_id: str = COURSE_ID,
+):
+    uid = _user_id_from_init(x_init_data)
+    if uid is None:
+        return JSONResponse({"error": "bad_init_data"}, status_code=401)
+    main_done = len([x for x in db.get_completed(uid, course_id) if x in MAIN_OLD_IDS]) >= TOTAL_MAIN
+    completed = [x for x in db.get_completed(uid, course_id) if x in BONUS_OLD_IDS]
+    return {
+        "course_id": course_id,
+        "lessons": COURSE_BONUS,
+        "completed": completed,
+        "bonus_unlocked": main_done,
     }
 
 
@@ -299,13 +340,18 @@ async def progress(
     uid = _user_id_from_init(x_init_data)
     if uid is None:
         return JSONResponse({"error": "bad_init_data"}, status_code=401)
-    if not db.has_paid(uid, p.course_id):
-        return JSONResponse({"error": "not_paid", "paid": False}, status_code=403)
-    course_lessons = COURSE.get(p.course_id, [])
-    if not any(l["id"] == p.lesson_id for l in course_lessons):
-        return JSONResponse({"error": "bad_lesson_id"}, status_code=400)
-    gp = db.complete_lesson(uid, p.course_id, p.lesson_id)
-    completed = db.get_completed(uid, p.course_id)
+    # Основной платный доступ: только полный курс.
+    if p.course_id == COURSE_ID and p.lesson_id in MAIN_NEW_IDS:
+        paid_full = db.has_paid(uid, p.course_id)
+        if not paid_full and not db.has_paid(uid, "tripwire"):
+            return JSONResponse({"error": "not_paid", "paid": False}, status_code=403)
+    old_id = NEW_TO_OLD.get(p.lesson_id, p.lesson_id)
+    gp = db.complete_lesson(uid, p.course_id, old_id)
+    completed = [
+        OLD_TO_NEW[x]
+        for x in db.get_completed(uid, p.course_id)
+        if x in MAIN_OLD_IDS
+    ]
     return {
         "gp": gp,
         "completed": completed,
@@ -354,7 +400,65 @@ async def gp_apply(
     return result
 
 
-# ---- POST /api/grant (internal, unchanged) ----
+# ---- Цены в Stars ----
+# 1 Star ≈ $0.014 для покупателя. Цена с учётом комиссии Apple/Google (~30% на мобильных).
+# Creator получает ~$0.013 за Star после вывода.
+TRIPWIRE_PRICE = 500      # $7   → 500 Stars
+FULL_COURSE_PRICE = 2100  # $30  → 2100 Stars
+MENTOR_PRICE = 21000      # $300 → 21000 Stars
+
+
+# ---- POST /api/create-invoice — Telegram Stars invoice ----
+
+class CreateInvoice(BaseModel):
+    course_id: str = "dj-basics"
+    price: int | None = None  # если передан — переопределяет цену по-умолчанию
+
+@app.post("/api/create-invoice")
+async def create_invoice(
+    body: CreateInvoice,
+    x_init_data: str = Header("", alias="X-Init-Data"),
+):
+    uid = _user_id_from_init(x_init_data)
+    if uid is None:
+        return JSONResponse({"error": "bad_init_data"}, status_code=401)
+
+    course_id = body.course_id
+    if course_id == "tripwire":
+        price = body.price or TRIPWIRE_PRICE
+        label = "Pocket DJ: уроки 1-4"
+    elif course_id == COURSE_ID:
+        price = body.price or FULL_COURSE_PRICE
+        label = "Pocket DJ: полный курс"
+    elif course_id == "mentoring":
+        price = body.price or MENTOR_PRICE
+        label = "Персональное менторство FREEDA DJ"
+    else:
+        return JSONResponse({"error": "unknown_course"}, status_code=400)
+
+    async with httpx.AsyncClient(timeout=10) as c:
+        resp = await c.post(
+            f"https://api.telegram.org/bot{BOT_TOKEN}/createInvoiceLink",
+            json={
+                "title": label,
+                "description": "Open Deck DJ School",
+                "payload": course_id,
+                "provider_token": "",
+                "currency": "XTR",
+                "prices": [{"label": label, "amount": price}],
+            },
+        )
+        data = resp.json()
+    if not data.get("ok"):
+        return JSONResponse({"error": "telegram_api_error", "detail": data}, status_code=502)
+    return {
+        "invoice_link": data["result"],
+        "title": label,
+        "price": price,
+    }
+
+
+# ---- POST /api/grant (internal) ----
 
 @app.post("/api/grant")
 async def grant(

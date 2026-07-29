@@ -834,7 +834,7 @@
     function shareInvite(){
       const code = state.user.referralCode;
       if(!code){ showToast('⚠️', 'Код приглашения пока не загружен'); return; }
-      const link = 'https://t.me/OpenDeckBot?start=ref_' + code;
+      const link = 'https://t.me/OpenDeck_bot?start=ref_' + code;
       const shareText = '🎧 Мой музыкальный архетип — ' + state.user.archetype + '. Залетай в Open Deck, забирай 50 Groove Points на старт и узнай свой вайб!';
       const fullMsg = shareText + '\n\n' + link;
       

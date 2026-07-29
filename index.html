@@ -838,38 +838,15 @@
       const shareText = '🎧 Мой музыкальный архетип — ' + state.user.archetype + '. Залетай в Open Deck, забирай 50 Groove Points на старт и узнай свой вайб!';
       const fullMsg = shareText + '\n' + link;
       
-      // 1 — скопировать в буфер (всегда, на любой платформе)
-      try {
-        if(navigator.clipboard) navigator.clipboard.writeText(fullMsg);
-      } catch(_){}
+      // 1 — скопировать в буфер (всегда)
+      try { if(navigator.clipboard) navigator.clipboard.writeText(fullMsg); } catch(_){}
       
       // 2 — switchInlineQuery (нативный выбор контакта, требует inline-режима у бота)
-      try {
-        if(tg.switchInlineQuery){
-          tg.switchInlineQuery(fullMsg);
-          return;
-        }
-      } catch(_){}
+      try { if(tg.switchInlineQuery){ tg.switchInlineQuery(fullMsg); return; } } catch(_){}
       
-      // 3 — openTelegramLink с разными форматами (share URL / tg://msg)
-      try {
-        if(tg.openTelegramLink){
-          const shareUrl = 'https://t.me/share/url?url=' + encodeURIComponent(link) + '&text=' + encodeURIComponent(shareText);
-          tg.openTelegramLink(shareUrl);
-          return;
-        }
-      } catch(_){}
-      
-      // 4 — window.open (срабатывает даже в Desktop, открывает браузер)
-      try {
-        const shareUrl = 'https://t.me/share/url?url=' + encodeURIComponent(link) + '&text=' + encodeURIComponent(shareText);
-        window.open(shareUrl, '_blank');
-        showToast('✅', 'Ссылка скопирована! Отправь её другу');
-        return;
-      } catch(_){}
-      
-      // 5 — последний рубеж
-      showToast('✅', 'Ссылка скопирована! Отправь её другу');
+      // 3 — window.location.href на t.me/share/url (навигация в webview → Telegram)
+      const shareUrl = 'https://t.me/share/url?url=' + encodeURIComponent(link) + '&text=' + encodeURIComponent(shareText);
+      try { window.location.href = shareUrl; } catch(_){}
     }
     function resetGpSlider(){
       const gp = state.user.groovePoints;

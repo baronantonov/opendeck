@@ -843,10 +843,7 @@
       // 2 — switchInlineQuery (нативный выбор контакта, нужен inline-режим бота)
       try { if(tg.switchInlineQuery){ tg.switchInlineQuery(fullMsg); return; } } catch(_){}
       
-      // 3 — openTelegramLink с Mini App deep link
-      try { if(tg.openTelegramLink){ tg.openTelegramLink(deepLink); return; } } catch(_){}
-      
-      // 4 — t.me/share/url через location.href (открывает нативный выбор адресата)
+      // 3 — t.me/share/url через location.href (открывает нативный выбор адресата)
       const shareUrl = 'https://t.me/share/url?text=' + encodeURIComponent(fullMsg);
       try { window.location.href = shareUrl; } catch(_){}
     }

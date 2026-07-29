@@ -66,6 +66,9 @@ def load():
             "user_id": uid,
             "login": "@" + (u["username"] or "—"),
             "first_name": u["first_name"] or "—",
+            "groove_points": u.get("groove_points", 0),
+            "referral_code": u.get("referral_code") or "—",
+            "referred_by": u.get("referred_by") or "—",
             "paid": ",".join(sorted(paid)) if paid else "—",
             "lessons": f"{n}/10",
             "gp": gp,
@@ -83,13 +86,14 @@ def is_real(r):
 
 def print_table(rows, include_test):
     show = rows if include_test else [r for r in rows if not r["is_test"]]
-    hdr = f"{'user_id':<12} {'login':<20} {'name':<18} {'paid':<17} {'lessons':<8} {'gp':<5} {'flag'}"
+    hdr = f"{'user_id':<12} {'login':<22} {'name':<18} {'GP':<5} {'ref_code':<10} {'referred':<10} {'paid':<17} {'lessons':<8} {'flag'}"
     print(hdr)
     print("-" * len(hdr))
     for r in show:
         flag = "[TEST]" if r["is_test"] else ""
-        print(f"{r['user_id']:<12} {r['login']:<20} {r['first_name']:<18} "
-              f"{r['paid']:<17} {r['lessons']:<8} {r['gp']:<5} {flag}")
+        print(f"{r['user_id']:<12} {r['login']:<22} {r['first_name']:<18} "
+              f"{r['groove_points']:<5} {r['referral_code']:<10} {r['referred_by']:<10} "
+              f"{r['paid']:<17} {r['lessons']:<8} {flag}")
     real = [r for r in show if is_real(r)]
     print("-" * len(hdr))
     print(f"Показано: {len(show)} | реальных плативших: {len(real)} | "
@@ -99,10 +103,13 @@ def print_table(rows, include_test):
 def to_csv(rows):
     import csv, sys
     w = csv.writer(sys.stdout)
-    w.writerow(["user_id", "login", "first_name", "paid_providers",
+    w.writerow(["user_id", "login", "first_name", "groove_points",
+                "referral_code", "referred_by", "paid_providers",
                 "lessons_done", "gp", "is_test", "created_at", "last_seen"])
     for r in rows:
-        w.writerow([r["user_id"], r["login"], r["first_name"], r["paid"],
+        w.writerow([r["user_id"], r["login"], r["first_name"],
+                    r["groove_points"], r["referral_code"], r["referred_by"],
+                    r["paid"],
                     r["lessons"], r["gp"], r["is_test"],
                     r["created_at"], r["last_seen"]])
 

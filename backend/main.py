@@ -38,7 +38,7 @@ if not BOT_TOKEN:
 INTERNAL_API_KEY = os.getenv("INTERNAL_API_KEY", "")
 if not INTERNAL_API_KEY:
     raise SystemExit("❌ INTERNAL_API_KEY не задан! Без него /api/grant не защищён.")
-MINI_APP_DIR = Path(__file__).resolve().parent.parent / "miniapp"
+MINI_APP_DIR = Path(__file__).resolve().parent.parent  # корень проекта — один index.html
 COURSE_ID = "dj-basics"
 
 app = FastAPI(title="DJ School API")

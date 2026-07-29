@@ -54,11 +54,10 @@
     .gp .lbl{color:var(--text-secondary);font-size:13px}
 
     .hero{
-      border-radius:22px;padding:20px;margin-bottom:14px;
+      border-radius:22px;padding:26px 22px 22px;margin-bottom:16px;
       background:linear-gradient(135deg,rgba(245,146,110,0.30),rgba(140,226,200,0.18));
-      border:1px solid rgba(255,255,255,0.08);
-      animation:heroPulse 5s ease-in-out infinite}
-    @keyframes heroPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.012)}}
+      border:1px solid rgba(140,226,200,0.22)} /* APPLE: hero — рамка ярче, выделяется как главная зона */
+    /* APPLE: убрана бесконечная пульсация hero (heroPulse) — фокус не должен дёргаться */
     /* ---- Анимации: шиммер, свечение, качание ---- */
     @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
     @keyframes glowPulse{0%,100%{text-shadow:0 0 4px rgba(140,226,200,0.25)}50%{text-shadow:0 0 20px rgba(140,226,200,0.55)}}
@@ -72,22 +71,25 @@
     .hero.shim::after{border-radius:22px}
     .free.shim::after{border-radius:16px}
     .hero .hero-progress-num .st{display:inline-block;animation:glowPulse 3s ease-in-out infinite}
-    .m-row .m-btn{animation:sway 5s ease-in-out infinite}
-    .m-row .m-btn:nth-child(2){animation-delay:.35s}
-    .m-row .m-btn:nth-child(3){animation-delay:.7s}
+    /* APPLE: sway на кнопках манифеста УБРАН — декоративная анимация рассеивала фокус.
+       Оставлен отклик на hover/press (смысловой), без бесконечного покачивания. */
     .m-row .m-btn:hover{animation-play-state:paused;transform:translateY(-2px)}
     .m-panel{transition:max-height .55s cubic-bezier(.25,.46,.45,.94),opacity .4s ease,margin .3s ease,padding .3s ease,box-shadow .3s}
     .m-panel.open{box-shadow:0 0 24px rgba(140,226,200,0.06)}
     .hero .tag{font-size:12px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.06em}
     .hero .hero-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px}
     .hero .hero-meta{display:flex;flex-direction:column;align-items:flex-end;gap:2px}
-    .hero .hero-progress-num{font-family:'Unbounded',sans-serif;font-weight:800;font-size:56px;color:var(--text-primary);line-height:1;flex:none}
+    /* APPLE: цифра прогресса уменьшена — фокус на уроке, не на счётчике */
+    .hero .hero-progress-num{font-family:'Unbounded',sans-serif;font-weight:800;font-size:38px;color:var(--text-primary);line-height:1;flex:none}
     .hero .hero-progress-num .st{color:var(--accent-mint);display:inline-block;animation:glowPulse 3s ease-in-out infinite}
-    .hero .hero-progress-num .of{font-size:24px;font-weight:600;color:var(--text-secondary);opacity:.6;vertical-align:super}
-    .hero-title-row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px}
-    .hero-title-row h2{flex:1;margin:0}
-    .hero-duration{font-size:11px;color:var(--text-secondary);opacity:.6;margin:-10px 0 14px;letter-spacing:.02em}
-    .hero h2{font-size:20px;margin:6px 0 16px}
+    .hero .hero-progress-num .of{font-size:18px;font-weight:600;color:var(--text-secondary);opacity:.6;vertical-align:super}
+    .hero-title-row{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:8px}
+    .hero-title-row h2{flex:1;margin:0;min-width:0}
+    /* APPLE: заголовок и цифра выровнены по ЦЕНТРУ, не по верху — убирает «висящую» последнюю строку */
+    .hero .hero-progress-num{flex:none;align-self:center;text-align:right;line-height:1}
+    /* APPLE: заголовок урока — главный фокус (крупнее, чем цифра) */
+    .hero h2{font-size:23px;margin:8px 0 6px;line-height:1.28}
+    .hero-duration{font-size:11px;color:var(--text-secondary);opacity:.65;margin:0 0 4px;letter-spacing:.02em}
     .progress{height:8px;border-radius:999px;background:rgba(255,255,255,0.12);overflow:hidden;margin-bottom:16px}
     .progress > i{display:block;height:100%;background:var(--accent-mint);border-radius:999px;transition:width .6s ease}
     .btn{
@@ -100,6 +102,37 @@
     .btn:active{transform:scale(.97)}
     .btn.mint{background:var(--accent-mint);color:#1c201e}
     .btn.ghost{background:rgba(255,255,255,0.08);color:var(--text-primary)}
+
+    /* ---- APPLE/DECK: большая круглая Play-кнопка как на диджейской деке ---- */
+    .play-deck{
+      width:112px;height:112px;border-radius:50%;border:0;cursor:pointer;
+      background:radial-gradient(circle at 32% 28%, #ffb894, var(--accent-coral) 62%, #d96b48);
+      box-shadow:0 10px 34px rgba(245,146,110,0.5), inset 0 -5px 14px rgba(0,0,0,0.28), inset 0 4px 10px rgba(255,255,255,0.35);
+      display:flex;align-items:center;justify-content:center;
+      margin:0 auto;position:relative;
+      transition:transform .12s ease, box-shadow .2s ease;
+      -webkit-tap-highlight-color:transparent}
+    .play-deck svg{width:44px;height:44px;fill:#fff;margin-left:6px;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.3))}
+    /* мгновенный отклик на pointer-down — как нажатие физической кнопки деки */
+    .play-deck:active{transform:scale(.93);box-shadow:0 4px 14px rgba(245,146,110,0.45), inset 0 2px 8px rgba(0,0,0,0.35)}
+    .play-deck-wrap{text-align:center;padding:18px 0 6px}
+    .play-deck-label{font-size:13px;color:var(--text-primary);font-weight:600;margin-top:14px;letter-spacing:.01em}
+    /* ссылка на Upgrade под кнопкой — спокойная, не конкурирует с Play */
+    .upgrade-link{display:inline-block;margin-top:16px;font-size:13px;color:var(--accent-mint);
+      text-decoration:none;border-bottom:1px solid rgba(140,226,200,0.35);padding-bottom:1px;cursor:pointer;
+      transition:color .2s,border-color .2s}
+    .upgrade-link:hover{color:#a5f0d8;border-color:rgba(140,226,200,0.6)}
+    /* блок «что дают GP» — компактный, объясняет ценность очков */
+    .gp-value{margin-top:16px;padding:13px 15px;background:rgba(140,226,200,0.07);
+      border:1px solid rgba(140,226,200,0.18);border-radius:14px;font-size:12.5px;
+      color:var(--text-secondary);line-height:1.55;text-align:center}
+    .gp-value b{color:var(--accent-mint)}
+    /* APPLE: hero теперь центрирован — кнопка и подписи по центру, воздух вокруг */
+    .hero{ text-align:center }
+    .hero .hero-head{ text-align:left }
+    .hero-title-row{ text-align:left }
+    .hero-duration{ text-align:left; margin-top:2px }
+    .hero .progress{ margin:14px 0 4px }
 
     /* ---- Манифест: кнопки по горизонтали + дроп-панель ---- */
     .manifest{margin-bottom:14px}
@@ -115,7 +148,8 @@
       white-space:nowrap;min-width:0;
       -webkit-tap-highlight-color:transparent}
     .m-row .m-btn:hover{transform:translateY(-1px);background:rgba(255,255,255,0.09)}
-    .m-row .m-btn:active{transform:scale(.96)}
+    /* APPLE: мгновенный отклик на pointer-down (не ждём release) — highlight + scale сразу */
+    .m-row .m-btn:active{transform:scale(.96);background:rgba(255,255,255,0.10)}
     .m-row .m-btn .arr{transition:transform .35s ease;font-size:10px;opacity:.6}
     .m-row .m-btn.open .arr{transform:rotate(180deg)}
     .m-row .m-btn:nth-child(1){color:var(--accent-coral)!important;border-color:rgba(245,146,110,0.25)}
@@ -137,12 +171,25 @@
     .m-panel .mt{font-weight:600;color:var(--text-primary);font-size:14px;margin-bottom:8px;display:block}
     .quote{
       font-size:14px;line-height:1.65;color:var(--text-secondary);text-align:center;
-      margin:0 0 14px;padding:20px 24px;
-      background:rgba(255,255,255,0.03);
+      margin:0 0 14px;padding:16px 20px;
+      background:rgba(255,255,255,0.02);
       border-radius:18px;
-      border:1px solid rgba(255,255,255,0.06)}
+      border:1px solid rgba(255,255,255,0.04)} /* APPLE: приглушена — второстепенная, тише hero */
     .quote .qm{color:var(--accent-coral);font-weight:500;margin-top:14px;font-size:14px}
     .quote .ql{color:var(--accent-mint);font-family:'Unbounded',sans-serif;font-weight:800;font-size:18px;margin-bottom:10px;letter-spacing:.02em}
+    /* ---- Сворачиваемая цитата-философия: заголовок = тапабельная шапка, тело прячется ---- */
+    .quote{padding:0;overflow:hidden;cursor:pointer;transition:border-color .2s}
+    .quote-head{display:flex;align-items:center;gap:8px;padding:12px 16px}
+    .quote-head .ql{margin-bottom:0;flex:1;min-width:0;font-size:16px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    /* APPLE: стрелка — тонкий chevron вбок (не ломает текст), компактная, справа */
+    .quote-head .qarr{font-size:11px;opacity:.55;color:var(--accent-mint);transition:transform .3s ease;flex:none;
+      display:inline-block;transform:rotate(-90deg);width:14px;text-align:center}
+    .quote.open .quote-head .qarr{transform:rotate(0deg)}
+    .quote-body{max-height:0;opacity:0;overflow:hidden;transition:max-height .45s cubic-bezier(.25,.46,.45,.94),opacity .35s ease,padding .25s ease;
+      padding:0 16px;text-align:center;font-size:13px}
+    .quote.open .quote-body{max-height:280px;opacity:1;padding:0 16px 14px}
+    /* мгновенный отклик на pointer-down для шапки цитаты */
+    .quote:active{border-color:rgba(140,226,200,0.25)}
     .stat{display:flex;gap:10px;margin-bottom:14px}
     .stat .card{flex:1;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.06);
       border-radius:16px;padding:14px;text-align:center;
@@ -168,6 +215,8 @@
     /* появление по очереди */
     @keyframes lessonIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
     .lesson:hover{transform:translateY(-2px)}
+    /* APPLE: мгновенный отклик на pointer-down — подсветка при касании, не только при отпускании */
+    .lesson:active{border-color:rgba(140,226,200,0.35);transform:scale(.99)}
     .lesson.active{border-color:var(--accent-coral);box-shadow:0 0 18px rgba(245,146,110,0.25);
       animation:lessonSway 3.4s ease-in-out infinite}
     /* лёгкое покачивание активного урока */
@@ -277,16 +326,13 @@
     .prof-card{text-align:center;padding:28px 20px 24px;position:relative;overflow:hidden;
       background:linear-gradient(180deg,rgba(245,146,110,0.08) 0%,rgba(140,226,200,0.04) 50%,transparent 100%);
       border-radius:22px;border:1px solid rgba(255,255,255,0.06);margin-bottom:16px}
-    .prof-card::after{content:'';position:absolute;inset:0;pointer-events:none;
-      background:linear-gradient(135deg,transparent 0%,rgba(245,146,110,0.035) 25%,rgba(140,226,200,0.035) 50%,transparent 75%);
-      background-size:200% 200%;animation:shimmer 5s ease-in-out infinite;border-radius:22px}
-    @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+    /* APPLE: shimmer-блик с профиля УБРАН — карточка и так нарядная, блик перегружал */
     .prof-avatar-wrap{position:relative;display:inline-block;margin-bottom:0}
 
     .prof-avatar{width:110px;height:110px;border-radius:50%;font-size:40px;font-weight:700;margin:0 auto;
       display:flex;align-items:center;justify-content:center;
-      background:rgba(255,255,255,0.08);color:var(--text-secondary);box-shadow:0 0 8px rgba(140,226,200,0.3);
-      border:2px solid var(--accent-mint);box-shadow:0 0 8px rgba(140,226,200,0.3);overflow:hidden;
+      background:rgba(255,255,255,0.08);color:var(--text-secondary);
+      border:2px solid var(--accent-mint);overflow:hidden; /* APPLE: убрано свечение — чистая обводка */
       background-size:cover;background-position:center;background-repeat:no-repeat;
       position:relative;z-index:1}
     .prof-badge{display:inline-flex;align-items:center;gap:6px;margin-top:12px;
@@ -317,6 +363,8 @@
       border:1px solid rgba(255,255,255,0.06);
       animation:heroIn .45s cubic-bezier(.34,1.4,.64,1) both}
     .row:hover{background:rgba(255,255,255,0.09);transform:translateX(3px);border-color:rgba(255,255,255,0.12)}
+    /* APPLE: отклик на pointer-down для строк — мгновенная подсветка */
+    .row:active{background:rgba(255,255,255,0.11);transform:scale(.99)}
     .row .ic-wrap{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex:none}
     .row .ic{width:18px;height:18px;color:#fff}
     .row .t{font-size:14px;flex:1;color:var(--text-primary)}
@@ -395,10 +443,48 @@
         animation:none !important}
       .btn:hover,.row:hover,.lesson:hover{transform:none}
     }
+
+    /* ---- PLAY: Toast-уведомления ---- */
+    .toast{
+      position:fixed;bottom:100px;left:18px;right:18px;z-index:50;
+      background:rgba(43,48,46,0.90);backdrop-filter:blur(12px);
+      border:1px solid rgba(140,226,200,0.25);border-radius:16px;
+      padding:14px 18px;display:flex;align-items:center;gap:12px;
+      transform:translateY(120px);opacity:0;
+      transition:transform .5s cubic-bezier(.34,1.56,.64,1),opacity .4s ease;
+      pointer-events:none;box-shadow:0 4px 24px rgba(0,0,0,0.25)}
+    .toast.show{transform:translateY(0);opacity:1;pointer-events:auto}
+    .toast .ic{width:32px;height:32px;flex:none}
+    .toast .t{font-size:14px;line-height:1.4;color:var(--text-primary);flex:1}
+    .toast .t b{color:var(--accent-mint)}
+    .toast .close{font-size:16px;color:var(--text-secondary);cursor:pointer;flex:none;opacity:.6;transition:opacity .2s}
+    .toast .close:hover{opacity:1}
+
+    /* ---- PLAY: GP-слайдер ---- */
+    .gp-slider-wrap{margin:16px 0;padding:16px;background:rgba(255,255,255,0.03);border-radius:14px;border:1px solid rgba(255,255,255,0.06)}
+    .gp-slider-wrap .lbl{display:flex;justify-content:space-between;font-size:13px;color:var(--text-secondary);margin-bottom:8px}
+    .gp-slider-wrap .lbl b{color:var(--accent-mint)}
+    .gp-slider{width:100%;height:6px;-webkit-appearance:none;appearance:none;background:rgba(255,255,255,0.12);border-radius:999px;outline:none;cursor:pointer}
+    .gp-slider::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:50%;background:var(--accent-coral);border:2px solid #fff;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,0.3)}
+    .gp-slider::-moz-range-thumb{width:22px;height:22px;border-radius:50%;background:var(--accent-coral);border:2px solid #fff;cursor:pointer}
+    .gp-result{display:flex;justify-content:space-between;align-items:center;margin-top:10px;font-size:14px}
+    .gp-result .disc{color:var(--accent-mint);font-weight:600}
+    .gp-result .final{font-family:'Unbounded';font-weight:800;font-size:20px;color:var(--accent-coral)}
+
+    /* ---- PLAY: карточка приглашения в профиле ---- */
+    .invite-card{
+      margin:12px 0;padding:16px;border-radius:16px;
+      background:linear-gradient(135deg,rgba(245,146,110,0.12),rgba(140,226,200,0.08));
+      border:1px solid rgba(245,146,110,0.20);text-align:center}
+    .invite-card .t{font-size:14px;line-height:1.5;margin-bottom:12px}
+    .invite-card .t b{color:var(--accent-coral)}
+    .invite-card .sub{font-size:12px;color:var(--text-secondary);margin-top:10px;opacity:.7}
   </style>
 </head>
 <body>
   <div class="wrap">
+  <!-- PLAY: Toast -->
+  <div class="toast" id="toast"><div class="ic" id="toast-ic">🎁</div><div class="t" id="toast-msg">Сообщение</div><span class="close" onclick="document.getElementById('toast').classList.remove('show')">✕</span></div>
     <!-- TAB 1: Dashboard -->
     <section id="tab-home">
       <div class="dash-head shim" onclick="switchTab('profile')">
@@ -415,10 +501,15 @@
         </div>
       </div>
 
-      <div class="quote">
-        <div class="ql">Open Deck: «Свободная дека»</div>
-        <div>Это о смелости быть собой. О том, чтобы не бояться ошибок, а видеть в них стиль. О том, чтобы не следовать трендам, а создавать свой вайб.</div>
-        <div class="qm">Мы не относимся к музыке слишком серьезно – мы играем в нее, так же, как играем в жизнь: с легкостью, открытостью и любопытством.</div>
+      <div class="quote" id="quote" onclick="toggleQuote()">
+        <div class="quote-head">
+          <div class="ql">Open Deck: «Свободная дека»</div>
+          <span class="qarr">▼</span>
+        </div>
+        <div class="quote-body">
+          <div>Это о смелости быть собой. О том, чтобы не бояться ошибок, а видеть в них стиль. О том, чтобы не следовать трендам, а создавать свой вайб.</div>
+          <div class="qm">Мы не относимся к музыке слишком серьезно – мы играем в нее, так же, как играем в жизнь: с легкостью, открытостью и любопытством.</div>
+        </div>
       </div>
 
       <div class="manifest">
@@ -449,13 +540,16 @@
         </div>
         <div class="hero-duration">время прохождения 15–20 минут</div>
         <div class="progress"><i id="bar" style="width:20%"></i></div>
-        <button class="btn" onclick="goCourse()">▶ Продолжить обучение</button>
+        <div class="play-deck-wrap">
+          <button class="play-deck" id="play-btn" onclick="goCourse()" aria-label="Играть">
+            <svg viewBox="0 0 24 24"><path d="M8 5.5v13l11-6.5z"/></svg>
+          </button>
+          <div class="play-deck-label" id="play-label">Начать урок 1</div>
+          <div><a class="upgrade-link" onclick="switchTab('upgrade')">Персональное менторство →</a></div>
+        </div>
+        <div class="gp-value">За каждый пройденный урок — <b>+50 GP</b>. Очки конвертируются в скидку: <b>150 GP = −$100</b> на менторство с FREEDA DJ.</div>
       </div>
 
-      <div class="free shim">
-        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l2.4 7.4H22l-6 4.4 2.3 7.2L12 17l-6.3 4 2.3-7.2-6-4.4h7.6z"/></svg>
-        <div class="t"><b>Первое занятие – бесплатно!</b><br>Почувствуй вкус к музыке без риска. Начни с урока 1.</div>
-      </div>
     </section>
 
     <!-- TAB 2: Course -->
@@ -492,6 +586,14 @@
         </div>
         <div class="price"><span class="final">$197</span></div>
         <div class="seats">Осталось 2 места из 5 в этом месяце</div>
+        <div class="gp-slider-wrap" id="gp-slider-wrap">
+          <div class="lbl"><span>Списать GP на скидку</span><span>Баланс: <b id="gp-balance">0</b> GP</span></div>
+          <input type="range" class="gp-slider" id="gp-slider" min="0" max="0" value="0" oninput="applyGpDiscount(this.value)">
+          <div class="gp-result">
+            <span>Скидка: <span class="disc" id="gp-discount">$0</span></span>
+            <span class="final" id="gp-final">$300</span>
+          </div>
+        </div>
         <button class="btn" onclick="bookMentor()">Забронировать место</button>
       </div>
 
@@ -519,6 +621,12 @@
           <div class="prof-stat"><div class="n" id="prof-done">0</div><div class="l">уроков пройдено</div></div>
           <div class="prof-stat"><div class="n">10</div><div class="l">всего уроков</div></div>
         </div>
+      </div>
+      <!-- PLAY: Invite card -->
+      <div class="invite-card" onclick="shareInvite()">
+        <div class="t">Пригласи напарника и получи <b>+30 GP</b> за каждую регистрацию!<br>А если друг купит курс — ещё <b>+200 GP</b> 🎧</div>
+        <button class="btn" style="width:auto;padding:10px 28px;display:inline-flex;background:var(--accent-coral);font-size:13px">Пригласить друга</button>
+        <div class="sub" id="ref-link-hint">ссылка: t.me/OpenDeckBot/app...</div>
       </div>
       <div class="row" onclick="openChat()"><div class="ic-wrap" style="background:rgba(140,226,200,0.20)"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div><span class="t">Open Deck DJ Camp</span><span class="sub">чат →</span></div>
       <div style="height:1px;background:rgba(255,255,255,0.06);margin:14px 0 12px;border-radius:2px"></div>
@@ -597,7 +705,7 @@
     const userName = tgUser.first_name || (tgUser.username ? "@"+tgUser.username : "Друг");
     const userPhoto = tgUser.photo_url || "";
     const state = {
-      user: { name: userName, archetype: "Куратор Вайба", groovePoints: 0 },
+      user: { name: userName, archetype: "Куратор Вайба", groovePoints: 0, referralCode: '' },
       courseProgress: { currentLessonId: null, completedLessons: [] },
       lessons: [
         { t:"Знакомство: кто такой диджей и зачем он нужен", video:"https://www.youtube.com/embed/_x8ONg58GeU", d:["Знакомство с Ташей (FREEDA DJ): мой путь от первого бита до фестивалей.","Кто такой диджей, его функция на вечеринке и где применяется диджеинг сегодня.","Диджей – это не избранные, а любой, кто ведёт энергию через музыку."] },
@@ -621,6 +729,8 @@
       document.getElementById('uname').textContent = state.user.name;
       document.getElementById('archetype').textContent = state.user.archetype;
       document.getElementById('gp').textContent = gp;
+      const rl = document.getElementById('ref-link-hint');
+      if(rl && state.user.referralCode) rl.textContent = 't.me/OpenDeckBot/app?startapp=ref_' + state.user.referralCode;
       const de = document.getElementById('done-n'); if(de) de.textContent = dc;
       const ln = document.getElementById('lesson-n'); if(ln) ln.textContent = Math.min(dc+1, tc);
       const be = document.getElementById('bar'); if(be) be.style.width = pct + '%';
@@ -644,6 +754,13 @@
       document.getElementById('prof-archetype') && (document.getElementById('prof-archetype').textContent = state.user.archetype);
       document.getElementById('prof-gp') && (document.getElementById('prof-gp').textContent = gp);
       document.getElementById('prof-done') && (document.getElementById('prof-done').textContent = dc);
+      // ---- Динамическая кнопка Play (п.2): новому юзеру — «Начать урок 1», продолжающему — «Продолжить урок N» ----
+      const pl = document.getElementById('play-label');
+      if(pl){
+        if(dc === 0){ pl.textContent = 'Начать урок 1'; }
+        else if(dc >= tc){ pl.textContent = 'Курс пройден 🎉'; }
+        else { pl.textContent = 'Продолжить · урок ' + Math.min(dc+1, tc); }
+      }
     }
     updateUI();
     function applyAvatar(){
@@ -664,37 +781,89 @@
       });
     }
     applyAvatar();
-    // ЗАГРУЗКА реального прогресса из базы при каждом входе
-    // (каждый пользователь начинает с урока 1, если ещё ничего не прошёл)
-    function loadProfile(){
-      try{
-        fetch(API_BASE + '/api/profile', {headers:{'X-Init-Data': tg.initData || ''}})
-          .then(r=>r.ok?r.json():null)
-          .then(j=>{
-            if(j){
-              state.courseProgress.completedLessons = j.completed.slice();
-              state.user.groovePoints = j.gp || 0;
-              updateUI();
-            }
-          }).catch(()=>{});
-      }catch(e){}
+    // ---- PLAY: инициализация через /api/init — заменяет loadProfile+loadProgress ---- 
+    function initApp(){
+      const startParam = (tg.initDataUnsafe && tg.initDataUnsafe.start_param) || null;
+      fetch(API_BASE + '/api/init', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ init_data: tg.initData || '', start_param: startParam })
+      }).then(r=>r.ok?r.json():null).then(j=>{
+        if(j){
+          state.user.groovePoints = j.user.groove_points;
+          state.user.referralCode = j.user.referral_code || '';
+          state.courseProgress.completedLessons = (j.course.completed_lessons || []).slice();
+          state.user.archetype = j.user.archetype || 'Куратор Вайба';
+          updateUI();
+          if(j.bonus && j.bonus.message){
+            setTimeout(()=> showToast('🎁', j.bonus.message), 600);
+          }
+        }
+      }).catch(()=> legacyLoad());
     }
-    function loadProgress(){
-      try{
-        fetch(API_BASE + '/api/lessons?course_id=dj-basics', {headers:{'X-Init-Data': tg.initData || ''}})
-          .then(r=>r.ok?r.json():null)
-          .then(j=>{
-            if(j && Array.isArray(j.completed)){
-              state.courseProgress.completedLessons = j.completed.slice();
-              loadProfile();
-            } else { loadProfile(); }
-          }).catch(()=> loadProfile());
-      }catch(e){}
+    function legacyLoad(){
+      fetch(API_BASE + '/api/profile', {headers:{'X-Init-Data': tg.initData || ''}})
+        .then(r=>r.ok?r.json():null)
+        .then(j=>{ if(j){
+          state.courseProgress.completedLessons = j.completed.slice();
+          state.user.groovePoints = j.gp || 0;
+          state.user.referralCode = j.referral_code || '';
+          updateUI();
+        }}).catch(()=>{});
     }
-    loadProgress();
+    initApp();
     document.getElementById('prof-name') && (document.getElementById('prof-name').textContent = state.user.name);
 
-
+    // ---- PLAY: toast, share, gp ----
+    function showToast(icon, msg){
+      const t = document.getElementById('toast');
+      if(!t) return;
+      document.getElementById('toast-ic').textContent = icon || '✨';
+      document.getElementById('toast-msg').innerHTML = msg;
+      t.classList.add('show');
+      setTimeout(()=> t.classList.remove('show'), 4000);
+    }
+    function shareInvite(){
+      const code = state.user.referralCode;
+      if(!code){ showToast('⚠️', 'Код приглашения пока не загружен'); return; }
+      const link = 'https://t.me/OpenDeckBot/app?startapp=ref_' + code;
+      const hint = document.getElementById('ref-link-hint');
+      if(hint) hint.textContent = link;
+      // Telegram share via switchInlineQuery
+      const shareText = '🎧 Мой музыкальный архетип — ' + state.user.archetype + '. Залетай в Open Deck, забирай 50 Groove Points на старт и узнай свой вайб! ' + link;
+      if(tg.switchInlineQuery){
+        tg.switchInlineQuery(shareText, ['users', 'groups', 'channels']);
+      } else if(navigator.share){
+        navigator.share({ title:'Open Deck', text: shareText });
+      } else {
+        navigator.clipboard.writeText(link).then(()=> showToast('✅', 'Ссылка скопирована! Делись с друзьями'));
+      }
+      showToast('🎧', 'Ссылка скопирована! Делись с друзьями');
+    }
+    function resetGpSlider(){
+      const gp = state.user.groovePoints;
+      const slider = document.getElementById('gp-slider');
+      const wrap = document.getElementById('gp-slider-wrap');
+      if(!slider) return;
+      const maxSpend = Math.min(gp, 1030);
+      slider.max = maxSpend;
+      if(maxSpend === 0){ wrap && (wrap.style.display = 'none'); return; }
+      wrap && (wrap.style.display = 'block');
+      slider.value = 0;
+      applyGpDiscount(0);
+    }
+    function applyGpDiscount(val){
+      const v = parseInt(val) || 0;
+      const disc = Math.floor(v / 10);
+      const final = Math.max(197, 300 - disc);
+      document.getElementById('gp-discount').textContent = '$' + disc;
+      document.getElementById('gp-final').textContent = '$' + final;
+      document.getElementById('gp-balance').textContent = (state.user.groovePoints - v);
+    }
+    function updateUIRefLink(){
+      const hint = document.getElementById('ref-link-hint');
+      if(hint && state.user.referralCode) hint.textContent = 't.me/OpenDeckBot/app?startapp=ref_' + state.user.referralCode;
+    }
 
     function switchTab(tab){
       stopVideoAll();   // остановить видео при уходе с урока
@@ -705,6 +874,8 @@
         b.classList.toggle('active', b.dataset.tab===tab);
       });
       if(tab==='course') renderCourse();
+      if(tab==='upgrade') resetGpSlider();
+      if(tab==='profile') updateUIRefLink();
     }
     function goCourse(){ switchTab('course'); }
 
@@ -889,6 +1060,13 @@
               state.user.groovePoints = j.gp;
               state.courseProgress.completedLessons = j.completed.slice();
               updateUI();
+              // ---- Редирект на Upgrade после прохождения ВСЕГО курса (п.2) ----
+              if(state.courseProgress.completedLessons.length >= state.lessons.length){
+                setTimeout(()=>{
+                  tg.showPopup && tg.showPopup({title:'Поздравляем! 🎉', message:'Ты прошёл весь курс. Готов к следующему уровню — менторству?'});
+                  switchTab('upgrade');
+                }, 900);
+              }
             }
           }).catch(()=>{
             tg.showPopup && tg.showPopup({title:'Сеть', message:'Проверь подключение к интернету ☁️'});
@@ -924,6 +1102,11 @@
       const link='https://t.me/+S9cLCiFHbWQzY2Iy';
       if(tg.openTelegramLink) tg.openTelegramLink(link);
       else location.href=link;
+    }
+
+    function toggleQuote(){
+      const q = document.getElementById('quote');
+      if(q) q.classList.toggle('open');
     }
 
     function toggleManifest(idx){

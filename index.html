@@ -837,17 +837,18 @@
       const deepLink = 'https://t.me/OpenDeck_bot/app?startapp=ref_' + code;
       const fullMsg = deepLink + '\n\n🎧 Мой музыкальный архетип — ' + state.user.archetype + '. Залетай в Open Deck, забирай 50 Groove Points на старт и узнай свой вайб!';
       
-      // 1 — скопировать ссылку в буфер (надёжно на любой платформе)
+      // 1 — скопировать в буфер (всегда)
       try { if(navigator.clipboard) navigator.clipboard.writeText(fullMsg); } catch(_){}
       
       // 2 — switchInlineQuery (нативный выбор контакта, нужен inline-режим бота)
       try { if(tg.switchInlineQuery){ tg.switchInlineQuery(fullMsg); return; } } catch(_){}
       
-      // 3 — tg.openTelegramLink (открывает Mini App / share sheet)
+      // 3 — openTelegramLink с Mini App deep link
       try { if(tg.openTelegramLink){ tg.openTelegramLink(deepLink); return; } } catch(_){}
       
-      // 4 — уведомить, что ссылка в буфере
-      showToast('✅', 'Ссылка скопирована! Отправь её другу');
+      // 4 — t.me/share/url через location.href (открывает нативный выбор адресата)
+      const shareUrl = 'https://t.me/share/url?text=' + encodeURIComponent(fullMsg);
+      try { window.location.href = shareUrl; } catch(_){}
     }
     function resetGpSlider(){
       const gp = state.user.groovePoints;

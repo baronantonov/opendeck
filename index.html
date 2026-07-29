@@ -834,22 +834,20 @@
     function shareInvite(){
       const code = state.user.referralCode;
       if(!code){ showToast('⚠️', 'Код приглашения пока не загружен'); return; }
-      const link = 'https://t.me/OpenDeck_bot/app?startapp=ref_' + code;
-      const shareText = link + '\n\n🎧 Мой музыкальный архетип — ' + state.user.archetype + '. Залетай в Open Deck, забирай 50 Groove Points на старт и узнай свой вайб!';
-      const fullMsg = shareText;
+      const deepLink = 'https://t.me/OpenDeck_bot/app?startapp=ref_' + code;
+      const fullMsg = deepLink + '\n\n🎧 Мой музыкальный архетип — ' + state.user.archetype + '. Залетай в Open Deck, забирай 50 Groove Points на старт и узнай свой вайб!';
       
-      // 1 — скопировать в буфер (всегда)
+      // 1 — скопировать ссылку в буфер (надёжно на любой платформе)
       try { if(navigator.clipboard) navigator.clipboard.writeText(fullMsg); } catch(_){}
       
-      // 2 — switchInlineQuery (нативный выбор контакта, требует inline-режима у бота)
+      // 2 — switchInlineQuery (нативный выбор контакта, нужен inline-режим бота)
       try { if(tg.switchInlineQuery){ tg.switchInlineQuery(fullMsg); return; } } catch(_){}
       
-      // 3 — tg.openTelegramLink с Mini App deep link (Telegram сам рендерит кнопку)
-      try { if(tg.openTelegramLink){ tg.openTelegramLink(link); return; } } catch(_){}
+      // 3 — tg.openTelegramLink (открывает Mini App / share sheet)
+      try { if(tg.openTelegramLink){ tg.openTelegramLink(deepLink); return; } } catch(_){}
       
-      // 4 — window.location.href на t.me/share/url (навигация в webview → Telegram)
-      const shareUrl = 'https://t.me/share/url?text=' + encodeURIComponent(fullMsg);
-      try { window.location.href = shareUrl; } catch(_){}
+      // 4 — уведомить, что ссылка в буфере
+      showToast('✅', 'Ссылка скопирована! Отправь её другу');
     }
     function resetGpSlider(){
       const gp = state.user.groovePoints;

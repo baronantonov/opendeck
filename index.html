@@ -443,10 +443,48 @@
         animation:none !important}
       .btn:hover,.row:hover,.lesson:hover{transform:none}
     }
+
+    /* ---- PLAY: Toast-уведомления ---- */
+    .toast{
+      position:fixed;bottom:100px;left:18px;right:18px;z-index:50;
+      background:rgba(43,48,46,0.90);backdrop-filter:blur(12px);
+      border:1px solid rgba(140,226,200,0.25);border-radius:16px;
+      padding:14px 18px;display:flex;align-items:center;gap:12px;
+      transform:translateY(120px);opacity:0;
+      transition:transform .5s cubic-bezier(.34,1.56,.64,1),opacity .4s ease;
+      pointer-events:none;box-shadow:0 4px 24px rgba(0,0,0,0.25)}
+    .toast.show{transform:translateY(0);opacity:1;pointer-events:auto}
+    .toast .ic{width:32px;height:32px;flex:none}
+    .toast .t{font-size:14px;line-height:1.4;color:var(--text-primary);flex:1}
+    .toast .t b{color:var(--accent-mint)}
+    .toast .close{font-size:16px;color:var(--text-secondary);cursor:pointer;flex:none;opacity:.6;transition:opacity .2s}
+    .toast .close:hover{opacity:1}
+
+    /* ---- PLAY: GP-слайдер ---- */
+    .gp-slider-wrap{margin:16px 0;padding:16px;background:rgba(255,255,255,0.03);border-radius:14px;border:1px solid rgba(255,255,255,0.06)}
+    .gp-slider-wrap .lbl{display:flex;justify-content:space-between;font-size:13px;color:var(--text-secondary);margin-bottom:8px}
+    .gp-slider-wrap .lbl b{color:var(--accent-mint)}
+    .gp-slider{width:100%;height:6px;-webkit-appearance:none;appearance:none;background:rgba(255,255,255,0.12);border-radius:999px;outline:none;cursor:pointer}
+    .gp-slider::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:50%;background:var(--accent-coral);border:2px solid #fff;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,0.3)}
+    .gp-slider::-moz-range-thumb{width:22px;height:22px;border-radius:50%;background:var(--accent-coral);border:2px solid #fff;cursor:pointer}
+    .gp-result{display:flex;justify-content:space-between;align-items:center;margin-top:10px;font-size:14px}
+    .gp-result .disc{color:var(--accent-mint);font-weight:600}
+    .gp-result .final{font-family:'Unbounded';font-weight:800;font-size:20px;color:var(--accent-coral)}
+
+    /* ---- PLAY: карточка приглашения в профиле ---- */
+    .invite-card{
+      margin:12px 0;padding:16px;border-radius:16px;
+      background:linear-gradient(135deg,rgba(245,146,110,0.12),rgba(140,226,200,0.08));
+      border:1px solid rgba(245,146,110,0.20);text-align:center}
+    .invite-card .t{font-size:14px;line-height:1.5;margin-bottom:12px}
+    .invite-card .t b{color:var(--accent-coral)}
+    .invite-card .sub{font-size:12px;color:var(--text-secondary);margin-top:10px;opacity:.7}
   </style>
 </head>
 <body>
   <div class="wrap">
+  <!-- PLAY: Toast -->
+  <div class="toast" id="toast"><div class="ic" id="toast-ic">🎁</div><div class="t" id="toast-msg">Сообщение</div><span class="close" onclick="document.getElementById('toast').classList.remove('show')">✕</span></div>
     <!-- TAB 1: Dashboard -->
     <section id="tab-home">
       <div class="dash-head shim" onclick="switchTab('profile')">
@@ -548,6 +586,14 @@
         </div>
         <div class="price"><span class="final">$197</span></div>
         <div class="seats">Осталось 2 места из 5 в этом месяце</div>
+        <div class="gp-slider-wrap" id="gp-slider-wrap">
+          <div class="lbl"><span>Списать GP на скидку</span><span>Баланс: <b id="gp-balance">0</b> GP</span></div>
+          <input type="range" class="gp-slider" id="gp-slider" min="0" max="0" value="0" oninput="applyGpDiscount(this.value)">
+          <div class="gp-result">
+            <span>Скидка: <span class="disc" id="gp-discount">$0</span></span>
+            <span class="final" id="gp-final">$300</span>
+          </div>
+        </div>
         <button class="btn" onclick="bookMentor()">Забронировать место</button>
       </div>
 
@@ -575,6 +621,12 @@
           <div class="prof-stat"><div class="n" id="prof-done">0</div><div class="l">уроков пройдено</div></div>
           <div class="prof-stat"><div class="n">10</div><div class="l">всего уроков</div></div>
         </div>
+      </div>
+      <!-- PLAY: Invite card -->
+      <div class="invite-card" onclick="shareInvite()">
+        <div class="t">Пригласи напарника и получи <b>+30 GP</b> за каждую регистрацию!<br>А если друг купит курс — ещё <b>+200 GP</b> 🎧</div>
+        <button class="btn" style="width:auto;padding:10px 28px;display:inline-flex;background:var(--accent-coral);font-size:13px">Пригласить друга</button>
+        <div class="sub" id="ref-link-hint">ссылка: t.me/OpenDeckBot/app...</div>
       </div>
       <div class="row" onclick="openChat()"><div class="ic-wrap" style="background:rgba(140,226,200,0.20)"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div><span class="t">Open Deck DJ Camp</span><span class="sub">чат →</span></div>
       <div style="height:1px;background:rgba(255,255,255,0.06);margin:14px 0 12px;border-radius:2px"></div>
@@ -653,7 +705,7 @@
     const userName = tgUser.first_name || (tgUser.username ? "@"+tgUser.username : "Друг");
     const userPhoto = tgUser.photo_url || "";
     const state = {
-      user: { name: userName, archetype: "Куратор Вайба", groovePoints: 0 },
+      user: { name: userName, archetype: "Куратор Вайба", groovePoints: 0, referralCode: '' },
       courseProgress: { currentLessonId: null, completedLessons: [] },
       lessons: [
         { t:"Знакомство: кто такой диджей и зачем он нужен", video:"https://www.youtube.com/embed/_x8ONg58GeU", d:["Знакомство с Ташей (FREEDA DJ): мой путь от первого бита до фестивалей.","Кто такой диджей, его функция на вечеринке и где применяется диджеинг сегодня.","Диджей – это не избранные, а любой, кто ведёт энергию через музыку."] },
@@ -677,6 +729,8 @@
       document.getElementById('uname').textContent = state.user.name;
       document.getElementById('archetype').textContent = state.user.archetype;
       document.getElementById('gp').textContent = gp;
+      const rl = document.getElementById('ref-link-hint');
+      if(rl && state.user.referralCode) rl.textContent = 't.me/OpenDeckBot/app?startapp=ref_' + state.user.referralCode;
       const de = document.getElementById('done-n'); if(de) de.textContent = dc;
       const ln = document.getElementById('lesson-n'); if(ln) ln.textContent = Math.min(dc+1, tc);
       const be = document.getElementById('bar'); if(be) be.style.width = pct + '%';
@@ -727,37 +781,89 @@
       });
     }
     applyAvatar();
-    // ЗАГРУЗКА реального прогресса из базы при каждом входе
-    // (каждый пользователь начинает с урока 1, если ещё ничего не прошёл)
-    function loadProfile(){
-      try{
-        fetch(API_BASE + '/api/profile', {headers:{'X-Init-Data': tg.initData || ''}})
-          .then(r=>r.ok?r.json():null)
-          .then(j=>{
-            if(j){
-              state.courseProgress.completedLessons = j.completed.slice();
-              state.user.groovePoints = j.gp || 0;
-              updateUI();
-            }
-          }).catch(()=>{});
-      }catch(e){}
+    // ---- PLAY: инициализация через /api/init — заменяет loadProfile+loadProgress ---- 
+    function initApp(){
+      const startParam = (tg.initDataUnsafe && tg.initDataUnsafe.start_param) || null;
+      fetch(API_BASE + '/api/init', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ init_data: tg.initData || '', start_param: startParam })
+      }).then(r=>r.ok?r.json():null).then(j=>{
+        if(j){
+          state.user.groovePoints = j.user.groove_points;
+          state.user.referralCode = j.user.referral_code || '';
+          state.courseProgress.completedLessons = (j.course.completed_lessons || []).slice();
+          state.user.archetype = j.user.archetype || 'Куратор Вайба';
+          updateUI();
+          if(j.bonus && j.bonus.message){
+            setTimeout(()=> showToast('🎁', j.bonus.message), 600);
+          }
+        }
+      }).catch(()=> legacyLoad());
     }
-    function loadProgress(){
-      try{
-        fetch(API_BASE + '/api/lessons?course_id=dj-basics', {headers:{'X-Init-Data': tg.initData || ''}})
-          .then(r=>r.ok?r.json():null)
-          .then(j=>{
-            if(j && Array.isArray(j.completed)){
-              state.courseProgress.completedLessons = j.completed.slice();
-              loadProfile();
-            } else { loadProfile(); }
-          }).catch(()=> loadProfile());
-      }catch(e){}
+    function legacyLoad(){
+      fetch(API_BASE + '/api/profile', {headers:{'X-Init-Data': tg.initData || ''}})
+        .then(r=>r.ok?r.json():null)
+        .then(j=>{ if(j){
+          state.courseProgress.completedLessons = j.completed.slice();
+          state.user.groovePoints = j.gp || 0;
+          state.user.referralCode = j.referral_code || '';
+          updateUI();
+        }}).catch(()=>{});
     }
-    loadProgress();
+    initApp();
     document.getElementById('prof-name') && (document.getElementById('prof-name').textContent = state.user.name);
 
-
+    // ---- PLAY: toast, share, gp ----
+    function showToast(icon, msg){
+      const t = document.getElementById('toast');
+      if(!t) return;
+      document.getElementById('toast-ic').textContent = icon || '✨';
+      document.getElementById('toast-msg').innerHTML = msg;
+      t.classList.add('show');
+      setTimeout(()=> t.classList.remove('show'), 4000);
+    }
+    function shareInvite(){
+      const code = state.user.referralCode;
+      if(!code){ showToast('⚠️', 'Код приглашения пока не загружен'); return; }
+      const link = 'https://t.me/OpenDeckBot/app?startapp=ref_' + code;
+      const hint = document.getElementById('ref-link-hint');
+      if(hint) hint.textContent = link;
+      // Telegram share via switchInlineQuery
+      const shareText = '🎧 Мой музыкальный архетип — ' + state.user.archetype + '. Залетай в Open Deck, забирай 50 Groove Points на старт и узнай свой вайб! ' + link;
+      if(tg.switchInlineQuery){
+        tg.switchInlineQuery(shareText, ['users', 'groups', 'channels']);
+      } else if(navigator.share){
+        navigator.share({ title:'Open Deck', text: shareText });
+      } else {
+        navigator.clipboard.writeText(link).then(()=> showToast('✅', 'Ссылка скопирована! Делись с друзьями'));
+      }
+      showToast('🎧', 'Ссылка скопирована! Делись с друзьями');
+    }
+    function resetGpSlider(){
+      const gp = state.user.groovePoints;
+      const slider = document.getElementById('gp-slider');
+      const wrap = document.getElementById('gp-slider-wrap');
+      if(!slider) return;
+      const maxSpend = Math.min(gp, 1030);
+      slider.max = maxSpend;
+      if(maxSpend === 0){ wrap && (wrap.style.display = 'none'); return; }
+      wrap && (wrap.style.display = 'block');
+      slider.value = 0;
+      applyGpDiscount(0);
+    }
+    function applyGpDiscount(val){
+      const v = parseInt(val) || 0;
+      const disc = Math.floor(v / 10);
+      const final = Math.max(197, 300 - disc);
+      document.getElementById('gp-discount').textContent = '$' + disc;
+      document.getElementById('gp-final').textContent = '$' + final;
+      document.getElementById('gp-balance').textContent = (state.user.groovePoints - v);
+    }
+    function updateUIRefLink(){
+      const hint = document.getElementById('ref-link-hint');
+      if(hint && state.user.referralCode) hint.textContent = 't.me/OpenDeckBot/app?startapp=ref_' + state.user.referralCode;
+    }
 
     function switchTab(tab){
       stopVideoAll();   // остановить видео при уходе с урока
@@ -768,6 +874,8 @@
         b.classList.toggle('active', b.dataset.tab===tab);
       });
       if(tab==='course') renderCourse();
+      if(tab==='upgrade') resetGpSlider();
+      if(tab==='profile') updateUIRefLink();
     }
     function goCourse(){ switchTab('course'); }
 

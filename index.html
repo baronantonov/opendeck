@@ -844,7 +844,10 @@
       // 2 — switchInlineQuery (нативный выбор контакта, требует inline-режима у бота)
       try { if(tg.switchInlineQuery){ tg.switchInlineQuery(fullMsg); return; } } catch(_){}
       
-      // 3 — window.location.href на t.me/share/url (навигация в webview → Telegram)
+      // 3 — tg.openTelegramLink с Mini App deep link (Telegram сам рендерит кнопку)
+      try { if(tg.openTelegramLink){ tg.openTelegramLink(link); return; } } catch(_){}
+      
+      // 4 — window.location.href на t.me/share/url (навигация в webview → Telegram)
       const shareUrl = 'https://t.me/share/url?text=' + encodeURIComponent(fullMsg);
       try { window.location.href = shareUrl; } catch(_){}
     }

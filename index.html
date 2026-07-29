@@ -836,27 +836,40 @@
       if(!code){ showToast('⚠️', 'Код приглашения пока не загружен'); return; }
       const link = 'https://t.me/OpenDeckBot/app?startapp=ref_' + code;
       const shareText = '🎧 Мой музыкальный архетип — ' + state.user.archetype + '. Залетай в Open Deck, забирай 50 Groove Points на старт и узнай свой вайб!';
-      // Попытка 1: switchInlineQuery (нативный выбор контакта)
+      const fullMsg = shareText + '\n' + link;
+      
+      // 1 — скопировать в буфер (всегда, на любой платформе)
+      try {
+        if(navigator.clipboard) navigator.clipboard.writeText(fullMsg);
+      } catch(_){}
+      
+      // 2 — switchInlineQuery (нативный выбор контакта, требует inline-режима у бота)
       try {
         if(tg.switchInlineQuery){
-          tg.switchInlineQuery(shareText + '\n' + link);
+          tg.switchInlineQuery(fullMsg);
           return;
         }
-      } catch(e){}
-      // Попытка 2: openTelegramLink с share URL (выбор собеседника/группы/канала)
+      } catch(_){}
+      
+      // 3 — openTelegramLink с разными форматами (share URL / tg://msg)
       try {
         if(tg.openTelegramLink){
           const shareUrl = 'https://t.me/share/url?url=' + encodeURIComponent(link) + '&text=' + encodeURIComponent(shareText);
           tg.openTelegramLink(shareUrl);
           return;
         }
-      } catch(e){}
-      // Попытка 3: clipboard (если предыдущие не сработали)
-      if(navigator.clipboard){
-        navigator.clipboard.writeText(link).then(()=> showToast('✅', 'Ссылка скопирована! Делись с друзьями'));
-      } else {
-        showToast('✅', 'Твоя ссылка: ' + link);
-      }
+      } catch(_){}
+      
+      // 4 — window.open (срабатывает даже в Desktop, открывает браузер)
+      try {
+        const shareUrl = 'https://t.me/share/url?url=' + encodeURIComponent(link) + '&text=' + encodeURIComponent(shareText);
+        window.open(shareUrl, '_blank');
+        showToast('✅', 'Ссылка скопирована! Отправь её другу');
+        return;
+      } catch(_){}
+      
+      // 5 — последний рубеж
+      showToast('✅', 'Ссылка скопирована! Отправь её другу');
     }
     function resetGpSlider(){
       const gp = state.user.groovePoints;

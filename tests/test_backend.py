@@ -1,7 +1,8 @@
 """Прогон MVP: бэкенд + доступ + init_data + webhook Prodamus.
 Запуск:  python tests/test_backend.py   (из корня проекта)
 """
-import os, sys, hashlib, hmac, json, time, urllib.parse
+import os, sys, hashlib, hmac, json, time, urllib.parse, tempfile
+from pathlib import Path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Переменные окружения ДО импорта backend.main (иначе упадёт SystemExit на проверках секретов)
@@ -9,6 +10,13 @@ TOKEN = "TEST_BOT_TOKEN"
 os.environ["BOT_TOKEN"] = TOKEN
 os.environ["PRODAMUS_WEBHOOK_SECRET"] = "TEST_PRODAMUS_SECRET"
 os.environ["INTERNAL_API_KEY"] = "TEST_INTERNAL_KEY"
+
+# SQLite на tempfile — каждый прогон изолирован
+import backend.db as db
+_db_path_orig = db.DB_PATH
+_tmp_db = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
+_tmp_db.close()
+db.DB_PATH = Path(_tmp_db.name)
 
 from fastapi.testclient import TestClient
 from backend.main import app
@@ -43,8 +51,6 @@ check("GET / содержит 'Open Deck DJ School'", "Open Deck DJ School" in h
 check("GET / подключает telegram-web-app.js", "telegram-web-app.js" in html)
 
 print("== Доступ до оплаты ==")
-# случайный uid каждый прогон — тесты не изолированы (общая БД), иначе повторный запуск
-# видит уже оплаченного юзера и падает на "доступ ДО оплаты"
 uid = 900000 + int(time.time()) % 100000
 init = make_init_data(TOKEN, uid)
 r = client.get("/api/lessons?course_id=dj-basics", headers={"X-Init-Data": init})
@@ -65,7 +71,7 @@ print("== Доступ после оплаты ==")
 r = client.get("/api/lessons?course_id=dj-basics", headers={"X-Init-Data": init})
 j = r.json()
 check("уроки доступны ПОСЛЕ оплаты (paid=true)", j.get("paid") is True)
-check("вернулось 3 урока", len(j.get("lessons", [])) == 3)
+check("вернулось 10 уроков (полный курс)", len(j.get("lessons", [])) == 10)
 
 print("== Webhook Prodamus (HMAC) ==")
 body = json.dumps({"status": "paid", "order_id": f"{uid}:dj-basics"}).encode()
@@ -83,4 +89,6 @@ old = make_init_data(TOKEN, uid, age=1000)
 check("устаревший init_data (>5 мин) -> None", verify_init_data(old, TOKEN) is None)
 
 print(f"\nИтог: {passed} PASS / {failed} FAIL")
+# Удалить tempfile
+os.unlink(_tmp_db.name)
 sys.exit(1 if failed else 0)

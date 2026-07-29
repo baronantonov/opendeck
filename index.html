@@ -467,16 +467,14 @@
     .toast .close{font-size:16px;color:var(--text-secondary);cursor:pointer;flex:none;opacity:.6;transition:opacity .2s}
     .toast .close:hover{opacity:1}
 
-    /* ---- PLAY: GP-слайдер ---- */
-    .gp-slider-wrap{margin:16px 0;padding:16px;background:rgba(255,255,255,0.03);border-radius:14px;border:1px solid rgba(255,255,255,0.06)}
-    .gp-slider-wrap .lbl{display:flex;justify-content:space-between;font-size:13px;color:var(--text-secondary);margin-bottom:8px}
-    .gp-slider-wrap .lbl b{color:var(--accent-mint)}
-    .gp-slider{width:100%;height:6px;-webkit-appearance:none;appearance:none;background:rgba(255,255,255,0.12);border-radius:999px;outline:none;cursor:pointer}
-    .gp-slider::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:50%;background:var(--accent-coral);border:2px solid #fff;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,0.3)}
-    .gp-slider::-moz-range-thumb{width:22px;height:22px;border-radius:50%;background:var(--accent-coral);border:2px solid #fff;cursor:pointer}
-    .gp-result{display:flex;justify-content:space-between;align-items:center;margin-top:10px;font-size:14px}
-    .gp-result .disc{color:var(--accent-mint);font-weight:600}
-    .gp-result .final{font-family:'Unbounded';font-weight:800;font-size:20px;color:var(--accent-coral)}
+    /* ---- PLAY: автоскидка Stars ---- */
+    .gp-auto{
+      margin:16px 0;padding:14px 16px;
+      background:rgba(140,226,200,0.06);border:1px solid rgba(140,226,200,0.18);
+      border-radius:14px;text-align:center}
+    .gp-auto .lbl{font-size:13px;color:var(--text-secondary);margin-bottom:4px}
+    .gp-auto .val{font-family:'Unbounded';font-weight:800;font-size:22px;color:var(--accent-mint)}
+    .gp-auto .small{font-size:12px;color:var(--text-secondary);margin-top:2px}
 
     /* ---- PLAY: карточка приглашения в профиле ---- */
     .invite-card{
@@ -501,9 +499,9 @@
           <div class="dash-meta">
             <span><span id="archetype">Куратор Вайба</span></span>
             <span class="dot">·</span>
-            <span><span class="gp-v" id="gp">150</span> GP</span>
+            <span><span class="gp-v" id="gp">150</span> ⭐</span>
             <span class="dot">·</span>
-            <span><span class="st" id="done-n">2</span>/10 ур.</span>
+            <span><span class="st" id="done-n">2</span>/6 ур.</span>
           </div>
         </div>
       </div>
@@ -543,7 +541,7 @@
         </div>
         <div class="hero-title-row">
           <h2 id="next-lesson">Основы сведения</h2>
-          <div class="hero-progress-num"><span class="st" id="lesson-n">2</span><span class="of">/10</span></div>
+          <div class="hero-progress-num"><span class="st" id="lesson-n">2</span><span class="of">/6</span></div>
         </div>
         <div class="hero-duration">время прохождения 15–20 минут</div>
         <div class="progress"><i id="bar" style="width:20%"></i></div>
@@ -554,13 +552,17 @@
           <div class="play-deck-label" id="play-label">Начать урок 1</div>
           <div><a class="upgrade-link" onclick="switchTab('upgrade')">Персональное менторство →</a></div>
         </div>
-        <div class="gp-value">За каждый пройденный урок — <b>+50 GP</b>. Очки конвертируются в скидку: <b>150 GP = −$100</b> на менторство с FREEDA DJ.</div>
+        <div class="gp-value">За каждый пройденный урок — <b>+50 ⭐</b>. Stars дают скидку на менторство с FREEDA DJ.</div>
+        <button class="btn ghost" style="width:auto;padding:10px 18px;margin-top:10px" onclick="switchTab('bonus')">🎁 Бонусные уроки</button>
       </div>
 
     </section>
 
     <!-- TAB 2: Course -->
     <section id="tab-course" class="hidden"></section>
+
+    <!-- TAB 2b: Bonus -->
+    <section id="tab-bonus" class="hidden"></section>
 
     <!-- TAB 3: Upgrade -->
     <section id="tab-upgrade" class="hidden">
@@ -588,18 +590,15 @@
         </ul>
 
         <div class="price">
-          <del>$300</del>
-          <span class="disc" id="discount">Твоя скидка за 150 GP: −$100</span>
+          <del>21000 ⭐</del>
+          <span class="disc" id="discount">Твоя скидка: −0 ⭐</span>
         </div>
-        <div class="price"><span class="final">$197</span></div>
+        <div class="price"><span class="final" id="mentor-final">21000 ⭐</span></div>
         <div class="seats">Осталось 2 места из 5 в этом месяце</div>
-        <div class="gp-slider-wrap" id="gp-slider-wrap">
-          <div class="lbl"><span>Списать GP на скидку</span><span>Баланс: <b id="gp-balance">0</b> GP</span></div>
-          <input type="range" class="gp-slider" id="gp-slider" min="0" max="0" value="0" oninput="applyGpDiscount(this.value)">
-          <div class="gp-result">
-            <span>Скидка: <span class="disc" id="gp-discount">$0</span></span>
-            <span class="final" id="gp-final">$300</span>
-          </div>
+        <div class="gp-auto" id="gp-auto">
+          <div class="lbl">Твои Stars</div>
+          <div class="val" id="gp-balance">0 ⭐</div>
+          <div class="small">Автоматически вычтем из цены менторства</div>
         </div>
         <button class="btn" onclick="bookMentor()">Забронировать место</button>
       </div>
@@ -624,14 +623,14 @@
         </div>
         <div class="prof-name" id="prof-name">Daniil</div>
         <div class="prof-stats">
-          <div class="prof-stat"><div class="n" id="prof-gp">0</div><div class="l">Groove Points</div></div>
+          <div class="prof-stat"><div class="n" id="prof-gp">0</div><div class="l">⭐ Stars</div></div>
           <div class="prof-stat"><div class="n" id="prof-done">0</div><div class="l">уроков пройдено</div></div>
           <div class="prof-stat"><div class="n">10</div><div class="l">всего уроков</div></div>
         </div>
       </div>
       <!-- PLAY: Invite card with progress (Точка В) -->
       <div class="invite-card">
-        <div class="t" id="ref-header">Пригласи напарника и получи <b>+30 GP</b> за каждую регистрацию!<br>А если друг купит курс — ещё <b>+200 GP</b> 🎧</div>
+        <div class="t" id="ref-header">Пригласи напарника и получи <b>+30 ⭐</b> за каждую регистрацию!<br>А если друг купит курс — ещё <b>+200 ⭐</b> 🎧</div>
         <div id="ref-friends" style="font-size:12px;color:var(--text-secondary);margin-bottom:8px">Загрузка...</div>
         <div style="height:6px;background:rgba(255,255,255,0.1);border-radius:4px;margin:0 0 10px;overflow:hidden">
           <div id="ref-bar" style="height:100%;width:0%;background:linear-gradient(90deg,var(--accent-coral),var(--accent-mint));border-radius:4px;transition:width .5s"></div>
@@ -651,6 +650,8 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10l9-8 9 8v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/><path d="M9 21V12h6v9"/></svg>Главная</button>
     <button data-tab="course" onclick="switchTab('course')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M10 9.2a1 1 0 0 1 1.1-1l4 2.3a1 1 0 0 1 0 1.7l-4 2.3A1 1 0 0 1 10 14.8z" fill="currentColor" stroke="none"/></svg>Курс</button>
+    <button data-tab="bonus" onclick="switchTab('bonus')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12l-8-8-8 8 8 8 8-8z"/><path d="M12 4v16" stroke-dasharray="2 2"/></svg>Бонусы</button>
     <button data-tab="upgrade" onclick="switchTab('upgrade')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>Развитие</button>
     <button data-tab="profile" onclick="switchTab('profile')">
@@ -660,7 +661,7 @@
   <script>
     const tg = (window.Telegram && window.Telegram.WebApp) || {};
     // Базовый URL бэкенда (API). Фронт теперь на GitHub Pages, а API — на туннеле Serveo.
-    const API_BASE = 'https://opendeck-tma.serveousercontent.com';
+    const API_BASE = '';
     try { tg.ready && tg.ready(); } catch(e){}
     try { tg.expand && tg.expand(); } catch(e){}
     try { tg.disableVerticalSwipes && tg.disableVerticalSwipes(); } catch(e){}
@@ -734,16 +735,18 @@
       user: { name: userName, archetype: "Куратор Вайба", groovePoints: 0, referralCode: '', referralFriends: 0, referralGpEarned: 0 },
       courseProgress: { currentLessonId: null, completedLessons: [] },
       lessons: [
-        { t:"Знакомство: кто такой диджей и зачем он нужен", video:"https://www.youtube.com/embed/_x8ONg58GeU", d:["Знакомство с Ташей (FREEDA DJ): мой путь от первого бита до фестивалей.","Кто такой диджей, его функция на вечеринке и где применяется диджеинг сегодня.","Диджей – это не избранные, а любой, кто ведёт энергию через музыку."] },
-        { t:"История: от диско до наших дней", d:["Краткая история появления диджеинга и как он менялся десятилетиями.","Путь электронной музыки: от диско-эры до современных стилей.","Поймёшь контекст – откуда растут ноги у того, что крутишь сегодня."] },
-        { t:"Направления и оборудование: где найти себя", d:["Виды диджеинга: коммерческий, ивент, андерграунд, фестивальный, радио, проводник практик.","Какое бывает оборудование и в каких сферах используется.","Выбери своё направление – это снимет страх «а я не такой, как все»."] },
-        { t:"Музыкальная теория: бит, ритм и колесо Камелота", d:["Из чего строится музыка: бит, ритм, тональности, дорожки в треке.","Колесо Камелота – как подбирать треки, что звучат «родственно».","Строение трека: интро, ямы, дропы, аутро – читаем музыку как книгу."] },
-        { t:"Интерфейс на телефоне: твой первый контроллер", d:["Обзор программы на телефоне и из чего состоит контроллер.","Дека, частоты, кнопка плей, фейдеры, фильтр – что делает каждая ручка.","Перестань бояться экрана: всё логично, когда разобрал по частям."] },
+        { t:"Интерфейс на телефоне: твой первый контроллер", video:"https://www.youtube.com/embed/_x8ONg58GeU", d:["Обзор программы на телефоне и из чего состоит контроллер.","Дека, частоты, кнопка плей, фейдеры, фильтр – что делает каждая ручка.","Перестань бояться экрана: всё логично, когда разобрал по частям."] },
         { t:"Основы сведения: BPM, темп и кнопка Sync", d:["Процесс сведения двух треков: BPM, темп, микширование.","Как сводить в одной тональности, стиле и темпе – и зачем нужна кнопка Sync.","Первый реальный микс: два трека становятся единым потоком."] },
         { t:"Кроссфейдер и нюансы темпо", d:["Техника сведения через кроссфейдер – плавный переход между деками.","Нюансы темпо: режимы Wide, 6, 10, 16 и когда их применять.","Поймёшь, как держать энергию ровной, без рывков."] },
         { t:"Лупы и Beat Jump: лёгкое сведение", d:["Лупы (петли) – простой способ зациклить кусок и свести без спешки.","Beat Jump: прыжки по битам для точного попадания.","Это приёмы, что делают сведение расслабленным, а не нервным."] },
         { t:"Эффекты и фильтр: краски твоего сета", d:["Что такое эффекты и обзор доступных в бесплатной версии.","Простое применение эффекта при сведении, работа с падами.","Фильтр – аккуратно, чтобы украсить, а не сломать момент."] },
         { t:"Твой первый микс из 4–5 треков", d:["Особенности построения микса и основы композиции.","Сводим микс из 4–5 треков, комбинируя все способы сведения.","Финал курса: готов первый сет и точка опоры в жизни."] }
+      ],
+      bonusLessons: [
+        { t:"Знакомство: кто такой диджей и зачем он нужен", video:"https://www.youtube.com/embed/_x8ONg58GeU", d:["Знакомство с Ташей (FREEDA DJ): мой путь от первого бита до фестивалей.","Кто такой диджей, его функция на вечеринке и где применяется диджеинг сегодня.","Диджей – это не избранные, а любой, кто ведёт энергию через музыку."] },
+        { t:"История: от диско до наших дней", d:["Краткая история появления диджеинга и как он менялся десятилетиями.","Путь электронной музыки: от диско-эры до современных стилей.","Поймёшь контекст – откуда растут ноги у того, что крутишь сегодня."] },
+        { t:"Направления и оборудование: где найти себя", d:["Виды диджеинга: коммерческий, ивент, андерграунд, фестивальный, радио, проводник практик.","Какое бывает оборудование и в каких сферах используется.","Выбери своё направление – это снимет страх «а я не такой, как все»."] },
+        { t:"Музыкальная теория: бит, ритм и колесо Камелота", d:["Из чего строится музыка: бит, ритм, тональности, дорожки в треке.","Колесо Камелота – как подбирать треки, что звучат «родственно».","Строение трека: интро, ямы, дропы, аутро – читаем музыку как книгу."] }
       ]
     };
 
@@ -763,7 +766,14 @@
       if(nl && state.lessons[curId-1]){
         nl.textContent = state.lessons[curId-1].t;
       }
-      document.getElementById('discount').textContent = `Твоя скидка за ${gp} GP: −$100`;
+      document.getElementById('discount').textContent = `Твоя скидка: −${Math.min(gp, 7000)} ⭐`;
+      // автоскидка менторства
+      const discAmt = Math.min(gp, 7000);
+      const finalStars = Math.max(14000, 21000 - discAmt);
+      const mf = document.getElementById('mentor-final');
+      if(mf) mf.textContent = finalStars + ' ⭐';
+      const gb = document.getElementById('gp-balance');
+      if(gb) gb.textContent = gp + ' ⭐';
       // профиль
       const pb = document.getElementById('avatar-big');
       if(pb && userPhoto) {
@@ -874,26 +884,6 @@
       navigator.clipboard.writeText(deepLink).catch(()=>{});
       showToast('✅', 'Ссылка скопирована!<br>Вставь в чат — появится кнопка «Открыть»');
     }
-    function resetGpSlider(){
-      const gp = state.user.groovePoints;
-      const slider = document.getElementById('gp-slider');
-      const wrap = document.getElementById('gp-slider-wrap');
-      if(!slider) return;
-      const maxSpend = Math.min(gp, 1030);
-      slider.max = maxSpend;
-      if(maxSpend === 0){ wrap && (wrap.style.display = 'none'); return; }
-      wrap && (wrap.style.display = 'block');
-      slider.value = 0;
-      applyGpDiscount(0);
-    }
-    function applyGpDiscount(val){
-      const v = parseInt(val) || 0;
-      const disc = Math.floor(v / 10);
-      const final = Math.max(197, 300 - disc);
-      document.getElementById('gp-discount').textContent = '$' + disc;
-      document.getElementById('gp-final').textContent = '$' + final;
-      document.getElementById('gp-balance').textContent = (state.user.groovePoints - v);
-    }
     function updateUIRefLink(){
       const fc = document.getElementById('ref-friends');
       if(fc){
@@ -902,7 +892,7 @@
         const milestones = [1,3,5,10];
         const next = milestones.find(m => m > n) || milestones[milestones.length-1];
         const pct = Math.min(100, (n / next) * 100);
-        fc.textContent = '👥 ' + n + ' друг' + (n===1?'':'ей') + ' • ' + gp + ' GP заработано';
+        fc.textContent = '👥 ' + n + ' друг' + (n===1?'':'ей') + ' • ' + gp + ' ⭐ заработано';
         const bar = document.getElementById('ref-bar');
         if(bar) bar.style.width = pct + '%';
       }
@@ -911,17 +901,92 @@
     function switchTab(tab){
       haptic('impactOccurred');
       stopVideoAll();   // остановить видео при уходе с урока
-      ['home','course','upgrade','profile'].forEach(t=>{
+      ['home','course','bonus','upgrade','profile'].forEach(t=>{
         document.getElementById('tab-'+t).classList.toggle('hidden', t!==tab);
       });
       document.querySelectorAll('#nav button').forEach(b=>{
         b.classList.toggle('active', b.dataset.tab===tab);
       });
       if(tab==='course') renderCourse();
-      if(tab==='upgrade') resetGpSlider();
+      if(tab==='upgrade') updateUI();
       if(tab==='profile') updateUIRefLink();
+      if(tab==='bonus') renderBonus();
     }
     function goCourse(){ switchTab('course'); }
+
+    function renderBonus(){
+      const box = document.getElementById('tab-bonus');
+      box.innerHTML = '<h2 style="font-size:20px;margin-bottom:14px">🎁 Бонусы</h2>';
+      fetch(API_BASE + '/api/lessons-bonus', {
+        headers:{'X-Init-Data': tg.initData || ''}
+      }).then(r=>r.ok?r.json():null).then(j=>{
+        if(!j){ box.innerHTML += '<p class="hint">Не удалось загрузить</p>'; return; }
+        if(!j.bonus_unlocked){
+          box.innerHTML += '<p class="hint">Пройди основной курс — и откроются бонусные уроки.</p>';
+          return;
+        }
+        const comp = (j.completed || []).slice().sort((a,b)=>a-b);
+        j.lessons.forEach(l=>{
+          const id = l.id;
+          const done = comp.includes(id);
+          const open = true;
+          const locked = !open;
+          const el = document.createElement('div');
+          el.className = 'lesson' + (done?' done':'') + (locked?' locked':'');
+          const iconHTML = done ? '<svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg>' : id;
+          const hint = locked ? '<span class="hint">Откроется после основного курса</span>' : '';
+          const ttlHTML = `<div class="ttl">${esc(l.title)}${hint}</div>`;
+          el.innerHTML = `<div class="num">${iconHTML}</div>${ttlHTML}`;
+          if(open && !done){ el.onclick = ()=> openBonusLesson(id, l); }
+          box.appendChild(el);
+        });
+      });
+
+      window.openBonusLesson = function(id, lesson){
+        const box = document.getElementById('tab-bonus');
+        const bullets = (lesson.d||[]).map(x=>`<li>${esc(x)}</li>`).join('');
+        const src = lesson.video || "";
+        const isYT = src.includes('youtube.com/embed') || src.includes('youtu.be');
+        const playerHTML = src
+          ? (isYT ? `<div class="vwrap" id="vw"><iframe id="ytplayer" style="position:absolute;inset:0;width:100%;height:100%;border:0" src="https://www.youtube.com/embed/${ytId(src)}?playsinline=1&rel=0&modestbranding=1&fs=1&enablejsapi=1" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe><div class="wm" id="wm">${esc(userName)}</div><div class="vbar"><button onclick="ytPlayToggle()" title="Play/Pause"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></button><div class="seek" id="seek" onclick="ytSeek(event)"><i id="seekbar"></i></div></div></div>` : `<div class="vwrap" id="vw"><video id="v" playsinline></video><div class="wm" id="wm">${esc(userName)}</div><div class="bigplay" id="bp"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></div><div class="vbar"><button onclick="vwPlay()" title="Play/Pause"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></button><div class="seek" id="seek" onclick="vwSeek(event)"><i id="seekbar"></i></div></div></div>`)
+          : `<div class="player"><svg class="play" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></div>`;
+        box.innerHTML = `<button class="btn ghost" style="width:auto;padding:10px 16px;margin-bottom:14px" onclick="renderBonus()">← Назад</button>
+          <h2 style="font-size:20px;margin-bottom:14px">${esc(lesson.title)}</h2>
+          ${playerHTML}
+          <ul class="summary">${bullets}</ul>
+          <button class="btn" id="finishBtn" style="opacity:0.4;pointer-events:none" onclick="completeBonusLesson(${id})">Завершить урок (+50 ⭐)</button>
+          <p class="hint" id="finishHint" style="text-align:center;color:var(--text-secondary);font-size:12px;margin-top:10px">Досмотри видео до конца – и кнопка станет активной</button>`;
+        if(src && !isYT) setupVideo(src);
+        else if(src && isYT) enableYTControls(src);
+      };
+
+      window.completeBonusLesson = function(id){
+        if(!state.courseProgress.completedBonusLessons) state.courseProgress.completedBonusLessons = [];
+        if(!state.courseProgress.completedBonusLessons.includes(id)){
+          state.courseProgress.completedBonusLessons.push(id);
+          haptic('notificationOccurred');
+          burst();
+          // бонусы не требуют оплаты, но дают +50 GP
+          fetch(API_BASE + '/api/progress', {
+            method:'POST',
+            headers:{'Content-Type':'application/json','X-Init-Data': tg.initData || ''},
+            body: JSON.stringify({course_id:'dj-basics', lesson_id:id})
+          }).then(r=>{
+            if(r.ok) return r.json();
+            tg.showPopup && tg.showPopup({title:'Ошибка', message:'Прогресс не сохранён ☁️'});
+            return null;
+          }).then(j=>{
+            if(j){
+              state.user.groovePoints = j.gp;
+              renderBonus();
+            }
+          }).catch(()=>{
+            tg.showPopup && tg.showPopup({title:'Сеть', message:'Проверь подключение к интернету ☁️'});
+          });
+        }
+        renderBonus();
+      };
+    }
 
     function renderCourse(){
       const box = document.getElementById('tab-course');
@@ -994,7 +1059,7 @@
         <h2 style="font-size:20px;margin-bottom:14px">${esc(l.t)}</h2>
         ${playerHTML}
         <ul class="summary">${bullets}</ul>
-        <button class="btn" id="finishBtn" style="opacity:0.4;pointer-events:none" onclick="completeLesson(${id})">Завершить урок (+50 GP)</button>
+        <button class="btn" id="finishBtn" style="opacity:0.4;pointer-events:none" onclick="completeLesson(${id})">Завершить урок (+50 ⭐)</button>
         <p class="hint" id="finishHint" style="text-align:center;color:var(--text-secondary);font-size:12px;margin-top:10px">Досмотри видео до конца – и кнопка станет активной</p>`;
       if(src && !isYT) setupVideo(src);
       else if(src && isYT) enableYTControls(src);
@@ -1115,7 +1180,7 @@
               // ---- PLAY: после Урока 1 — предложить пригласить друга (Точка Б) ----
               if(id === 1){
                 setTimeout(()=>{
-                  showToast('🎵', 'Позови напарника в дуэт!<br><b>Дарим по 50 GP</b> вам обоим 🎧<br><br><button class="btn" style="font-size:13px;padding:8px 20px;background:var(--accent-coral)" onclick="shareInvite()">Пригласить друга</button>');
+                  showToast('🎵', 'Позови напарника в дуэт!<br><b>Дарим по 50 ⭐</b> вам обоим 🎧<br><br><button class="btn" style="font-size:13px;padding:8px 20px;background:var(--accent-coral)" onclick="shareInvite()">Пригласить друга</button>');
                 }, 800);
               }
               // ---- Редирект на Upgrade после прохождения ВСЕГО курса (п.2) ----
@@ -1151,8 +1216,9 @@
     }
 
     function bookMentor(){
-      const finalPrice = parseInt(document.getElementById('gp-final')?.textContent?.replace('$','') || '300');
-      const gpToSpend = parseInt(document.getElementById('gp-slider')?.value || '0');
+      const gp = state.user.groovePoints || 0;
+      const discAmt = Math.min(gp, 7000);
+      const finalPrice = Math.max(14000, 21000 - discAmt);
       showToast('⏳', 'Создаём счёт...');
       const btn = document.querySelector('.offer .btn');
       if(btn) btn.disabled = true;
@@ -1166,23 +1232,22 @@
           showToast('❌', 'Не удалось создать счёт. Попробуй позже.');
           return;
         }
-        // Применить списание GP, если выбрано
-        if(gpToSpend > 0){
-          fetch(API_BASE + '/api/gp/apply', {
-            method:'POST',
-            headers:{'Content-Type':'application/json','X-Init-Data': tg.initData || ''},
-            body: JSON.stringify({ amount: gpToSpend })
-          }).catch(()=>{});
-        }
         tg.openInvoice(data.invoice_link, (status) => {
           if(status === 'paid'){
+            // Списываем Stars (GP) автоматически
+            if(discAmt > 0){
+              fetch(API_BASE + '/api/gp/apply', {
+                method:'POST',
+                headers:{'Content-Type':'application/json','X-Init-Data': tg.initData || ''},
+                body: JSON.stringify({ amount: discAmt })
+              }).catch(()=>{});
+            }
             showToast('✅', 'Оплачено! Персональное менторство — твоё 🎉');
-            // перезагрузить профиль
             setTimeout(()=> initApp(), 500);
           } else if(status === 'cancelled'){
             showToast('👋', 'Платёж отменён');
           } else {
-            showToast('❌', 'Ошибка оплаты. Попробуй ещё раз.');
+            showToast('❌', 'Ошибка оплаты');
           }
         });
       }).catch(()=>{

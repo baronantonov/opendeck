@@ -349,11 +349,11 @@ def apply_referral_purchase(invitee_id: int) -> Optional[int]:
 # ---------------------------------------------------------------------------
 
 def apply_gp_spend(user_id: int, amount: int) -> Optional[dict]:
-    """Списать GP на скидку MENTOR.
+    """Списать Stars на скидку MENTOR.
 
-    Фактически спишет min(amount, groove_points, 1030).
-    discount = actual // 10
-    final_price = max(197, 300 - discount)
+    Фактически спишет min(amount, groove_points, 7000).
+    discount = actual_amount (1:1 GP = Star)
+    final_price = max(14000, 21000 - discount)
 
     Возвращает {groove_points, discount, final_price} или None (если user не найден).
     """
@@ -364,13 +364,13 @@ def apply_gp_spend(user_id: int, amount: int) -> Optional[dict]:
         if not row:
             return None
 
-        # реально спишем: сколько запросили, но не больше чем есть и не больше 1030
-        actual_amount = min(amount, row["groove_points"], 1030)
+        # реально спишем: сколько запросили, но не больше чем есть и не больше 7000
+        actual_amount = min(amount, row["groove_points"], 7000)
         if actual_amount <= 0:
             return None  # нечего списывать
 
-        discount = actual_amount // 10
-        final_price = max(197, 300 - discount)
+        discount = actual_amount  # 1:1 — 1 GP = 1 Star
+        final_price = max(14000, 21000 - discount)
 
         c.execute("UPDATE users SET groove_points = groove_points - ? WHERE user_id=?",
                   (actual_amount, user_id))

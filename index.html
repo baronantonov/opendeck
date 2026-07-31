@@ -704,7 +704,7 @@
     (function selfVersionBust(){
       try {
         const params = new URLSearchParams(location.search);
-        const want = '40339d2';           // подставляется сборкой (git hash)
+        const want = 'e077520';           // подставляется сборкой (git hash)
         const got = params.get('v');
         if(want && got !== want){
           params.set('v', want);

@@ -742,25 +742,22 @@
     blurOff();
     setTimeout(blurOff, 300);
 
-    // ---- Если открыто НЕ внутри Telegram (нет init_data) ----
-    // Например, юзер скопировал ссылку и открыл в обычном браузере.
-    // Тогда TG API недоступен, init_data пустой -> бэкенд даст 401 и курс не загрузится.
-    // Вместо "сломанного" UI показываем понятный баннер.
+    // ---- Открыто вне Telegram (пустой init_data, напр. по прямой ссылке) ----
+    // По правилу продукта фронт ДОЛЖЕН работать и по прямой ссылке (режим
+    // просмотра): контент курса/бонусов рендерится, прогресс не сохраняется
+    // (бэкенд вернёт 401 без валидного init_data). Поэтому НЕ блокируем
+    // приложение throw и НЕ перекрываем экран fullscreen-баннером — иначе
+    // вкладка «Бонусы» оказывается пустой. Показываем только лёгкую подсказку.
     if(!tg.initData){
-      const warn = document.createElement('div');
-      warn.style.cssText = 'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;padding:24px;background:var(--bg-main);text-align:center';
-      warn.innerHTML = '<div style="max-width:320px">'
-        + '<div style="font-size:40px;margin-bottom:12px">🎧</div>'
-        + '<h2 style="font-family:Unbounded,sans-serif;color:var(--text-primary);margin:0 0 10px">Open Deck DJ School</h2>'
-        + '<p style="color:var(--text-secondary);font-size:14px;line-height:1.5;margin:0 0 16px">'
-        + 'Это приложение работает только <b>внутри Telegram</b>. Откройте его через бота: '
-        + 'найдите <b>@OpenDeck_bot</b> и нажмите <b>/start → «🎧 Открыть курс DJ»</b>.</p>'
-        + '<p style="color:var(--text-secondary);font-size:12px;opacity:.7;margin:0">'
-        + 'Открытие по прямой ссылке в браузере не даёт доступа к курсу.</p>'
-        + '</div>';
-      document.body.appendChild(warn);
-      // не запускаем загрузку профиля/курса — всё равно 401
-      throw new Error('not_in_telegram');
+      const hint = document.createElement('div');
+      hint.className = 'init-err';
+      hint.style.marginBottom = '14px';
+      hint.innerHTML = '<div class="ie-ic">🤖</div>'
+        + '<div class="ie-t">Открыто вне Telegram — показан просмотр.<br>'
+        + 'Чтобы сохранять прогресс, открой через <b>@OpenDeck_bot</b> → «🎧 Открыть курс DJ».</div>';
+      const home = document.getElementById('tab-home');
+      if(home) home.insertBefore(hint, home.firstChild);
+      // продолжаем: initApp() ниже отрисует контент из локального state (fallback)
     }
 
     // ---- Состояние: инициализация, имя и фото из Telegram ----

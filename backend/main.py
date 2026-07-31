@@ -78,9 +78,14 @@ COURSE = {
 MAIN_OLD_IDS = [5, 6, 7, 8, 9, 10]
 MAIN_NEW_IDS = [1, 2, 3, 4, 5, 6]
 BONUS_OLD_IDS = [1, 2, 3, 4]
+BONUS_COURSE_ID = "dj-bonus"  # бонусы — отдельный course_id (C3), чтобы не конфликтовали с основным
 OLD_TO_NEW = {old: new for old, new in zip(MAIN_OLD_IDS, MAIN_NEW_IDS)}
 NEW_TO_OLD = {new: old for new, old in zip(MAIN_NEW_IDS, MAIN_OLD_IDS)}
+# бонусы: старые id 1-4 -> новые id 1-4 (прямое совпадение, но свой course_id)
+BONUS_OLD_TO_NEW = {i: i for i in BONUS_OLD_IDS}
+BONUS_NEW_TO_OLD = {i: i for i in BONUS_OLD_IDS}
 TOTAL_MAIN = len(MAIN_OLD_IDS)
+TOTAL_BONUS = len(BONUS_OLD_IDS)
 
 COURSE_MAIN = [
     {"id": i + 1, "title": COURSE[COURSE_ID][MAIN_OLD_IDS[i] - 1]["title"]}
@@ -104,6 +109,7 @@ class Grant(BaseModel):
 class Progress(BaseModel):
     course_id: str = COURSE_ID
     lesson_id: int
+    bonus: bool = False  # C3: фронт помечает бонусный урок явно
 
 class InitRequest(BaseModel):
     init_data: str
@@ -317,19 +323,24 @@ async def lessons(
 @app.get("/api/lessons-bonus")
 async def lessons_bonus(
     x_init_data: str = Header("", alias="X-Init-Data"),
-    course_id: str = COURSE_ID,
 ):
     uid = _user_id_from_init(x_init_data)
     if uid is None:
         return JSONResponse({"error": "bad_init_data"}, status_code=401)
-    main_done = len([x for x in db.get_completed(uid, course_id) if x in MAIN_OLD_IDS]) >= TOTAL_MAIN
-    completed = [x for x in db.get_completed(uid, course_id) if x in BONUS_OLD_IDS]
+    # бонусы открываются только после прохождения ВСЕГО основного курса
+    main_done = len([x for x in db.get_completed(uid, COURSE_ID) if x in MAIN_OLD_IDS]) >= TOTAL_MAIN
+    completed = [
+        BONUS_OLD_TO_NEW[x]
+        for x in db.get_completed(uid, BONUS_COURSE_ID)
+        if x in BONUS_OLD_IDS
+    ]
     return {
-        "course_id": course_id,
+        "course_id": BONUS_COURSE_ID,
         "lessons": COURSE_BONUS,
         "completed": completed,
         "bonus_unlocked": main_done,
     }
+
 
 
 # ---- POST /api/progress (existing, +GP) ----
@@ -342,7 +353,20 @@ async def progress(
     uid = _user_id_from_init(x_init_data)
     if uid is None:
         return JSONResponse({"error": "bad_init_data"}, status_code=401)
-    # Основной платный доступ: только полный курс.
+
+    # ---- БОНУСЫ (C3): отдельный course_id, не требует оплаты ----
+    if p.course_id == BONUS_COURSE_ID or p.bonus:
+        course_id = BONUS_COURSE_ID
+        old_id = BONUS_NEW_TO_OLD.get(p.lesson_id, p.lesson_id)
+        gp = db.complete_lesson(uid, course_id, old_id)
+        completed = [
+            BONUS_OLD_TO_NEW[x]
+            for x in db.get_completed(uid, course_id)
+            if x in BONUS_OLD_IDS
+        ]
+        return {"gp": gp, "completed": completed, "bonus": True}
+
+    # ---- ОСНОВНОЙ КУРС (платный доступ) ----
     if p.course_id == COURSE_ID and p.lesson_id in MAIN_NEW_IDS:
         paid_full = db.has_paid(uid, p.course_id)
         if not paid_full and not db.has_paid(uid, "tripwire"):
@@ -426,14 +450,20 @@ async def create_invoice(
         return JSONResponse({"error": "bad_init_data"}, status_code=401)
 
     course_id = body.course_id
+    # ⚠️ ЦЕНА ВСЕГДА СЧИТАЕТСЯ НА СЕРВЕРЕ (C2).
+    # Клиентский body.price ИГНОРИРУЕТСЯ — иначе юзер мог передать price:1
+    # и купить менторство за 1 Star.
     if course_id == "tripwire":
-        price = body.price or TRIPWIRE_PRICE
+        price = TRIPWIRE_PRICE
         label = "Pocket DJ: уроки 1-4"
     elif course_id == COURSE_ID:
-        price = body.price or FULL_COURSE_PRICE
+        price = FULL_COURSE_PRICE
         label = "Pocket DJ: полный курс"
     elif course_id == "mentoring":
-        price = body.price or MENTOR_PRICE
+        # автоскидка 1 GP = 1 Star, макс 7000, итог не ниже 14000
+        gp = db.get_gp(uid)
+        disc = min(gp, 7000)
+        price = max(14000, MENTOR_PRICE - disc)
         label = "Персональное менторство FREEDA DJ"
     else:
         return JSONResponse({"error": "unknown_course"}, status_code=400)

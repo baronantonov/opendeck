@@ -233,9 +233,19 @@ def create_user(user_id, first_name=None, username=None, photo_url=None):
 # ---------------------------------------------------------------------------
 
 def complete_lesson(user_id, course_id, lesson_id):
-    """Отметить урок пройденным. Обновить groove_points в users + транзакция."""
+    """Отметить урок пройденным. Обновить groove_points в users + транзакция.
+
+    ЗАЩИТА ОТ ФЕРМЫ (C1): если урок уже отмечен пройденным — повторно
+    не начисляем GP. Иначе прямой POST /api/progress с одним lesson_id
+    много раз накручивал бы Stars бесконечно.
+    """
     with _conn() as c:
-        # вставить в progress
+        already = c.execute(
+            "SELECT 1 FROM progress "
+            "WHERE user_id=? AND course_id=? AND lesson_id=? AND completed=1",
+            (user_id, course_id, lesson_id),
+        ).fetchone()
+        # вставить/обновить прогресс
         c.execute(
             "INSERT INTO progress (user_id, course_id, lesson_id, completed, gp_earned) "
             "VALUES (?,?,?,1,?) "
@@ -243,17 +253,18 @@ def complete_lesson(user_id, course_id, lesson_id):
             "completed=1, completed_at=datetime('now')",
             (user_id, course_id, lesson_id, GP_PER_LESSON),
         )
-        # обновить groove_points в users
-        c.execute(
-            "UPDATE users SET groove_points = groove_points + ? WHERE user_id=?",
-            (GP_PER_LESSON, user_id),
-        )
-        # транзакция
-        c.execute(
-            "INSERT INTO transactions (user_id, amount, action_type) "
-            "VALUES (?,?, 'lesson_complete')",
-            (user_id, GP_PER_LESSON),
-        )
+        if not already:
+            # обновить groove_points в users (только за первое прохождение)
+            c.execute(
+                "UPDATE users SET groove_points = groove_points + ? WHERE user_id=?",
+                (GP_PER_LESSON, user_id),
+            )
+            # транзакция
+            c.execute(
+                "INSERT INTO transactions (user_id, amount, action_type) "
+                "VALUES (?,?, 'lesson_complete')",
+                (user_id, GP_PER_LESSON),
+            )
         total = c.execute(
             "SELECT groove_points FROM users WHERE user_id=?", (user_id,)
         ).fetchone()[0]

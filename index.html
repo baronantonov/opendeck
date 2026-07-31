@@ -484,6 +484,21 @@
     .invite-card .t{font-size:14px;line-height:1.5;margin-bottom:12px}
     .invite-card .t b{color:var(--accent-coral)}
     .invite-card .sub{font-size:12px;color:var(--text-secondary);margin-top:10px;opacity:.7}
+
+    /* ---- Loading skeleton (пока летит /api/init) ---- */
+    .skel{position:relative;color:transparent!important;background:rgba(255,255,255,0.07);
+      border-radius:6px;overflow:hidden;user-select:none;pointer-events:none}
+    .skel::after{content:'';position:absolute;inset:0;
+      background:linear-gradient(90deg,transparent,rgba(255,255,255,0.14),transparent);
+      background-size:200% 100%;animation:skel 1.2s linear infinite}
+    @keyframes skel{0%{background-position:200% 0}100%{background-position:-200% 0}}
+    body.reduce-motion .skel::after{animation:none}
+    /* Inline-ошибка загрузки с повтором (вместо silent fallback) */
+    .init-err{display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center;
+      background:rgba(245,146,110,0.08);border:1px solid rgba(245,146,110,0.25);
+      border-radius:16px;padding:20px;margin-bottom:14px}
+    .init-err .ie-ic{font-size:28px}
+    .init-err .ie-t{font-size:14px;color:var(--text-secondary);line-height:1.5}
   </style>
 </head>
 <body>
@@ -492,6 +507,12 @@
   <div class="toast" id="toast"><div class="ic" id="toast-ic">🎁</div><div class="t" id="toast-msg">Сообщение</div><span class="close" onclick="document.getElementById('toast').classList.remove('show')">✕</span></div>
     <!-- TAB 1: Dashboard -->
     <section id="tab-home">
+      <!-- Inline-ошибка загрузки курса (показываем если /api/init и fallback оба упали) -->
+      <div class="init-err hidden" id="init-err">
+        <div class="ie-ic">⚠️</div>
+        <div class="ie-t">Не удалось загрузить курс.<br>Проверь подключение к интернету и попробуй снова.</div>
+        <button class="btn ghost" style="width:auto;padding:9px 22px" onclick="initApp()">Повторить</button>
+      </div>
       <div class="dash-head shim" onclick="switchTab('profile')">
         <div class="user-avatar" id="avatar-main"></div>
         <div class="dash-info">
@@ -499,9 +520,9 @@
           <div class="dash-meta">
             <span><span id="archetype">Куратор Вайба</span></span>
             <span class="dot">·</span>
-            <span><span class="gp-v" id="gp">150</span> ⭐</span>
+            <span><span class="gp-v skel" id="gp" style="display:inline-block;min-width:18px">—</span> ⭐</span>
             <span class="dot">·</span>
-            <span><span class="st" id="done-n">2</span>/6 ур.</span>
+            <span><span class="st skel" id="done-n" style="display:inline-block;min-width:14px">—</span>/6 ур.</span>
           </div>
         </div>
       </div>
@@ -540,11 +561,11 @@
           <div class="tag">Текущий урок</div>
         </div>
         <div class="hero-title-row">
-          <h2 id="next-lesson">Основы сведения</h2>
-          <div class="hero-progress-num"><span class="st" id="lesson-n">2</span><span class="of">/6</span></div>
+          <h2 id="next-lesson" class="skel" style="display:block;min-height:24px">—</h2>
+          <div class="hero-progress-num"><span class="st skel" id="lesson-n" style="display:inline-block;min-width:14px">—</span><span class="of">/6</span></div>
         </div>
         <div class="hero-duration">время прохождения 15–20 минут</div>
-        <div class="progress"><i id="bar" style="width:20%"></i></div>
+        <div class="progress skel" id="bar-wrap"><i id="bar" style="width:0%"></i></div>
         <div class="play-deck-wrap">
           <button class="play-deck" id="play-btn" onclick="goCourse()" aria-label="Играть">
             <svg viewBox="0 0 24 24"><path d="M8 5.5v13l11-6.5z"/></svg>
@@ -820,6 +841,12 @@
     applyAvatar();
     // ---- PLAY: инициализация через /api/init — заменяет loadProfile+loadProgress ---- 
     function initApp(){
+      const errBox = document.getElementById('init-err');
+      if(errBox) errBox.classList.add('hidden');
+      // включить skeleton на ключевых метриках (пока летит API)
+      ['gp','done-n','lesson-n','next-lesson','bar-wrap'].forEach(id=>{
+        const el = document.getElementById(id); if(el) el.classList.add('skel');
+      });
       const startParam = (tg.initDataUnsafe && tg.initDataUnsafe.start_param) || null;
       // DeviceStorage — загружаем кеш мгновенно, пока летит API
       if(tg.DeviceStorage){
@@ -845,6 +872,10 @@
           state.courseProgress.completedLessons = (j.course.completed_lessons || []).slice();
           state.user.archetype = j.user.archetype || 'Куратор Вайба';
           updateUI();
+          // Снять skeleton (данные пришли)
+          ['gp','done-n','lesson-n','next-lesson','bar-wrap'].forEach(id=>{
+            const el = document.getElementById(id); if(el) el.classList.remove('skel');
+          });
           // Сохранить в DeviceStorage (Bot API 9.0+)
           if(tg.DeviceStorage){
             try { tg.DeviceStorage.set('completed', JSON.stringify(state.courseProgress.completedLessons)); } catch(_){}
@@ -852,20 +883,25 @@
           if(j.bonus && j.bonus.message){
             setTimeout(()=> showToast('🎁', j.bonus.message), 600);
           }
+        } else {
+          // /api/init вернул не-JSON (ошибка сервера) — пробуем legacy, иначе показываем ошибку
+          legacyLoad(()=>{ errBox && errBox.classList.remove('hidden'); });
         }
-      }).catch(()=> legacyLoad());
+      }).catch(()=> legacyLoad(()=>{ errBox && errBox.classList.remove('hidden'); }));
     }
-    function legacyLoad(){
+    function legacyLoad(onFail){
       fetch(API_BASE + '/api/profile', {headers:{'X-Init-Data': tg.initData || ''}})
-        .then(r=>r.ok?r.json():null)
-        .then(j=>{ if(j){
+        .then(r=>r.ok?r.json():null).then(j=>{ if(j){
           state.courseProgress.completedLessons = j.completed.slice();
           state.user.groovePoints = j.gp || 0;
           state.user.referralCode = j.referral_code || '';
           state.user.referralFriends = j.referral_friends || 0;
           state.user.referralGpEarned = j.referral_gp_earned || 0;
           updateUI();
-        }}).catch(()=>{});
+          ['gp','done-n','lesson-n','next-lesson','bar-wrap'].forEach(id=>{
+            const el = document.getElementById(id); if(el) el.classList.remove('skel');
+          });
+        } else if(onFail){ onFail(); }}).catch(()=>{ if(onFail) onFail(); });
     }
     initApp();
     document.getElementById('prof-name') && (document.getElementById('prof-name').textContent = state.user.name);

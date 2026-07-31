@@ -47,6 +47,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "https://opendeck-tma.serveousercontent.com",
+        "https://opendeck-tma.loca.lt",
         "https://baronantonov.github.io",
         "http://localhost:8000",
         "http://127.0.0.1:8000",

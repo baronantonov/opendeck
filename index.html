@@ -660,8 +660,8 @@
 
   <script>
     const tg = (window.Telegram && window.Telegram.WebApp) || {};
-    // Базовый URL бэкенда (API). Фронт теперь на GitHub Pages, а API — на туннеле Serveo.
-    const API_BASE = '';
+    // Базовый URL бэкенда (API). Фронт на GitHub Pages, API — на туннеле LocalTunnel.
+    const API_BASE = 'https://opendeck-tma.loca.lt';
     try { tg.ready && tg.ready(); } catch(e){}
     try { tg.expand && tg.expand(); } catch(e){}
     try { tg.disableVerticalSwipes && tg.disableVerticalSwipes(); } catch(e){}

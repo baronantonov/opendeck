@@ -47,21 +47,40 @@ async def on_pre_checkout(q: PreCheckoutQuery):
 async def on_paid(msg: Message):
     payment: SuccessfulPayment = msg.successful_payment
     course_id = payment.invoice_payload
+    charge_id = payment.telegram_payment_charge_id
+    headers = {"Authorization": f"Bearer {config.INTERNAL_API_KEY}"}
     async with httpx.AsyncClient() as c:
+        # 1) выдать доступ (идемпотентно на стороне бэкенда по course_id+user)
         r = await c.post(f"{config.BACKEND_URL}/api/grant", json={
             "user_id": msg.from_user.id,
             "course_id": course_id,
             "provider": "stars",
-            "charge_id": payment.telegram_payment_charge_id,
-        }, headers={"Authorization": f"Bearer {config.INTERNAL_API_KEY}"})
-        if r.status_code == 200:
-            # начислить реферальный бонус инвайтер
+            "charge_id": charge_id,
+        }, headers=headers)
+        if r.status_code != 200:
+            # не удалось выдать доступ — логируем, но продолжаем (реф/скидка не зависят)
+            print(f"⚠️ /api/grant failed: {r.status_code} {r.text}")
+
+        # 2) реферальный бонус инвайтеру (+200 ⭐, идемпотентно на 1 покупку)
+        try:
+            await c.post(f"{config.BACKEND_URL}/api/referral/purchase", json={
+                "user_id": msg.from_user.id,
+            }, headers=headers)
+        except Exception:
+            pass  # не критично
+
+        # 3) если куплено менторство — списать GP-скидку (1 GP = 1 Star).
+        #    Цена инвойса уже была снижена на GP на сервере при /api/create-invoice,
+        #    здесь фиксируем само списание GP в балансе (идемпотентно по charge_id).
+        if course_id == "mentoring":
             try:
-                await c.post(f"{config.BACKEND_URL}/api/referral/purchase", json={
+                await c.post(f"{config.BACKEND_URL}/api/gp/apply", json={
                     "user_id": msg.from_user.id,
-                }, headers={"Authorization": f"Bearer {config.INTERNAL_API_KEY}"})
+                    "charge_id": f"mentor:{charge_id}",
+                }, headers=headers)
             except Exception:
-                pass  # не критично
+                pass
+
     await msg.answer("✅ Оплата прошла! Открывай курс в Mini App и смотри уроки.")
 
 

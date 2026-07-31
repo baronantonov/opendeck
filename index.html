@@ -68,7 +68,12 @@
     .shim::after{content:'';position:absolute;inset:0;pointer-events:none;
       background:linear-gradient(90deg,transparent 0%,rgba(255,255,255,0.06) 50%,transparent 100%);
       background-size:200% 100%;animation:shimmer 5s ease-in-out infinite}
-    .dash-head{border-radius:18px}
+    /* APPLE: каскад появления дашборда — элементы выезжают не разом,
+       а по очереди (stagger), создавая ощущение «сборки» интерфейса */
+    .dash-head{animation-delay:.02s}
+    .quote{animation-delay:.10s}
+    .manifest{animation-delay:.18s}
+    .hero{animation-delay:.26s}
     .dash-head.shim::after{border-radius:18px}
     .hero.shim::after{border-radius:22px}
     .free.shim::after{border-radius:16px}
@@ -85,8 +90,10 @@
     .hero .hero-progress-num{font-family:'Unbounded',sans-serif;font-weight:800;font-size:38px;color:var(--text-primary);line-height:1;flex:none}
     .hero .hero-progress-num .st{color:var(--accent-mint);display:inline-block}
     .hero .hero-progress-num .of{font-size:18px;font-weight:600;color:var(--text-secondary);opacity:.6;vertical-align:super}
-    .hero-title-row{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:8px}
-    .hero-title-row h2{flex:1;margin:0;min-width:0}
+    .hero-title-row{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:8px;flex-wrap:wrap}
+    .hero-title-row h2{flex:1 1 auto;margin:0;min-width:0}
+    /* цифра прогресса — справа, НЕ слипается с заголовком при переносе */
+    .hero .hero-progress-num{margin-left:10px}
     /* APPLE: заголовок и цифра выровнены по ЦЕНТРУ, не по верху — убирает «висящую» последнюю строку */
     .hero .hero-progress-num{flex:none;align-self:center;text-align:right;line-height:1}
     /* APPLE: заголовок урока — главный фокус (крупнее, чем цифра) */
@@ -254,9 +261,10 @@
       .quote .ql{font-size:16px}
       .hero{padding:16px}
       .hero-title-row{gap:8px}
-      .hero h2{font-size:17px}
-      .hero .hero-progress-num{font-size:42px}
-      .hero .hero-progress-num .of{font-size:18px}
+      /* APPLE: на мобиле заголовок урока — ГЛАВНЫЙ фокус, крупнее цифры */
+      .hero h2{font-size:22px}
+      .hero .hero-progress-num{font-size:20px}
+      .hero .hero-progress-num .of{font-size:13px}
       .hero-duration{font-size:10px;margin:-8px 0 12px}
       .m-row .m-btn{font-size:11px;padding:10px 8px;gap:4px}
       .m-panel.open{padding:14px 14px;font-size:12px}
@@ -272,9 +280,9 @@
       .quote .ql{font-size:14px}
       .hero{padding:14px}
       .hero-title-row{gap:6px}
-      .hero h2{font-size:15px}
-      .hero .hero-progress-num{font-size:34px}
-      .hero .hero-progress-num .of{font-size:14px}
+      .hero h2{font-size:20px}
+      .hero .hero-progress-num{font-size:18px}
+      .hero .hero-progress-num .of{font-size:12px}
       .hero-duration{font-size:9px;margin:-6px 0 10px}
       .m-row .m-btn{font-size:10px;padding:8px 6px}
       .m-panel.open{padding:12px 12px;font-size:11px}
@@ -415,7 +423,10 @@
     *{ -webkit-touch-callout:none; -webkit-user-select:none; -khtml-user-select:none;
         -moz-user-select:none; -ms-user-select:none; user-select:none; }
     input,textarea{ -webkit-user-select:text; user-select:text; }
-    img,video{ -webkit-user-drag:none; pointer-events:none; }
+    /* ВАЖНО: НЕ ставим pointer-events:none на <video>/<iframe> — иначе тач по
+       плееру урока (play/pause/fullscreen) не работает в Telegram WebView.
+       Защита видео — через водяной знак + кастомные контролы, а не блокировку тача. */
+    img{ -webkit-user-drag:none; }
 
     /* ---- Видеоплеер: контролы ---- */
     .vwrap{position:relative;width:100%;aspect-ratio:16/9;background:#1c201e;border-radius:16px;overflow:hidden;margin-bottom:14px}
@@ -1288,23 +1299,11 @@
         }
         tg.openInvoice(data.invoice_link, (status) => {
           if(status === 'paid'){
-            // Списываем Stars (GP) автоматически
-            if(discAmt > 0){
-              // bookMentor уже посчитал discAmt из gp; применяем скидку
-            }
-            // M1: друг купил курс/менторство → инвайтеру +200 ⭐
-            fetch(API_BASE + '/api/referral/purchase', {
-              method:'POST',
-              headers:{'Content-Type':'application/json','X-Init-Data': tg.initData || ''},
-              body: JSON.stringify({})
-            }).catch(()=>{});
-            if(discAmt > 0){
-              fetch(API_BASE + '/api/gp/apply', {
-                method:'POST',
-                headers:{'Content-Type':'application/json','X-Init-Data': tg.initData || ''},
-                body: JSON.stringify({ amount: discAmt })
-              }).catch(()=>{});
-            }
+            // ⚠️ НЕ зовём /api/gp/apply и /api/referral/purchase отсюда!
+            // Цена инвойса уже снижена на сервере (1 GP = 1 Star, max 7000).
+            // Списание GP и реф-бонус инвайтеру (+200 ⭐) фиксирует БОТ
+            // по successful_payment (идемпотентно по charge_id). Повторный
+            // вызов от фронта привёл бы к двойному списанию GP / накрутке.
             showToast('✅', 'Оплачено! Персональное менторство — твоё 🎉');
             setTimeout(()=> initApp(), 500);
           } else if(status === 'cancelled'){

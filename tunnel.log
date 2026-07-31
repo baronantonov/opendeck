@@ -51,4 +51,9 @@ Pseudo-terminal will not be allocated because stdin is not a terminal.
 [32mForwarding HTTP traffic from https://opendeck-tma.serveousercontent.com
 [0mPseudo-terminal will not be allocated because stdin is not a terminal.
 [32mForwarding HTTP traffic from https://opendeck-tma.serveousercontent.com
-[0m
+[0mPseudo-terminal will not be allocated because stdin is not a terminal.
+Error: remote port forwarding failed for listen port 80
+Pseudo-terminal will not be allocated because stdin is not a terminal.
+Error: remote port forwarding failed for listen port 80
+Error: remote port forwarding failed for listen port 80
+Error: remote port forwarding failed for listen port 8080

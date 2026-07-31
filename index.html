@@ -696,18 +696,17 @@
     try { tg.setHeaderColor && tg.setHeaderColor('#2b302e'); tg.setBackgroundColor && tg.setBackgroundColor('#2b302e'); } catch(e){}
 
     // ---- Self version-busting (бьём кэш Telegram WebView изнутри) ----
-    // Telegram агрессивно кэширует Mini App по URL. Бот шлёт ?v=<hash>, но при
-    // открытии по прямой ссылке (GitHub Pages) или если бот отдаёт устаревший
-    // хэш — страница остаётся старой. Поэтому сверяем ?v= в URL с хэшем HEAD
-    // коммита и, если отличается, делаем location.replace на тот же URL с
-    // актуальным ?v=. Telegram видит НОВЫЙ URL и перезагружает WebView.
+    // Telegram агрессивно кэширует Mini App по URL.
+    //  - Через бота: в URL уже есть ?v=<hash> (бот шлёт актуальный HEAD) -> оставляем как есть.
+    //  - По прямой ссылке (GitHub Pages): ?v= нет -> добавляем свежий timestamp,
+    //    чтобы Telegram видел НОВЫЙ URL при каждом открытии и перезагружал WebView.
+    // Не сверяем с захардкоженным хэшем: он всегда отстаёт на 1 коммит и
+    // создавал бы бесконечный цикл переподстановки.
     (function selfVersionBust(){
       try {
         const params = new URLSearchParams(location.search);
-        const want = 'e077520';           // подставляется сборкой (git hash)
-        const got = params.get('v');
-        if(want && got !== want){
-          params.set('v', want);
+        if(!params.has('v')){
+          params.set('v', String(Date.now()));
           const newUrl = location.pathname + '?' + params.toString() + location.hash;
           location.replace(newUrl);
         }

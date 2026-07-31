@@ -41,10 +41,25 @@ def _mini_app_version() -> str:
         pass
     return _dt.date.today().isoformat()
 
-if MINI_APP_URL not in ("https://ВАШ-ДОМЕН.tld", ""):
-    _ver = _mini_app_version()
-    _sep = "&" if "?" in MINI_APP_URL else "?"
-    MINI_APP_URL = f"{MINI_APP_URL}{_sep}v={_ver}"
+def mini_app_url() -> str:
+    """Вернуть MINI_APP_URL с актуальным ?v=<git-hash>.
+
+    ВАЖНО: хэш вычисляется КАЖДЫЙ раз при вызове (а не при импорте модуля!),
+    иначе после git push новых правок бот продолжает отдавать старый ?v=,
+    и Telegram отдаёт закэшированную старую страницу Mini App.
+    """
+    url = MINI_APP_URL
+    if url in ("https://ВАШ-ДОМЕН.tld", ""):
+        return url
+    ver = _mini_app_version()
+    # убираем старый ?v=, если вдруг попал в .env
+    base = url.split("?")[0]
+    return f"{base}?v={ver}"
+
+
+# Для обратной совместимости оставляем константу, но реальный URL
+# с актуальным хэшом берётся через mini_app_url().
+MINI_APP_URL = mini_app_url()
 
 # Telegram Stars: цена в Stars (XTR) за курс
 # Актуальные цены заданы в backend/main.py (TRIPWIRE_PRICE, FULL_COURSE_PRICE, MENTOR_PRICE)

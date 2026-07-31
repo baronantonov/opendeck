@@ -581,15 +581,7 @@
         <button class="btn ghost" style="width:auto;padding:10px 18px;margin-top:10px" onclick="switchTab('bonus')">🎁 Бонусные уроки</button>
       </div>
 
-      <!-- Компактный баннер: показываем ТОЛЬКО если /api/init и fallback оба упали.
-           Контент выше рендерится из локального state (режим просмотра), поэтому
-           «огромной таблички» поверх главной больше нет. -->
-      <div class="init-err hidden" id="init-err">
-        <div class="ie-ic">⚠️</div>
-        <div class="ie-t">Не удалось синхронизировать курс.<br>Показан просмотр — нажми «Повторить», чтобы сохранить прогресс.</div>
-        <button class="btn ghost" style="width:auto;padding:9px 22px" onclick="initApp()">Повторить</button>
-      </div>
-    </section>
+      </section>
 
     <!-- TAB 2: Course -->
     <section id="tab-course" class="hidden"></section>
@@ -702,6 +694,25 @@
     try { tg.expand && tg.expand(); } catch(e){}
     try { tg.disableVerticalSwipes && tg.disableVerticalSwipes(); } catch(e){}
     try { tg.setHeaderColor && tg.setHeaderColor('#2b302e'); tg.setBackgroundColor && tg.setBackgroundColor('#2b302e'); } catch(e){}
+
+    // ---- Self version-busting (бьём кэш Telegram WebView изнутри) ----
+    // Telegram агрессивно кэширует Mini App по URL. Бот шлёт ?v=<hash>, но при
+    // открытии по прямой ссылке (GitHub Pages) или если бот отдаёт устаревший
+    // хэш — страница остаётся старой. Поэтому сверяем ?v= в URL с хэшем HEAD
+    // коммита и, если отличается, делаем location.replace на тот же URL с
+    // актуальным ?v=. Telegram видит НОВЫЙ URL и перезагружает WebView.
+    (function selfVersionBust(){
+      try {
+        const params = new URLSearchParams(location.search);
+        const want = '40339d2';           // подставляется сборкой (git hash)
+        const got = params.get('v');
+        if(want && got !== want){
+          params.set('v', want);
+          const newUrl = location.pathname + '?' + params.toString() + location.hash;
+          location.replace(newUrl);
+        }
+      } catch(_){}
+    })();
 
     // ---- Haptic Feedback (ощущение нативности) ----
     function haptic(method){
@@ -850,8 +861,6 @@
     applyAvatar();
     // ---- PLAY: инициализация через /api/init — заменяет loadProfile+loadProgress ---- 
     function initApp(){
-      const errBox = document.getElementById('init-err');
-      if(errBox) errBox.classList.add('hidden');
       // включить skeleton на ключевых метриках (пока летит API)
       ['gp','done-n','lesson-n','next-lesson','bar-wrap'].forEach(id=>{
         const el = document.getElementById(id); if(el) el.classList.add('skel');
@@ -905,8 +914,6 @@
       ['gp','done-n','lesson-n','next-lesson','bar-wrap'].forEach(id=>{
         const el = document.getElementById(id); if(el) el.classList.remove('skel');
       });
-      const errBox = document.getElementById('init-err');
-      if(errBox) errBox.classList.remove('hidden');
     }
     function legacyLoad(onFail){
       fetch(API_BASE + '/api/profile', {headers:{'X-Init-Data': tg.initData || ''}})

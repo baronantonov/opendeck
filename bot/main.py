@@ -27,8 +27,9 @@ COURSE_ID = "dj-basics"
 
 
 def main_kb() -> InlineKeyboardMarkup:
+    # Свежий ?v=<git-hash> при КАЖДОМ нажатии /start — бьём кэш Telegram.
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🎧 Открыть курс DJ", web_app=WebAppInfo(url=config.MINI_APP_URL))],
+        [InlineKeyboardButton(text="🎧 Открыть курс DJ", web_app=WebAppInfo(url=config.mini_app_url()))],
     ])
 
 

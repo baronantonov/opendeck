@@ -766,10 +766,10 @@
         { t:"Твой первый микс из 4–5 треков", d:["Особенности построения микса и основы композиции.","Сводим микс из 4–5 треков, комбинируя все способы сведения.","Финал курса: готов первый сет и точка опоры в жизни."] }
       ],
       bonusLessons: [
-        { t:"Знакомство: кто такой диджей и зачем он нужен", video:"https://www.youtube.com/embed/_x8ONg58GeU", d:["Знакомство с Ташей (FREEDA DJ): мой путь от первого бита до фестивалей.","Кто такой диджей, его функция на вечеринке и где применяется диджеинг сегодня.","Диджей – это не избранные, а любой, кто ведёт энергию через музыку."] },
-        { t:"История: от диско до наших дней", d:["Краткая история появления диджеинга и как он менялся десятилетиями.","Путь электронной музыки: от диско-эры до современных стилей.","Поймёшь контекст – откуда растут ноги у того, что крутишь сегодня."] },
-        { t:"Направления и оборудование: где найти себя", d:["Виды диджеинга: коммерческий, ивент, андерграунд, фестивальный, радио, проводник практик.","Какое бывает оборудование и в каких сферах используется.","Выбери своё направление – это снимет страх «а я не такой, как все»."] },
-        { t:"Музыкальная теория: бит, ритм и колесо Камелота", d:["Из чего строится музыка: бит, ритм, тональности, дорожки в треке.","Колесо Камелота – как подбирать треки, что звучат «родственно».","Строение трека: интро, ямы, дропы, аутро – читаем музыку как книгу."] }
+        { id:1, t:"Знакомство: кто такой диджей и зачем он нужен", video:"https://www.youtube.com/embed/_x8ONg58GeU", d:["Знакомство с Ташей (FREEDA DJ): мой путь от первого бита до фестивалей.","Кто такой диджей, его функция на вечеринке и где применяется диджеинг сегодня.","Диджей – это не избранные, а любой, кто ведёт энергию через музыку."] },
+        { id:2, t:"История: от диско до наших дней", d:["Краткая история появления диджеинга и как он менялся десятилетиями.","Путь электронной музыки: от диско-эры до современных стилей.","Поймёшь контекст – откуда растут ноги у того, что крутишь сегодня."] },
+        { id:3, t:"Направления и оборудование: где найти себя", d:["Виды диджеинга: коммерческий, ивент, андерграунд, фестивальный, радио, проводник практик.","Какое бывает оборудование и в каких сферах используется.","Выбери своё направление – это снимет страх «а я не такой, как все»."] },
+        { id:4, t:"Музыкальная теория: бит, ритм и колесо Камелота", d:["Из чего строится музыка: бит, ритм, тональности, дорожки в треке.","Колесо Камелота – как подбирать треки, что звучат «родственно».","Строение трека: интро, ямы, дропы, аутро – читаем музыку как книгу."] }
       ]
     };
 
@@ -954,25 +954,44 @@
 
     function renderBonus(){
       const box = document.getElementById('tab-bonus');
-      box.innerHTML = '<h2 style="font-size:20px;margin-bottom:14px">🎁 Бонусы</h2>';
+      box.innerHTML = '<h2 style="font-size:20px;margin-bottom:6px">🎁 Бонусные уроки</h2>'
+        + '<p style="color:var(--text-secondary);font-size:13px;margin:0 0 14px">Открываются по мере прохождения основного курса. За каждый — +50 ⭐.</p>';
       fetch(API_BASE + '/api/lessons-bonus', {
         headers:{'X-Init-Data': tg.initData || ''}
       }).then(r=>r.ok?r.json():null).then(j=>{
         if(!j){ box.innerHTML += '<p class="hint">Не удалось загрузить</p>'; return; }
-        if(!j.bonus_unlocked){
-          box.innerHTML += '<p class="hint">Пройди основной курс — и откроются бонусные уроки.</p>';
-          return;
-        }
         const comp = (j.completed || []).slice().sort((a,b)=>a-b);
-        j.lessons.forEach(l=>{
+        const unlocked = j.unlocked_count || 1;   // сколько бонусов уже открыто
+        const totalMain = j.total_main || 6;
+        // берём контент из state.bonusLessons (title/d/video), порядок — по id
+        const byId = {};
+        (state.bonusLessons||[]).forEach(b=>{ byId[b.id] = b; });
+        // если бэкенд прислал titles — используем их, иначе из state
+        const lessons = (j.lessons && j.lessons.length) ? j.lessons : Object.values(byId);
+        lessons.forEach(l=>{
           const id = l.id;
+          const content = byId[id] || l;
           const done = comp.includes(id);
+          const open = id <= unlocked;            // открыт по порядку
+          const locked = !open;
           const el = document.createElement('div');
-          el.className = 'lesson' + (done?' done':'');
-          const iconHTML = done ? '<svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg>' : id;
-          const ttlHTML = `<div class="ttl">${esc(l.title)}</div>`;
-          el.innerHTML = `<div class="num">${iconHTML}</div>${ttlHTML}`;
-          if(!done){ el.onclick = ()=> openBonusLesson(id, l); }
+          el.className = 'lesson' + (done?' done':'') + (locked?' locked':'');
+          let iconHTML;
+          if(done){
+            iconHTML = '<svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg>';
+          } else if(locked){
+            iconHTML = '<svg class="lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>';
+          } else {
+            iconHTML = id;
+          }
+          // подсказка: какой урок основного курса нужен для открытия
+          const needMain = id - 1;  // Бонус N открывается после урока N-1
+          const hint = locked
+            ? `<span class="hint">Откроется после урока ${needMain} основного курса</span>`
+            : '';
+          const ttl = (content.t || l.title || ('Бонус ' + id));
+          el.innerHTML = `<div class="num">${iconHTML}</div><div class="ttl">${esc(ttl)}${hint}</div>`;
+          if(open && !done){ el.onclick = ()=> openBonusLesson(id, content); }
           box.appendChild(el);
         });
       });

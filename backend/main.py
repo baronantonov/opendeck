@@ -327,8 +327,12 @@ async def lessons_bonus(
     uid = _user_id_from_init(x_init_data)
     if uid is None:
         return JSONResponse({"error": "bad_init_data"}, status_code=401)
-    # бонусы открываются только после прохождения ВСЕГО основного курса
-    main_done = len([x for x in db.get_completed(uid, COURSE_ID) if x in MAIN_OLD_IDS]) >= TOTAL_MAIN
+    # Бонусы ВИДНЫ всегда, но открываются по порядку от прогресса основного курса:
+    #   Бонус 1 — доступен сразу.
+    #   Бонус N (N>=2) — открывается после прохождения урока N-1 основного курса.
+    # unlocked_count = min(пройдено_основных + 1, всего_бонусов).
+    main_completed = len([x for x in db.get_completed(uid, COURSE_ID) if x in MAIN_OLD_IDS])
+    unlocked_count = min(main_completed + 1, TOTAL_BONUS)
     completed = [
         BONUS_OLD_TO_NEW[x]
         for x in db.get_completed(uid, BONUS_COURSE_ID)
@@ -338,7 +342,9 @@ async def lessons_bonus(
         "course_id": BONUS_COURSE_ID,
         "lessons": COURSE_BONUS,
         "completed": completed,
-        "bonus_unlocked": main_done,
+        "unlocked_count": unlocked_count,
+        "total_main": TOTAL_MAIN,
+        "bonus_unlocked": unlocked_count >= TOTAL_BONUS,  # true только когда все 4 открыты
     }
 
 

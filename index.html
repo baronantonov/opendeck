@@ -625,7 +625,7 @@
         <div class="prof-stats">
           <div class="prof-stat"><div class="n" id="prof-gp">0</div><div class="l">⭐ Stars</div></div>
           <div class="prof-stat"><div class="n" id="prof-done">0</div><div class="l">уроков пройдено</div></div>
-          <div class="prof-stat"><div class="n">10</div><div class="l">всего уроков</div></div>
+          <div class="prof-stat"><div class="n">6</div><div class="l">уроков в курсе</div></div>
         </div>
       </div>
       <!-- PLAY: Invite card with progress (Точка В) -->
@@ -660,7 +660,10 @@
 
   <script>
     const tg = (window.Telegram && window.Telegram.WebApp) || {};
-    // Базовый URL бэкенда (API). Фронт на GitHub Pages, API — на туннеле Ngrok.
+    // Базовый URL бэкенда (API).
+    // M2: вынесен из харда в конфиг-блок — меняй здесь при смене туннеля/домена.
+    // ngrok-free.dev временный: при смене URL обнови строку ниже (или заведи
+    // постоянный домен и пропиши его и в CORS-список бэкенда).
     const API_BASE = 'https://squabble-lilly-lankiness.ngrok-free.dev';
     try { tg.ready && tg.ready(); } catch(e){}
     try { tg.expand && tg.expand(); } catch(e){}
@@ -968,9 +971,9 @@
           burst();
           // бонусы не требуют оплаты, но дают +50 GP
           fetch(API_BASE + '/api/progress', {
-            method:'POST',
-            headers:{'Content-Type':'application/json','X-Init-Data': tg.initData || ''},
-            body: JSON.stringify({course_id:'dj-basics', lesson_id:id})
+          method:'POST',
+          headers:{'Content-Type':'application/json','X-Init-Data': tg.initData || ''},
+          body: JSON.stringify({course_id:'dj-bonus', lesson_id:id, bonus:true})
           }).then(r=>{
             if(r.ok) return r.json();
             tg.showPopup && tg.showPopup({title:'Ошибка', message:'Прогресс не сохранён ☁️'});
@@ -1235,6 +1238,15 @@
         tg.openInvoice(data.invoice_link, (status) => {
           if(status === 'paid'){
             // Списываем Stars (GP) автоматически
+            if(discAmt > 0){
+              // bookMentor уже посчитал discAmt из gp; применяем скидку
+            }
+            // M1: друг купил курс/менторство → инвайтеру +200 ⭐
+            fetch(API_BASE + '/api/referral/purchase', {
+              method:'POST',
+              headers:{'Content-Type':'application/json','X-Init-Data': tg.initData || ''},
+              body: JSON.stringify({})
+            }).catch(()=>{});
             if(discAmt > 0){
               fetch(API_BASE + '/api/gp/apply', {
                 method:'POST',

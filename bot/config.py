@@ -15,6 +15,37 @@ load_dotenv()
 BOT_TOKEN = os.getenv("BOT_TOKEN", "")
 MINI_APP_URL = os.getenv("MINI_APP_URL", "https://ВАШ-ДОМЕН.tld")
 
+# --- Version-busting для Telegram WebView ---
+# Telegram агрессивно кэширует Mini App по URL. Чтобы новый дизайн/правки
+# показывались сразу (без ручного сброса кэша), добавляем ?v=<версия> к URL.
+# Версия: env MINI_APP_VERSION > git-short-hash HEAD > сегодняшняя дата.
+# GitHub Pages отдаёт тот же index.html при любом query, но Telegram видит
+# НОВЫЙ URL и перезагружает WebView.
+import datetime as _dt
+import subprocess as _sp
+from pathlib import Path as _Path
+
+def _mini_app_version() -> str:
+    v = os.getenv("MINI_APP_VERSION")
+    if v:
+        return v
+    try:
+        r = _sp.run(
+            ["git", "rev-parse", "--short", "HEAD"],
+            cwd=_Path(__file__).resolve().parent.parent,
+            capture_output=True, text=True, timeout=3,
+        )
+        if r.returncode == 0 and r.stdout.strip():
+            return r.stdout.strip()
+    except Exception:
+        pass
+    return _dt.date.today().isoformat()
+
+if MINI_APP_URL not in ("https://ВАШ-ДОМЕН.tld", ""):
+    _ver = _mini_app_version()
+    _sep = "&" if "?" in MINI_APP_URL else "?"
+    MINI_APP_URL = f"{MINI_APP_URL}{_sep}v={_ver}"
+
 # Telegram Stars: цена в Stars (XTR) за курс
 # Актуальные цены заданы в backend/main.py (TRIPWIRE_PRICE, FULL_COURSE_PRICE, MENTOR_PRICE)
 # ЗДЕСЬ ОПРЕДЕЛЯЮТСЯ ТОЛЬКО ПАРАМЕТРЫ ДЛЯ ПРЯМОЙ ОТПРАВКИ ИНВОЙСА ЧЕРЕЗ БОТА

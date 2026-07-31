@@ -14,3 +14,6 @@ dj_school.db
 dj_school.db-wal
 dj_school.db-shm
 tunnel.log
+
+# local virtualenv (matches actual folder name)
+.venv/

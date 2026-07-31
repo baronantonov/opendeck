@@ -332,8 +332,7 @@ async def lessons_bonus(
     #   Бонус N (N>=2) — открывается после прохождения урока N-1 основного курса.
     # unlocked_count = min(пройдено_основных + 1, всего_бонусов).
     main_completed = len([x for x in db.get_completed(uid, COURSE_ID) if x in MAIN_OLD_IDS])
-    # Все бонусные уроки видны и открыты сразу (без привязки к прогрессу основного курса)
-    unlocked_count = TOTAL_BONUS
+    unlocked_count = min(main_completed + 1, TOTAL_BONUS)
     completed = [
         BONUS_OLD_TO_NEW[x]
         for x in db.get_completed(uid, BONUS_COURSE_ID)

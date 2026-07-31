@@ -43,8 +43,6 @@ fi
 
 # Rewrite API_BASE in index.html
 if grep -q "API_BASE = " index.html; then
-  # СНАЧАЛА подставить актуальный git-hash в self version-busting
-  bash "$(dirname "$0")/build.sh" "$PROJECT_DIR" || echo "[$(date -Is)] build.sh failed (non-fatal)"
   # only rewrite if changed
   CURRENT=$(grep -o "API_BASE = '[^']*'" index.html | head -1 | sed "s/API_BASE = '//;s/'//")
   if [ "$CURRENT" != "$URL" ]; then

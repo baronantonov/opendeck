@@ -48,6 +48,7 @@ app.add_middleware(
     allow_origins=[
         "https://opendeck-tma.serveousercontent.com",
         "https://opendeck-tma.loca.lt",
+        "https://squabble-lilly-lankiness.ngrok-free.dev",
         "https://baronantonov.github.io",
         "http://localhost:8000",
         "http://127.0.0.1:8000",

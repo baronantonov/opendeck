@@ -16,9 +16,9 @@ def verify_init_data(init_data: str, bot_token: str) -> dict | None:
     received_hash = data.pop("hash", None)
     if not received_hash:
         return None
-    # проверка устаревания init_data (Telegram рекомендует 5 минут)
+    # проверка устаревания init_data (окно 24ч — иначе долгие сессии >5мин падают с 401)
     auth_date = int(data.get("auth_date", 0))
-    if time.time() - auth_date > 300:
+    if time.time() - auth_date > 86400:
         return None
     data_check = "\n".join(f"{k}={v}" for k, v in sorted(data.items()))
     secret = hmac.new(b"WebAppData", bot_token.encode(), hashlib.sha256).digest()

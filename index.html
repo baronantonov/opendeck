@@ -517,12 +517,6 @@
   <div class="toast" id="toast"><div class="ic" id="toast-ic">🎁</div><div class="t" id="toast-msg">Сообщение</div><span class="close" onclick="document.getElementById('toast').classList.remove('show')">✕</span></div>
     <!-- TAB 1: Dashboard -->
     <section id="tab-home">
-      <!-- Inline-ошибка загрузки курса (показываем если /api/init и fallback оба упали) -->
-      <div class="init-err hidden" id="init-err">
-        <div class="ie-ic">⚠️</div>
-        <div class="ie-t">Не удалось загрузить курс.<br>Проверь подключение к интернету и попробуй снова.</div>
-        <button class="btn ghost" style="width:auto;padding:9px 22px" onclick="initApp()">Повторить</button>
-      </div>
       <div class="dash-head shim" onclick="switchTab('profile')">
         <div class="user-avatar" id="avatar-main"></div>
         <div class="dash-info">
@@ -587,6 +581,14 @@
         <button class="btn ghost" style="width:auto;padding:10px 18px;margin-top:10px" onclick="switchTab('bonus')">🎁 Бонусные уроки</button>
       </div>
 
+      <!-- Компактный баннер: показываем ТОЛЬКО если /api/init и fallback оба упали.
+           Контент выше рендерится из локального state (режим просмотра), поэтому
+           «огромной таблички» поверх главной больше нет. -->
+      <div class="init-err hidden" id="init-err">
+        <div class="ie-ic">⚠️</div>
+        <div class="ie-t">Не удалось синхронизировать курс.<br>Показан просмотр — нажми «Повторить», чтобы сохранить прогресс.</div>
+        <button class="btn ghost" style="width:auto;padding:9px 22px" onclick="initApp()">Повторить</button>
+      </div>
     </section>
 
     <!-- TAB 2: Course -->
@@ -894,10 +896,20 @@
             setTimeout(()=> showToast('🎁', j.bonus.message), 600);
           }
         } else {
-          // /api/init вернул не-JSON (ошибка сервера) — пробуем legacy, иначе показываем ошибку
-          legacyLoad(()=>{ errBox && errBox.classList.remove('hidden'); });
+          // /api/init вернул не-JSON (ошибка сервера) — пробуем legacy, иначе рендерим локально
+          legacyLoad(()=> showOffline());
         }
-      }).catch(()=> legacyLoad(()=>{ errBox && errBox.classList.remove('hidden'); }));
+      }).catch(()=> legacyLoad(()=> showOffline()));
+    }
+    // Показать контент из локального state (режим просмотра) и компактный баннер,
+    // чтобы главная НЕ превращалась в «огромную табличку не удалось загрузить».
+    function showOffline(){
+      updateUI();                       // рендерим уроки/прогресс из state
+      ['gp','done-n','lesson-n','next-lesson','bar-wrap'].forEach(id=>{
+        const el = document.getElementById(id); if(el) el.classList.remove('skel');
+      });
+      const errBox = document.getElementById('init-err');
+      if(errBox) errBox.classList.remove('hidden');
     }
     function legacyLoad(onFail){
       fetch(API_BASE + '/api/profile', {headers:{'X-Init-Data': tg.initData || ''}})
@@ -970,7 +982,9 @@
       fetch(API_BASE + '/api/lessons-bonus', {
         headers:{'X-Init-Data': tg.initData || ''}
       }).then(r=>r.ok?r.json():null).then(j=>{
-        if(!j){ box.innerHTML += '<p class="hint">Не удалось загрузить</p>'; return; }
+        // Graceful fallback: если API недоступен (401/сеть) — показываем уроки
+        // из локального state в режиме просмотра, а не «Не удалось загрузить».
+        if(!j){ j = { lessons: state.bonusLessons || [], completed: [], unlocked_count: 1, total_main: 6 }; }
         const comp = (j.completed || []).slice().sort((a,b)=>a-b);
         const unlocked = j.unlocked_count || 1;   // сколько бонусов уже открыто
         const totalMain = j.total_main || 6;

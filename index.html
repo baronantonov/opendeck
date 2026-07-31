@@ -63,7 +63,6 @@
     /* APPLE: убрана бесконечная пульсация hero (heroPulse) — фокус не должен дёргаться */
     /* ---- Анимации: шиммер, свечение, качание ---- */
     @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
-    @keyframes glowPulse{0%,100%{text-shadow:0 0 4px rgba(140,226,200,0.25)}50%{text-shadow:0 0 20px rgba(140,226,200,0.55)}}
     @keyframes sway{0%,100%{transform:rotate(0deg) translateY(0)}33%{transform:rotate(.6deg) translateY(-1px)}66%{transform:rotate(-.5deg) translateY(-1px)}}
     .shim{position:relative;overflow:hidden}
     .shim::after{content:'';position:absolute;inset:0;pointer-events:none;
@@ -73,7 +72,7 @@
     .dash-head.shim::after{border-radius:18px}
     .hero.shim::after{border-radius:22px}
     .free.shim::after{border-radius:16px}
-    .hero .hero-progress-num .st{display:inline-block;animation:glowPulse 3s ease-in-out infinite}
+    .hero .hero-progress-num .st{display:inline-block;color:var(--accent-mint)}
     /* APPLE: sway на кнопках манифеста УБРАН — декоративная анимация рассеивала фокус.
        Оставлен отклик на hover/press (смысловой), без бесконечного покачивания. */
     .m-row .m-btn:hover{animation-play-state:paused;transform:translateY(-2px)}
@@ -84,7 +83,7 @@
     .hero .hero-meta{display:flex;flex-direction:column;align-items:flex-end;gap:2px}
     /* APPLE: цифра прогресса уменьшена — фокус на уроке, не на счётчике */
     .hero .hero-progress-num{font-family:'Unbounded',sans-serif;font-weight:800;font-size:38px;color:var(--text-primary);line-height:1;flex:none}
-    .hero .hero-progress-num .st{color:var(--accent-mint);display:inline-block;animation:glowPulse 3s ease-in-out infinite}
+    .hero .hero-progress-num .st{color:var(--accent-mint);display:inline-block}
     .hero .hero-progress-num .of{font-size:18px;font-weight:600;color:var(--text-secondary);opacity:.6;vertical-align:super}
     .hero-title-row{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:8px}
     .hero-title-row h2{flex:1;margin:0;min-width:0}
@@ -224,7 +223,7 @@
       animation:lessonSway 3.4s ease-in-out infinite}
     /* лёгкое покачивание активного урока */
     @keyframes lessonSway{0%,100%{transform:rotate(-1deg)}50%{transform:rotate(1deg)}}
-    .lesson.done{opacity:.5}
+    .lesson.done{opacity:.72}
     .lesson .num{
       width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,0.10);
       display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex:none;
@@ -232,7 +231,7 @@
     .lesson.done .num{background:var(--accent-mint);color:#1c201e}
     .lesson .ttl{font-size:17px;font-weight:600;flex:1;line-height:1.25;color:var(--text-primary)}
     .lesson .ttl .sub{display:block;font-size:12px;font-weight:400;color:var(--accent-mint);margin-top:2px}
-    .lesson.locked{opacity:.45;cursor:default}
+    .lesson.locked{opacity:.62;cursor:default}
     .lesson .lock{width:18px;height:18px;color:var(--text-secondary);flex:none}
     .lesson .ttl .hint{display:block;font-size:11px;font-weight:400;color:var(--text-secondary);margin-top:2px}
     .check{width:18px;height:18px;color:var(--accent-mint);flex:none}
@@ -628,7 +627,7 @@
         <div class="pill" style="color:var(--accent-mint)">Следующий уровень</div>
         <h2>Курс «Advanced DJ»</h2>
         <p style="color:var(--text-secondary);font-size:14px;margin:0 0 14px">Переход от техники к искусству: глубокое сведение, эффекты, живые сеты и авторский почерк.</p>
-        <button class="btn mint" onclick="alert('Откроется позже')">Подробнее</button>
+        <button class="btn mint" onclick="comingSoon('Advanced DJ','Полный курс «Advanced DJ» откроется позже — переход от техники к искусству: глубокое сведение, эффекты, живые сеты.')">Подробнее</button>
       </div>
     </section>
 
@@ -660,8 +659,8 @@
       </div>
       <div class="row" onclick="openChat()"><div class="ic-wrap" style="background:rgba(140,226,200,0.20)"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div><span class="t">Open Deck DJ Camp</span><span class="sub">чат →</span></div>
       <div style="height:1px;background:rgba(255,255,255,0.06);margin:14px 0 12px;border-radius:2px"></div>
-      <div class="row" onclick="alert('Поддержка')"><div class="ic-wrap" style="background:rgba(245,146,110,0.20)"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg></div><span class="t">Поддержка</span></div>
-      <div class="row" onclick="alert('Правила')"><div class="ic-wrap" style="background:rgba(192,160,168,0.20)"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v16H4z"/><path d="M8 8h8M8 12h8M8 16h5"/></svg></div><span class="t">Правила и офферта</span></div>
+      <div class="row" onclick="openSupport()"><div class="ic-wrap" style="background:rgba(245,146,110,0.20)"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg></div><span class="t">Поддержка</span></div>
+      <div class="row" onclick="openRules()"><div class="ic-wrap" style="background:rgba(192,160,168,0.20)"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v16H4z"/><path d="M8 8h8M8 12h8M8 16h5"/></svg></div><span class="t">Правила и офферта</span></div>
     </section>
   </div>
 
@@ -968,15 +967,12 @@
         j.lessons.forEach(l=>{
           const id = l.id;
           const done = comp.includes(id);
-          const open = true;
-          const locked = !open;
           const el = document.createElement('div');
-          el.className = 'lesson' + (done?' done':'') + (locked?' locked':'');
+          el.className = 'lesson' + (done?' done':'');
           const iconHTML = done ? '<svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg>' : id;
-          const hint = locked ? '<span class="hint">Откроется после основного курса</span>' : '';
-          const ttlHTML = `<div class="ttl">${esc(l.title)}${hint}</div>`;
+          const ttlHTML = `<div class="ttl">${esc(l.title)}</div>`;
           el.innerHTML = `<div class="num">${iconHTML}</div>${ttlHTML}`;
-          if(open && !done){ el.onclick = ()=> openBonusLesson(id, l); }
+          if(!done){ el.onclick = ()=> openBonusLesson(id, l); }
           box.appendChild(el);
         });
       });
@@ -1308,6 +1304,38 @@
       const link='https://t.me/+S9cLCiFHbWQzY2Iy';
       if(tg.openTelegramLink) tg.openTelegramLink(link);
       else location.href=link;
+    }
+
+    function openSupport(){
+      if(tg.showPopup){
+        tg.showPopup({
+          title:'Поддержка',
+          message:'По всем вопросам — в чат Open Deck DJ Camp или пиши @OpenDeck_bot. Отвечаем в течение дня 🎧',
+          buttons:[{type:'default', text:'Открыть чат'},{type:'cancel', text:'Закрыть'}]
+        }, (btn)=>{ if(btn==='Открыть чат') openChat(); });
+      } else {
+        openChat();
+      }
+    }
+
+    function openRules(){
+      const msg = 'Open Deck — бесплатная часть курса + бонусы за прогресс.\n\n'
+        + '⭐ Stars (GP) начисляются за пройденные уроки и приглашённых друзей, '
+        + 'дают скидку на менторство (макс. 7000 ⭐, итог не ниже 14000 ⭐).\n\n'
+        + 'Оплата — через Telegram Stars. Возврат по запросу в поддержке.';
+      if(tg.showPopup){
+        tg.showPopup({title:'Правила и офферта', message:msg, buttons:[{type:'ok'}]});
+      } else {
+        alert(msg);
+      }
+    }
+
+    function comingSoon(title, text){
+      if(tg.showPopup){
+        tg.showPopup({title:title, message:text, buttons:[{type:'ok'}]});
+      } else {
+        alert(text);
+      }
     }
 
     function toggleQuote(){

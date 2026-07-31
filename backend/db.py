@@ -80,6 +80,7 @@ CREATE TABLE IF NOT EXISTS transactions (
   amount INTEGER NOT NULL,
   action_type TEXT NOT NULL,
   ref_user_id INTEGER,
+  charge_id TEXT,
   timestamp TEXT DEFAULT (datetime('now'))
 );
 """
@@ -127,6 +128,10 @@ def init():
         for col, dtype in _NEW_COLUMNS.items():
             if not _column_exists(c, "users", col):
                 c.execute(f"ALTER TABLE users ADD COLUMN {col} {dtype}")
+
+        # — миграция: колонка charge_id в transactions (идемпотентность GP-списания)
+        if not _column_exists(c, "transactions", "charge_id"):
+            c.execute("ALTER TABLE transactions ADD COLUMN charge_id TEXT")
 
         # — уникальный индекс на referral_code (вместо UNIQUE в колонке)
         c.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_refcode "
@@ -330,6 +335,10 @@ def apply_referral_signup(invitee_id: int, inviter_id: int):
 def apply_referral_purchase(invitee_id: int) -> Optional[int]:
     """Инвайте купил курс — инвайтер получает +200 GP.
 
+    ИДЕМПОТЕНТНО: начисляем бонус инвайтеру только ОДИН раз на invitee.
+    Повторный вызов (фронт + бот, или дубль webhook'а) возвращает
+    inviter_id, но НЕ начисляет +200 повторно (защита от фрода/накрутки).
+
     Возвращает inviter_id или None.
     """
     with _conn() as c:
@@ -345,13 +354,21 @@ def apply_referral_purchase(invitee_id: int) -> Optional[int]:
         if not inviter:
             return None
         inviter_id = inviter["user_id"]
-        c.execute("UPDATE users SET groove_points = groove_points + 200 WHERE user_id=?",
-                  (inviter_id,))
-        c.execute(
-            "INSERT INTO transactions (user_id, amount, action_type, ref_user_id) "
-            "VALUES (?, 200, 'referral_purchase', ?)",
+
+        # уже начисляли за этого invitee?
+        dup = c.execute(
+            "SELECT 1 FROM transactions "
+            "WHERE user_id=? AND action_type='referral_purchase' AND ref_user_id=? LIMIT 1",
             (inviter_id, invitee_id),
-        )
+        ).fetchone()
+        if not dup:
+            c.execute("UPDATE users SET groove_points = groove_points + 200 WHERE user_id=?",
+                      (inviter_id,))
+            c.execute(
+                "INSERT INTO transactions (user_id, amount, action_type, ref_user_id) "
+                "VALUES (?, 200, 'referral_purchase', ?)",
+                (inviter_id, invitee_id),
+            )
         return inviter_id
 
 
@@ -359,16 +376,38 @@ def apply_referral_purchase(invitee_id: int) -> Optional[int]:
 # GP spending (MENTOR discount)
 # ---------------------------------------------------------------------------
 
-def apply_gp_spend(user_id: int, amount: int) -> Optional[dict]:
+def apply_gp_spend(user_id: int, amount: int, charge_id: str | None = None) -> Optional[dict]:
     """Списать Stars на скидку MENTOR.
 
     Фактически спишет min(amount, groove_points, 7000).
     discount = actual_amount (1:1 GP = Star)
     final_price = max(14000, 21000 - discount)
 
+    ИДЕМПОТЕНТНОСТЬ: если передан charge_id и такая транзакция
+    'gp_spend' уже есть — возвращаем сохранённый результат без
+    повторного списания (защита от двойного вызова ботом + фронтом
+    или повторного webhook'а успешного платежа).
+
     Возвращает {groove_points, discount, final_price} или None (если user не найден).
     """
     with _conn() as c:
+        # идемпотентность: тот же charge_id уже обработан
+        if charge_id:
+            dup = c.execute(
+                "SELECT 1 FROM transactions WHERE charge_id=? AND action_type='gp_spend' LIMIT 1",
+                (charge_id,),
+            ).fetchone()
+            if dup:
+                row = c.execute(
+                    "SELECT groove_points FROM users WHERE user_id=?", (user_id,)
+                ).fetchone()
+                return {
+                    "groove_points": int(row["groove_points"]) if row else 0,
+                    "discount": 0,
+                    "final_price": 21000,
+                    "duplicate": True,
+                }
+
         row = c.execute(
             "SELECT groove_points FROM users WHERE user_id=?", (user_id,)
         ).fetchone()
@@ -386,9 +425,9 @@ def apply_gp_spend(user_id: int, amount: int) -> Optional[dict]:
         c.execute("UPDATE users SET groove_points = groove_points - ? WHERE user_id=?",
                   (actual_amount, user_id))
         c.execute(
-            "INSERT INTO transactions (user_id, amount, action_type) "
-            "VALUES (?, ?, 'gp_spend')",
-            (user_id, -actual_amount),
+            "INSERT INTO transactions (user_id, amount, action_type, charge_id) "
+            "VALUES (?, ?, 'gp_spend', ?)",
+            (user_id, -actual_amount, charge_id),
         )
 
         new_gp = c.execute(

@@ -115,10 +115,6 @@ class InitRequest(BaseModel):
     init_data: str
     start_param: str | None = None
 
-class GpApply(BaseModel):
-    amount: int  # GP для списания
-
-
 def _user_id_from_init(init_data: str) -> int | None:
     """Валидировать init_data, вернуть telegram_id."""
     data = verify_init_data(init_data, BOT_TOKEN)
@@ -136,6 +132,34 @@ def _user_id_from_init(init_data: str) -> int | None:
         return uid
     except Exception:
         return None
+
+
+def _resolve_uid(
+    x_init_data: str,
+    authorization: str | None,
+    body: dict | None = None,
+) -> int | None:
+    """Определить telegram_id запроса двумя путями:
+
+    1) Фронт (Mini App): заголовок X-Init-Data (подписан TG).
+    2) Бот (server-to-server): заголовок Authorization: Bearer INTERNAL_API_KEY
+       + JSON-поле user_id. Бот НЕ имеет init_data пользователя, поэтому
+       шлёт свой внутренний ключ и явный user_id.
+
+    Возвращает telegram_id или None (если ни один путь не прошёл).
+    """
+    uid = _user_id_from_init(x_init_data)
+    if uid is not None:
+        return uid
+    # путь бота: проверяем internal key, затем берём user_id из тела
+    if authorization == f"Bearer {INTERNAL_API_KEY}" and body:
+        uid = body.get("user_id")
+        if uid is not None:
+            try:
+                return int(uid)
+            except (TypeError, ValueError):
+                return None
+    return None
 
 
 def _user_response(uid: int) -> dict:
@@ -394,9 +418,16 @@ async def progress(
 
 @app.post("/api/referral/purchase")
 async def referral_purchase(
+    req: Request,
     x_init_data: str = Header("", alias="X-Init-Data"),
+    authorization: str | None = Header(None),
 ):
-    uid = _user_id_from_init(x_init_data)
+    body = {}
+    try:
+        body = await req.json()
+    except Exception:
+        body = {}
+    uid = _resolve_uid(x_init_data, authorization, body)
     if uid is None:
         return JSONResponse({"error": "bad_init_data"}, status_code=401)
 
@@ -419,14 +450,29 @@ async def referral_purchase(
 
 @app.post("/api/gp/apply")
 async def gp_apply(
-    body: GpApply,
+    req: Request,
     x_init_data: str = Header("", alias="X-Init-Data"),
+    authorization: str | None = Header(None),
 ):
-    uid = _user_id_from_init(x_init_data)
+    body = {}
+    try:
+        body = await req.json()
+    except Exception:
+        body = {}
+
+    # charge_id: у бота это telegram_payment_charge_id (идемпотентность),
+    # у фронта обычно нет — тогда списание разовое (фронт зовёт один раз после paid)
+    charge_id = body.get("charge_id")
+    uid = _resolve_uid(x_init_data, authorization, body)
     if uid is None:
         return JSONResponse({"error": "bad_init_data"}, status_code=401)
 
-    result = db.apply_gp_spend(uid, body.amount)
+    # amount: либо из тела (фронт), либо бот считает его сам из GP пользователя
+    amount = body.get("amount")
+    if amount is None:
+        amount = min(db.get_gp(uid), 7000)
+
+    result = db.apply_gp_spend(uid, amount, charge_id=charge_id)
     if result is None:
         return JSONResponse({"error": "insufficient_gp"}, status_code=400)
     return result

@@ -71,7 +71,7 @@ print("== Доступ после оплаты ==")
 r = client.get("/api/lessons?course_id=dj-basics", headers={"X-Init-Data": init})
 j = r.json()
 check("уроки доступны ПОСЛЕ оплаты (paid=true)", j.get("paid") is True)
-check("вернулось 10 уроков (полный курс)", len(j.get("lessons", [])) == 10)
+check("вернулось 6 уроков (PLAY-remap основного курса)", len(j.get("lessons", [])) == 6)
 
 print("== Webhook Prodamus (HMAC) ==")
 body = json.dumps({"status": "paid", "order_id": f"{uid}:dj-basics"}).encode()
@@ -84,9 +84,47 @@ check("поддельный webhook отклонён (400)", r.status_code == 40
 print("== init_data verify (прямой) ==")
 check("валидный init_data верифицируется", verify_init_data(init, TOKEN) is not None)
 check("чужой токен не проходит", verify_init_data(init, "OTHER") is None)
-# устаревший auth_date (>5 мин) отклоняется
-old = make_init_data(TOKEN, uid, age=1000)
-check("устаревший init_data (>5 мин) -> None", verify_init_data(old, TOKEN) is None)
+# устаревший auth_date (>24ч) отклоняется
+old = make_init_data(TOKEN, uid, age=100000)
+check("устаревший init_data (>24ч) -> None", verify_init_data(old, TOKEN) is None)
+
+print("== Идемпотентность GP-списания и реф-бонуса (защита от фрода) ==")
+# создадим 2 пользователей, свяжем реф-ссылкой
+inv_uid = 910000 + int(time.time()) % 100000
+inv_init = make_init_data(TOKEN, inv_uid)
+inv_code = client.post("/api/init", json={"init_data": inv_init, "start_param": None}).json()["user"]["referral_code"]
+fr_uid = 920000 + int(time.time()) % 100000
+fr_init = make_init_data(TOKEN, fr_uid)
+client.post("/api/init", json={"init_data": fr_init, "start_param": f"ref_{inv_code}"})
+# дадим invitee GP напрямую через прогресс урока
+client.post("/api/progress", json={"course_id": "dj-basics", "lesson_id": 1},
+            headers={"X-Init-Data": fr_init})
+# реф-бонус инвайтеру: вызываем дважды — должен начислиться +200 только один раз
+client.get("/api/profile", headers={"X-Init-Data": inv_init})  # upsert
+r1 = client.post("/api/referral/purchase", json={"user_id": fr_uid},
+                 headers={"Authorization": "Bearer TEST_INTERNAL_KEY"})
+r2 = client.post("/api/referral/purchase", json={"user_id": fr_uid},
+                 headers={"Authorization": "Bearer TEST_INTERNAL_KEY"})
+gp_after = db.get_gp(inv_uid)
+# инвайтер: +30 за signup invitee + ровно +200 за purchase (двойной вызов не накручивает)
+check("реф-бонус инвайтеру = +30 (signup) +200 (purchase), двойной вызов не накручивает",
+      gp_after == 230)
+
+# менторство: списание GP идемпотентно по charge_id
+client.post("/api/progress", json={"course_id": "dj-basics", "lesson_id": 2},
+            headers={"X-Init-Data": fr_init})  # ещё GP invitee
+before = db.get_gp(fr_uid)
+c_id = "mentor:charge_xyz"
+a1 = client.post("/api/gp/apply",
+                 json={"user_id": fr_uid, "charge_id": c_id},
+                 headers={"Authorization": "Bearer TEST_INTERNAL_KEY"}).json()
+a2 = client.post("/api/gp/apply",
+                 json={"user_id": fr_uid, "charge_id": c_id},
+                 headers={"Authorization": "Bearer TEST_INTERNAL_KEY"}).json()
+after = db.get_gp(fr_uid)
+# второй вызов — duplicate, GP не сгорели повторно
+check("двойной gp/apply по тому же charge_id НЕ списывает повторно",
+      a2.get("duplicate") is True and after == before - a1.get("discount", 0))
 
 print(f"\nИтог: {passed} PASS / {failed} FAIL")
 # Удалить tempfile

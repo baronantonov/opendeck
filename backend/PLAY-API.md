@@ -148,26 +148,30 @@ Backend начисляет +50 GP за урок, создаёт `transaction`.
 
 **Backend-логика:**
 - Проверить `groove_points >= amount`
-- `discount = floor(amount / 10)` (10 GP = $1)
-- `final_price = max(197, 300 - discount)`
-- Если `final_price == 197` (или `amount > 1030`) — списать только 1030 GP, вернуть актуальные цифры
+- `discount = amount` (1 GP = 1 Star, 1:1)
+- `final_price = max(14000, 21000 - discount)`
+- Макс. списание: **7000 GP** (достигает 14000 Stars)
+- Идемпотентность: если передан `charge_id` и транзакция `gp_spend` с ним уже есть — повторно не списываем
 - Создать `transaction` (Action: `gp_spend`)
 - Списать GP, сохранить
 
 ---
 
-## Таблица транзакций
+## Дискаунт-математика (актуально)
 
-```sql
-CREATE TABLE IF NOT EXISTS transactions (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  user_id TEXT NOT NULL,       -- Telegram ID
-  amount INTEGER NOT NULL,    -- +50 начисление, -200 списание
-  action_type TEXT NOT NULL,  -- referral_signup | referral_signup_bonus | referral_purchase | lesson_complete | gp_spend
-  ref_user_id TEXT,           -- ID Inviter'а (для реферальных действий)
-  timestamp TEXT DEFAULT (datetime('now'))
-);
-```
+- **1 GP = 1 Star** (скидка 1:1)
+- Базовая цена MENTOR: **21000 Stars** ($300)
+- Минимальная цена (флор): **14000 Stars**
+- Макс. списание: **7000 GP** (достигает 14000 Stars)
+- `final_price = max(14000, 21000 - discount)`, где `discount = min(gp, 7000)`
+
+> Примечание: цена инвойса на сервере УЖЕ снижена на `discount` Stars
+> (см. `/api/create-invoice`, course_id=`mentoring`). Клиентский `body.price`
+> игнорируется. Списание GP фиксирует **бот** по `successful_payment`
+> (endpoint `/api/gp/apply` с `charge_id`), поэтому фронт НЕ должен звать
+> `/api/gp/apply` самостоятельно — иначе GP сгорят дважды.
+
+---
 
 ## Расширение таблицы users
 
@@ -178,7 +182,19 @@ ALTER TABLE users ADD COLUMN groove_points INTEGER DEFAULT 0;
 ALTER TABLE users ADD COLUMN archetype TEXT DEFAULT 'Куратор Вайба';
 ```
 
----
+## Таблица transactions (актуально)
+
+```sql
+CREATE TABLE IF NOT EXISTS transactions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,       -- Telegram ID
+  amount INTEGER NOT NULL,        -- +50 начисление, -200 списание
+  action_type TEXT NOT NULL,      -- referral_signup | referral_signup_bonus | referral_purchase | lesson_complete | gp_spend
+  ref_user_id INTEGER,            -- ID Inviter'а (для реферальных действий)
+  charge_id TEXT,                 -- id платежа (идемпотентность gp_spend)
+  timestamp TEXT DEFAULT (datetime('now'))
+);
+```
 
 ## Groove Points — таблица начислений
 
@@ -186,17 +202,14 @@ ALTER TABLE users ADD COLUMN archetype TEXT DEFAULT 'Куратор Вайба';
 |---|---|---|---|
 | Регистрация по рефссылке | Invitee | +50 | `referral_signup` |
 | Регистрация по рефссылке | Inviter | +30 | `referral_signup_bonus` |
-| Invitee покупает Pocket DJ | Inviter | +200 | `referral_purchase` |
+| Invitee покупает курс/менторство | Inviter | +200 | `referral_purchase` (**1 раз на invitee**) |
 | Урок пройден | User | +50 | `lesson_complete` |
-| Списание на скидку MENTOR | User | −N | `gp_spend` |
+| Списание на скидку MENTOR | User | −N | `gp_spend` (идемпотентно по charge_id) |
 
-## Дискаунт-математика
-
-- Курс: **10 GP = $1**
-- Базовая цена MENTOR: **$300**
-- Минимальная цена (флор): **$197**
-- Макс. списание: **1030 GP** (достигает $197)
-- `final_price = max(197, 300 - floor(gp_spent / 10))`
+> **Защита от фрода:** `referral_purchase` начисляет +200 инвайтеру только
+> один раз на invitee (повторный вызов возвращает inviter_id, но GP не
+> накручивает). `gp_spend` идемпотентен по `charge_id` — двойной вызов
+> ботом + фронтом не списывает GP повторно.
 
 ---
 

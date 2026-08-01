@@ -1021,11 +1021,14 @@
           }
           // подсказка: какой урок основного курса нужен для открытия
           const needMain = id - 1;  // Бонус N открывается после урока N-1
+          // подпись снизу — как у основных уроков: отдельный блок, цвет accent-mint
+          const ttl = (content.t || l.title || ('Бонус ' + id));
+          const sub = (content.d && content.d[0]) ? content.d[0] : (l.d && l.d[0] ? l.d[0] : '');
           const hint = locked
             ? `<span class="hint">Откроется после урока ${needMain} основного курса</span>`
             : '';
-          const ttl = (content.t || l.title || ('Бонус ' + id));
-          el.innerHTML = `<div class="num">${iconHTML}</div><div class="ttl">${esc(ttl)}${hint}</div>`;
+          const ttlHTML = `<div class="ttl">${esc(ttl)}${sub?`<span class="sub">${esc(sub)}</span>`:''}${hint}</div>`;
+          el.innerHTML = `<div class="num">${iconHTML}</div>${ttlHTML}`;
           if(open && !done){ el.onclick = ()=> openBonusLesson(id, content); }
           box.appendChild(el);
         });

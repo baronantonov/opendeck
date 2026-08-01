@@ -982,14 +982,19 @@
       const box = document.getElementById('tab-bonus');
       box.innerHTML = '<h2 style="font-size:20px;margin-bottom:6px">🎁 Бонусные уроки</h2>'
         + '<p style="color:var(--text-secondary);font-size:13px;margin:0 0 14px">Открываются по мере прохождения основного курса. За каждый — +50 ⭐.</p>';
+      // Рисуем уроки СРАЗУ из локального state (без задержки на сеть),
+      // затем, если API ответил, перерисовываем с реальным прогрессом.
+      paintBonus(null, box);
       fetch(API_BASE + '/api/lessons-bonus', {
         headers:{'X-Init-Data': tg.initData || ''}
-      }).then(r=>r.ok?r.json():null).then(j=>paintBonus(j, box)).catch(()=>paintBonus(null, box));
-      window.paintBonus = function(j, box){
+      }).then(r=>r.ok?r.json():null).then(j=>{ if(j) paintBonus(j, box); }).catch(()=>{});
+      function paintBonus(j, box){
         // Graceful fallback: если API недоступен (401/сеть/Failed to fetch) — показываем уроки
         // из локального state в режиме просмотра, а не «Не удалось загрузить».
         if(!box){ box = document.getElementById('tab-bonus'); }
         if(!j){ j = { lessons: state.bonusLessons || [], completed: [], unlocked_count: 1, total_main: 6 }; }
+        // убираем ранее отрисованные уроки (чтобы при перерисовке с API не дублировались)
+        box.querySelectorAll('.lesson').forEach(n=>n.remove());
         const comp = (j.completed || []).slice().sort((a,b)=>a-b);
         const unlocked = j.unlocked_count || 1;   // сколько бонусов уже открыто
         const totalMain = j.total_main || 6;

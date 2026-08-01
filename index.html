@@ -509,9 +509,46 @@
       border-radius:16px;padding:20px;margin-bottom:14px}
     .init-err .ie-ic{font-size:28px}
     .init-err .ie-t{font-size:14px;color:var(--text-secondary);line-height:1.5}
+  /* ---- Admin-тоггл (только для @baronantonov, id=285754501) ----
+     Плавающая маленькая кнопка-шестерёнка вверху справа.
+     ВКЛ: админ-режим — весь контент открыт для теста UI.
+     ВЫКЛ: обычный юзер — прогресс из базы данных. */
+  #admin-toggle{
+    position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:10px;z-index:9999;
+    width:34px;height:34px;border-radius:50%;display:none;
+    align-items:center;justify-content:center;cursor:pointer;
+    background:rgba(245,146,110,0.18);border:1px solid rgba(245,146,110,0.45);
+    color:var(--accent-coral);box-shadow:0 2px 10px rgba(0,0,0,0.25);
+    transition:transform .2s, background .2s, box-shadow .2s;
+    -webkit-tap-highlight-color:transparent}
+  #admin-toggle:active{transform:scale(0.9)}
+  #admin-toggle svg{width:19px;height:19px;display:block}
+  #admin-toggle.on{
+    background:rgba(140,226,200,0.22);border-color:rgba(140,226,200,0.6);
+    color:var(--accent-mint);box-shadow:0 0 0 4px rgba(140,226,200,0.15)}
+
+  /* Баннер-индикатор админ-режима (показывается только во время теста) */
+  #admin-banner{
+    display:none;position:fixed;left:10px;right:10px;
+    top:calc(env(safe-area-inset-top) + 8px);z-index:9998;
+    text-align:center;font-size:11px;font-weight:700;letter-spacing:.04em;
+    padding:5px 10px;border-radius:10px;
+    background:rgba(140,226,200,0.16);border:1px solid rgba(140,226,200,0.45);
+    color:var(--accent-mint)}
+  body.admin-mode #admin-banner{display:block}
   </style>
 </head>
 <body>
+  <!-- Admin-тоггл: виден ТОЛЬКО для @baronantonov (id=285754501) -->
+  <div id="admin-banner">⚡ ADMIN MODE — весь контент открыт для теста</div>
+  <button id="admin-toggle" title="Admin: полный доступ / обычный юзер"
+          onclick="toggleAdmin()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+         stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="3"/>
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+    </svg>
+  </button>
   <div class="wrap">
   <!-- PLAY: Toast -->
   <div class="toast" id="toast"><div class="ic" id="toast-ic">🎁</div><div class="t" id="toast-msg">Сообщение</div><span class="close" onclick="document.getElementById('toast').classList.remove('show')">✕</span></div>
@@ -793,6 +830,38 @@
       ]
     };
 
+    // ---- Admin-режим (только для @baronantonov, id=285754501) ----
+    // ВКЛ: весь контент (уроки + бонусы) открыт для теста UI.
+    // ВЫКЛ: обычный юзер — прогресс берётся из базы данных (state.courseProgress).
+    const ADMIN_ID = 285754501;
+    const IS_ADMIN = (tgUser.id && String(tgUser.id) === String(ADMIN_ID))
+                     || (tgUser.username && tgUser.username.toLowerCase() === 'baronantonov');
+    let ADMIN_MODE = false;            // текущее состояние тоггла
+    let savedCompleted = [];           // запоминаем реальный прогресс из БД
+
+    if(IS_ADMIN){
+      const at = document.getElementById('admin-toggle');
+      if(at) at.style.display = 'flex';
+    }
+
+    function toggleAdmin(){
+      ADMIN_MODE = !ADMIN_MODE;
+      const at = document.getElementById('admin-toggle');
+      if(at) at.classList.toggle('on', ADMIN_MODE);
+      document.body.classList.toggle('admin-mode', ADMIN_MODE);
+      // перерисовываем открытые вкладки с учётом нового режима
+      const active = document.querySelector('#nav button.active');
+      const tab = active ? active.dataset.tab : 'home';
+      if(tab === 'course') renderCourse();
+      else if(tab === 'bonus') renderBonus();
+      haptic('impactOccurred');
+      if(ADMIN_MODE){
+        showToast('⚡', 'ADMIN MODE включён — весь контент открыт для теста.');
+      } else {
+        showToast('👤', 'Обычный режим — прогресс из базы данных.');
+      }
+    }
+
     function updateUI(){
       const dc = state.courseProgress.completedLessons.length;
       const tc = state.lessons.length;
@@ -887,6 +956,7 @@
           state.user.referralFriends = j.referral_friends || 0;
           state.user.referralGpEarned = j.referral_gp_earned || 0;
           state.courseProgress.completedLessons = (j.course.completed_lessons || []).slice();
+          if(IS_ADMIN) savedCompleted = (j.course.completed_lessons || []).slice(); // запомнить реальный прогресс БД
           state.user.archetype = j.user.archetype || 'Куратор Вайба';
           updateUI();
           // Снять skeleton (данные пришли)
@@ -996,7 +1066,8 @@
         // убираем ранее отрисованные уроки (чтобы при перерисовке с API не дублировались)
         box.querySelectorAll('.lesson').forEach(n=>n.remove());
         const comp = (j.completed || []).slice().sort((a,b)=>a-b);
-        const unlocked = j.unlocked_count || 1;   // сколько бонусов уже открыто
+        let unlocked = j.unlocked_count || 1;   // сколько бонусов уже открыто
+        if(ADMIN_MODE) unlocked = (j.lessons && j.lessons.length) ? j.lessons.length : (state.bonusLessons ? state.bonusLessons.length : 0); // тест: открыть все бонусы
         const totalMain = j.total_main || 6;
         // берём контент из state.bonusLessons (title/d/video), порядок — по id
         const byId = {};
@@ -1007,7 +1078,8 @@
           const id = l.id;
           const content = byId[id] || l;
           const done = comp.includes(id);
-          const open = id <= unlocked;            // открыт по порядку
+          let open = id <= unlocked;              // открыт по порядку
+          if(ADMIN_MODE) open = true;             // тест: открыть всё
           const locked = !open;
           const el = document.createElement('div');
           el.className = 'lesson' + (done?' done':'') + (locked?' locked':'');
@@ -1058,6 +1130,11 @@
           state.courseProgress.completedBonusLessons.push(id);
           haptic('notificationOccurred');
           burst();
+          // ADMIN-режим: тест UI, НЕ пишем прогресс в базу
+          if(ADMIN_MODE){
+            renderBonus();
+            return;
+          }
           // бонусы не требуют оплаты, но дают +50 GP
           fetch(API_BASE + '/api/progress', {
           method:'POST',
@@ -1089,7 +1166,8 @@
       state.lessons.forEach((l, i)=>{
         const id = i+1;
         const done = comp.includes(id);
-        const open = id <= maxOpen;          // пройден или следующий
+        let open = id <= maxOpen;          // пройден или следующий
+        if(ADMIN_MODE) open = true;          // админ-тест: открыть все уроки
         // «текущий» = первый непройденный (следующий открытый)
         state.courseProgress.currentLessonId = maxOpen;
         const locked = !open;
@@ -1250,6 +1328,12 @@
         state.courseProgress.completedLessons.push(id);
         haptic('notificationOccurred');
         burst();
+        // ADMIN-режим: тест UI, НЕ пишем прогресс в базу (чтобы не портить реальный GP/прогресс)
+        if(ADMIN_MODE){
+          updateUI();
+          renderCourse();
+          return;
+        }
         // СОХРАНИТЬ В БАЗУ и получить актуальные GP
         try{
           fetch(API_BASE + '/api/progress', {

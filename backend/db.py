@@ -440,9 +440,33 @@ def apply_gp_spend(user_id: int, amount: int, charge_id: str | None = None) -> O
         }
 
 
-# ---------------------------------------------------------------------------
-# payments / badges / webhook (unchanged)
-# ---------------------------------------------------------------------------
+def spend_gp(user_id: int, amount: int, reason: str = "spend") -> Optional[dict]:
+    """Произвольное списание GP (streak freeze, промо-траты и т.п.).
+
+    Спишет min(amount, groove_points). Возвращает {groove_points} или None.
+    """
+    with _conn() as c:
+        row = c.execute(
+            "SELECT groove_points FROM users WHERE user_id=?", (user_id,)
+        ).fetchone()
+        if not row:
+            return None
+        actual = min(amount, row["groove_points"])
+        if actual <= 0:
+            return {"groove_points": int(row["groove_points"])}
+        c.execute(
+            "UPDATE users SET groove_points = groove_points - ? WHERE user_id=?",
+            (actual, user_id),
+        )
+        c.execute(
+            "INSERT INTO transactions (user_id, amount, action_type) "
+            "VALUES (?, ?, 'gp_spend')",
+            (user_id, -actual),
+        )
+        new_gp = c.execute(
+            "SELECT groove_points FROM users WHERE user_id=?", (user_id,)
+        ).fetchone()[0]
+        return {"groove_points": int(new_gp)}
 
 def add_payment(user_id, course_id, provider, amount=None, currency=None,
                 status="paid", raw=""):

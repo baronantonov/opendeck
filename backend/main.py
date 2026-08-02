@@ -488,6 +488,31 @@ async def gp_apply(
     return result
 
 
+# ---- POST /api/gp/spend ----
+@app.post("/api/gp/spend")
+async def gp_spend(
+    req: Request,
+    x_init_data: str = Header("", alias="X-Init-Data"),
+):
+    """Произвольное списание GP (streak freeze и т.п.). Требует валидный init_data."""
+    body = {}
+    try:
+        body = await req.json()
+    except Exception:
+        body = {}
+    amount = body.get("amount")
+    if not amount or amount <= 0:
+        return JSONResponse({"error": "bad_amount"}, status_code=400)
+    reason = body.get("reason", "spend")
+    uid = _resolve_uid(x_init_data, None, body)
+    if uid is None:
+        return JSONResponse({"error": "bad_init_data"}, status_code=401)
+    result = db.spend_gp(uid, amount, reason=reason)
+    if result is None:
+        return JSONResponse({"error": "user_not_found"}, status_code=404)
+    return result
+
+
 # ---- Цены в Stars ----
 # 1 Star ≈ $0.014 для покупателя. Цена с учётом комиссии Apple/Google (~30% на мобильных).
 # Creator получает ~$0.013 за Star после вывода.

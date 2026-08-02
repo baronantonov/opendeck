@@ -617,6 +617,26 @@
 
     <!-- TAB 3: Upgrade -->
     <section id="tab-upgrade" class="hidden">
+      <!-- BC: постоянный центр монетизации (tripwire/full) — не только через пейвол-модалку -->
+      <div class="offer" style="border-color:rgba(245,146,110,0.30)">
+        <div class="pill" style="color:var(--accent-coral)">Доступ к курсу</div>
+        <h2>Pocket DJ — базовый курс</h2>
+        <p style="color:var(--text-secondary);font-size:14px;line-height:1.5;margin:0 0 14px">
+          6 уроков с нуля до первого сета: оборудование, beatmatching, сведение, эффекты, чтение танцпола.
+        </p>
+        <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:6px">
+          <button class="btn" id="up-tripwire" onclick="bookPay('tripwire')">
+            <span>⚡ Быстрый старт · уроки 1–4</span><br>
+            <small style="font-weight:600;opacity:.85">500 ⭐</small>
+          </button>
+          <button class="btn mint" id="up-full" onclick="bookPay('dj-basics')">
+            <span>🎧 Полный курс (все 6 уроков + бонусы)</span><br>
+            <small style="font-weight:600;opacity:.85">2100 ⭐</small>
+          </button>
+        </div>
+        <div id="up-status" style="font-size:12px;color:var(--accent-mint);margin:4px 0 14px;min-height:16px"></div>
+      </div>
+
       <div class="offer">
         <div class="pill">High-Ticket · Ограничено</div>
         <h2>Персональное Менторство с FREEDA DJ</h2>
@@ -686,6 +706,7 @@
           <span id="streak-num" style="color:var(--accent-coral);font-weight:700;font-size:14px">—</span>
         </div>
         <div id="streak-week" style="display:flex;gap:6px;margin-bottom:14px"></div>
+        <div id="streak-freeze" style="display:none;margin-bottom:14px"></div>
         <span style="font-family:'Unbounded';font-weight:700;font-size:15px;display:block;margin-bottom:8px">🏆 Достижения</span>
         <div id="ach-list" style="display:flex;flex-direction:column;gap:8px"></div>
       </div>
@@ -899,6 +920,23 @@
       if(nl && state.lessons[curId-1]){
         nl.textContent = state.lessons[curId-1].t;
       }
+      // BC: статус покупки курса во вкладке «Развитие»
+      const up = document.getElementById('up-status');
+      if(up){
+        if(state.isPaid){
+          up.textContent = '✅ Доступ к курсу открыт — смотри уроки во вкладке «Курс»';
+          const tw = document.getElementById('up-tripwire');
+          const fl = document.getElementById('up-full');
+          if(tw) tw.style.display = 'none';
+          if(fl) fl.style.display = 'none';
+        } else {
+          up.textContent = 'Открой доступ, чтобы продолжить после урока 1';
+          const tw = document.getElementById('up-tripwire');
+          const fl = document.getElementById('up-full');
+          if(tw) tw.style.display = '';
+          if(fl) fl.style.display = '';
+        }
+      }
       // GH: архетип-персонализация Hero (hyper-personalization 2026)
       const archLine = document.getElementById('arch-line');
       if(archLine){
@@ -1098,6 +1136,40 @@
           (done ? '🔥' : labels[i][0]) + '</div><div style="margin-top:3px">'+labels[i]+'</div>';
         wk.appendChild(cell);
       }
+      // E: streak freeze за GP (Trophy: freeze +17 дней серии)
+      const freezeWrap = document.getElementById('streak-freeze');
+      if(freezeWrap){
+        const gp = state.user.groovePoints || 0;
+        if(s.count >= 3 && gp >= 100 && !s.frozen){
+          freezeWrap.style.display = '';
+          freezeWrap.innerHTML = '<button class="btn ghost" style="width:100%;padding:8px;font-size:12px" onclick="buyStreakFreeze()">'+
+            '🧊 Заморозить серию (100 ⭐) — защити прогресс</button>';
+        } else {
+          freezeWrap.style.display = 'none';
+        }
+      }
+    }
+    function buyStreakFreeze(){
+      const s = loadStreak();
+      if(s.frozen){ showToast('🧊','Серия уже заморожена'); return; }
+      const gp = state.user.groovePoints || 0;
+      if(gp < 100){ showToast('⭐','Нужно 100 ⭐ для заморозки'); return; }
+      // списать GP через бэкенд (идемпотентно не критично — фронт-маркер)
+      fetch(API_BASE + '/api/gp/spend', {
+        method:'POST', headers:{'Content-Type':'application/json','X-Init-Data': tg.initData || ''},
+        body: JSON.stringify({amount:100, reason:'streak_freeze'})
+      }).then(r=>r.ok?r.json():null).then(j=>{
+        if(j && j.gp !== undefined) state.user.groovePoints = j.gp;
+        else state.user.groovePoints = Math.max(0, gp - 100);
+        s.frozen = true;
+        saveStreak(s);
+        showToast('🧊','Серия заморожена! Не сгорит при пропуске дня');
+        renderStreak(); updateUI();
+      }).catch(()=>{
+        // офлайн — просто отмечаем локально
+        state.user.groovePoints = Math.max(0, gp - 100);
+        s.frozen = true; saveStreak(s); renderStreak(); updateUI();
+      });
     }
     function renderAchievements(){
       const dc = state.courseProgress.completedLessons.length;

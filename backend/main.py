@@ -562,6 +562,53 @@ TRIPWIRE_PRICE = 500      # $7   → 500 Stars
 FULL_COURSE_PRICE = 2100  # $30  → 2100 Stars
 MENTOR_PRICE = 21000      # $300 → 21000 Stars
 
+# ---- A/B эксперименты (Adapty: локализация +62% LTV, структура trial +59%) ----
+# Варианты цен для tripwire/full. Если эксперимент ВЫКЛЮЧЕН (active=False) —
+# используется базовая цена (TRIPWIRE_PRICE / FULL_COURSE_PRICE).
+AB_EXPERIMENTS = {
+    "price_tripwire": {
+        "active": False,   # ← включить True для запуска эксперимента
+        "variants": {
+            "control": TRIPWIRE_PRICE,   # 500⭐ (база)
+            "low": 300,                  # 300⭐ (дешевле порог входа)
+            "bundle": 700,               # 700⭐ (уроки 1-4 + бонус-пак)
+        },
+    },
+    "price_full": {
+        "active": False,
+        "variants": {
+            "control": FULL_COURSE_PRICE,  # 2100⭐
+            "discount": 1700,              # 1700⭐ (−19%)
+            "premium": 2500,               # 2500⭐ (+бонусы в описании)
+        },
+    },
+    "localization": {
+        "active": False,
+        "variants": {
+            "ru": "ru",
+            "en": "en",
+        },
+    },
+}
+
+
+def _ab_price(course_id: str, uid: int | None) -> tuple[int, str]:
+    """Вернуть (цена, variant_label) с учётом A/B-эксперимента.
+
+    control/база — если эксперимент выключен или юзер не назначен.
+    """
+    if course_id == "tripwire":
+        exp, base = "price_tripwire", TRIPWIRE_PRICE
+    elif course_id == COURSE_ID:
+        exp, base = "price_full", FULL_COURSE_PRICE
+    else:
+        return MENTOR_PRICE, "control"  # менторство пока вне эксперимента
+    cfg = AB_EXPERIMENTS.get(exp)
+    if not cfg or not cfg.get("active") or uid is None:
+        return base, "control"
+    variant = db.assign_ab_variant(uid, exp, list(cfg["variants"].keys()))
+    return cfg["variants"][variant], variant
+
 
 # ---- POST /api/create-invoice — Telegram Stars invoice ----
 
@@ -582,11 +629,12 @@ async def create_invoice(
     # ⚠️ ЦЕНА ВСЕГДА СЧИТАЕТСЯ НА СЕРВЕРЕ (C2).
     # Клиентский body.price ИГНОРИРУЕТСЯ — иначе юзер мог передать price:1
     # и купить менторство за 1 Star.
+    variant = "control"
     if course_id == "tripwire":
-        price = TRIPWIRE_PRICE
+        price, variant = _ab_price("tripwire", uid)
         label = "Pocket DJ: уроки 1-4"
     elif course_id == COURSE_ID:
-        price = FULL_COURSE_PRICE
+        price, variant = _ab_price(COURSE_ID, uid)
         label = "Pocket DJ: полный курс"
     elif course_id == "mentoring":
         # автоскидка 1 GP = 1 Star, макс 7000, итог не ниже 14000
@@ -616,7 +664,57 @@ async def create_invoice(
         "invoice_link": data["result"],
         "title": label,
         "price": price,
+        "variant": variant,
+        "experiment": "price_tripwire" if course_id == "tripwire" else ("price_full" if course_id == COURSE_ID else None),
     }
+
+
+# ---- GET /api/ab/assign ----
+@app.get("/api/ab/assign")
+async def ab_assign(
+    x_init_data: str = Header("", alias="X-Init-Data"),
+):
+    """Вернуть назначенные A/B-варианты юзера (для фронт-персонализации UI/локали)."""
+    uid = _user_id_from_init(x_init_data)
+    if uid is None:
+        return JSONResponse({"error": "bad_init_data"}, status_code=401)
+    result = {}
+    for exp_name, cfg in AB_EXPERIMENTS.items():
+        if not cfg.get("active"):
+            result[exp_name] = "control"
+            continue
+        variant = db.assign_ab_variant(uid, exp_name, list(cfg["variants"].keys()))
+        result[exp_name] = variant
+    return result
+
+
+# ---- POST /api/ab/track ----
+@app.post("/api/ab/track")
+async def ab_track(
+    req: Request,
+    authorization: str | None = Header(None),
+):
+    """Записать A/B-вариант покупки для LTV-аналитики.
+
+    Бот вызывает после successful_payment: передаёт user_id + course_id,
+    бэкенд резолвит вариант (из ab_assignments) и пишет в transactions.
+    """
+    if authorization != f"Bearer {INTERNAL_API_KEY}":
+        return JSONResponse({"error": "unauthorized"}, status_code=403)
+    body = {}
+    try:
+        body = await req.json()
+    except Exception:
+        body = {}
+    uid = body.get("user_id")
+    course_id = body.get("course_id")
+    if not uid or not course_id:
+        return JSONResponse({"error": "bad_body"}, status_code=400)
+    exp = "price_tripwire" if course_id == "tripwire" else ("price_full" if course_id == COURSE_ID else None)
+    variant = db.get_ab_variant(uid, exp) if exp else None
+    if variant:
+        db.add_payment(uid, course_id, "ab_track", ab_variant=f"{exp}:{variant}")
+    return {"ok": True, "variant": variant}
 
 
 # ---- POST /api/grant (internal) ----

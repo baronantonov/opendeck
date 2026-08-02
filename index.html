@@ -870,6 +870,7 @@
     const state = {
       isPaid: false,          // PLAY A: куплен ли доступ (tripwire/full) — для пейвола
       paidFull: false,
+      ab: {},                  // A/B-варианты (локализация и т.п.)
       user: { name: userName, archetype: "Куратор Вайба", groovePoints: 0, referralCode: '', referralFriends: 0, referralGpEarned: 0 },
       courseProgress: { currentLessonId: null, completedLessons: [] },
       lessons: [
@@ -1053,6 +1054,16 @@
           ['gp','done-n','lesson-n','next-lesson','bar-wrap'].forEach(id=>{
             const el = document.getElementById(id); if(el) el.classList.remove('skel');
           });
+          // A/B: узнать назначенные варианты (для локализации/персонализации UI)
+          try {
+            fetch(API_BASE + '/api/ab/assign', { headers:{'X-Init-Data': tg.initData || ''} })
+              .then(r=>r.ok?r.json():null).then(ab=>{
+                if(ab && !ab.error){
+                  state.ab = ab;
+                  applyLocalization(ab.localization);
+                }
+              }).catch(()=>{});
+          } catch(_){}
           // Сохранить в DeviceStorage (Bot API 9.0+)
           if(tg.DeviceStorage){
             try { tg.DeviceStorage.set('completed', JSON.stringify(state.courseProgress.completedLessons)); } catch(_){}
@@ -1249,6 +1260,16 @@
     function updateGamification(){
       renderStreak();
       renderAchievements();
+    }
+
+    // A/B: локализация (заглушка — готова к расширению текстов)
+    function applyLocalization(variant){
+      if(variant === 'en'){
+        document.documentElement.lang = 'en';
+        // TODO: подставить en-строки в i18n-объект (когда будет готов)
+      } else {
+        document.documentElement.lang = 'ru';
+      }
     }
 
     function updateUIRefLink(){

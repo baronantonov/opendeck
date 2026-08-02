@@ -122,6 +122,11 @@ async def on_paid(msg: Message):
                     "course_id": course_id,
                     "provider": "stars",
                 }, headers=headers)
+                # LTV по A/B-варианту (для аналитики цен)
+                await c.post(f"{config.BACKEND_URL}/api/ab/track", json={
+                    "user_id": msg.from_user.id,
+                    "course_id": course_id,
+                }, headers=headers)
             except Exception:
                 pass
 

@@ -468,6 +468,28 @@ def spend_gp(user_id: int, amount: int, reason: str = "spend") -> Optional[dict]
         ).fetchone()[0]
         return {"groove_points": int(new_gp)}
 
+
+def add_gp(user_id: int, amount: int, action_type: str = "gp_earn") -> dict:
+    """Начислить GP (rewarded-механика: шер/ежедневный бонус и т.п.).
+
+    Возвращает {groove_points}.
+    """
+    with _conn() as c:
+        c.execute(
+            "UPDATE users SET groove_points = groove_points + ? WHERE user_id=?",
+            (amount, user_id),
+        )
+        c.execute(
+            "INSERT INTO transactions (user_id, amount, action_type) "
+            "VALUES (?, ?, ?)",
+            (user_id, amount, action_type),
+        )
+        new_gp = c.execute(
+            "SELECT groove_points FROM users WHERE user_id=?", (user_id,)
+        ).fetchone()[0]
+        return {"groove_points": int(new_gp)}
+
+
 def add_payment(user_id, course_id, provider, amount=None, currency=None,
                 status="paid", raw=""):
     with _conn() as c:

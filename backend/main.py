@@ -513,6 +513,48 @@ async def gp_spend(
     return result
 
 
+# ---- POST /api/gp/earn ----
+REWARD_ACTIONS = {
+    "share": 20,        # поделился курсом — +20 GP
+    "daily": 10,        # ежедневный бонус — +10 GP
+    "review": 50,       # оставил отзыв/звёзды — +50 GP
+}
+@app.post("/api/gp/earn")
+async def gp_earn(
+    req: Request,
+    x_init_data: str = Header("", alias="X-Init-Data"),
+):
+    """Rewarded-механика: начислить GP за действие (шер/ежедневный бонус/отзыв).
+
+    ЗАЩИТА ОТ ФЕРМЫ: одно действие — не чаще 1 раза в 24ч (по transactions).
+    """
+    body = {}
+    try:
+        body = await req.json()
+    except Exception:
+        body = {}
+    action = body.get("action")
+    if action not in REWARD_ACTIONS:
+        return JSONResponse({"error": "bad_action"}, status_code=400)
+    uid = _resolve_uid(x_init_data, None, body)
+    if uid is None:
+        return JSONResponse({"error": "bad_init_data"}, status_code=401)
+    # cooldown 24ч
+    with db._conn() as c:
+        recent = c.execute(
+            "SELECT 1 FROM transactions WHERE user_id=? AND action_type=? "
+            "AND timestamp > datetime('now', '-24 hours') LIMIT 1",
+            (uid, f"reward_{action}"),
+        ).fetchone()
+        if recent:
+            return JSONResponse({"error": "cooldown", "hint": "доступно через 24ч"}, status_code=429)
+    amount = REWARD_ACTIONS[action]
+    result = db.add_gp(uid, amount, action_type=f"reward_{action}")
+    result["amount"] = amount
+    result["action"] = action
+    return result
+
+
 # ---- Цены в Stars ----
 # 1 Star ≈ $0.014 для покупателя. Цена с учётом комиссии Apple/Google (~30% на мобильных).
 # Creator получает ~$0.013 за Star после вывода.

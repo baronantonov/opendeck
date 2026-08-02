@@ -710,6 +710,22 @@
         <span style="font-family:'Unbounded';font-weight:700;font-size:15px;display:block;margin-bottom:8px">🏆 Достижения</span>
         <div id="ach-list" style="display:flex;flex-direction:column;gap:8px"></div>
       </div>
+      <!-- E: Rewarded-механика — бесплатные GP (OmiSoft P2E-кейс: легальный путь к контенту) -->
+      <div class="ach-block" style="margin:14px 0">
+        <span style="font-family:'Unbounded';font-weight:700;font-size:15px;display:block;margin-bottom:4px">🎁 Бесплатные Stars</span>
+        <p style="font-size:12px;color:var(--text-secondary);margin:0 0 10px">Зарабатывай Stars за действия — трать на скидку менторства или разморозку серии.</p>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <button class="btn ghost" id="rw-share" style="width:100%;padding:10px;font-size:13px;display:flex;justify-content:space-between;align-items:center" onclick="earnGP('share')">
+            <span>📤 Поделиться курсом</span><b>+20 ⭐</b>
+          </button>
+          <button class="btn ghost" id="rw-daily" style="width:100%;padding:10px;font-size:13px;display:flex;justify-content:space-between;align-items:center" onclick="earnGP('daily')">
+            <span>📅 Ежедневный бонус</span><b>+10 ⭐</b>
+          </button>
+          <button class="btn ghost" id="rw-review" style="width:100%;padding:10px;font-size:13px;display:flex;justify-content:space-between;align-items:center" onclick="earnGP('review')">
+            <span>⭐ Оставить отзыв</span><b>+50 ⭐</b>
+          </button>
+        </div>
+      </div>
       <!-- PLAY: Invite card with progress (Точка В) -->
       <div class="invite-card">
         <div class="t" id="ref-header">Пригласи напарника и получи <b>+30 ⭐</b> за каждую регистрацию!<br>А если друг купит курс — ещё <b>+200 ⭐</b> 🎧</div>
@@ -1169,6 +1185,40 @@
         // офлайн — просто отмечаем локально
         state.user.groovePoints = Math.max(0, gp - 100);
         s.frozen = true; saveStreak(s); renderStreak(); updateUI();
+      });
+    }
+    // E: rewarded-механика — бесплатные GP (OmiSoft P2E-кейс)
+    function earnGP(action){
+      // фронт-cooldown (дублирует бэкенд, чтобы не слать лишние запросы)
+      try {
+        const cd = JSON.parse(tg.DeviceStorage.get('earn_cd') || '{}');
+        if(cd[action] && Date.now() - cd[action] < 864e5){
+          showToast('⏳', 'Доступно через 24ч');
+          return;
+        }
+      } catch(_){}
+      showToast('⏳', 'Начисляем...');
+      fetch(API_BASE + '/api/gp/earn', {
+        method:'POST', headers:{'Content-Type':'application/json','X-Init-Data': tg.initData || ''},
+        body: JSON.stringify({action})
+      }).then(r=>r.ok?r.json():r.json().then(j=>({_err:j.error}))).then(j=>{
+        if(j._err){
+          if(j._err === 'cooldown') showToast('⏳', 'Доступно через 24ч');
+          else showToast('❌', 'Ошибка начисления');
+          return;
+        }
+        state.user.groovePoints = j.groove_points;
+        // отметить cooldown локально
+        try {
+          const cd = JSON.parse(tg.DeviceStorage.get('earn_cd') || '{}');
+          cd[action] = Date.now();
+          tg.DeviceStorage.set('earn_cd', JSON.stringify(cd));
+        } catch(_){}
+        const labels = {share:'📤 Поделиться', daily:'📅 Ежедневный бонус', review:'⭐ Отзыв'};
+        showToast('✅', `${labels[action]||'Действие'}: +${j.amount} ⭐`);
+        updateUI();
+      }).catch(()=>{
+        showToast('❌', 'Ошибка сети');
       });
     }
     function renderAchievements(){

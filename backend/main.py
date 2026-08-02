@@ -175,6 +175,7 @@ def _user_response(uid: int) -> dict:
         "referred_by": u["referred_by"],
         "archetype": u["archetype"] or "Куратор Вайба",
         "groove_points": db.get_gp(uid),
+        "last_seen": u.get("last_seen") or "",
     }
 
 
@@ -295,6 +296,10 @@ async def api_init(body: InitRequest):
         "bonus": bonus,
         "referral_friends": db.get_referral_stats(uid)["friends_count"],
         "referral_gp_earned": db.get_referral_stats(uid)["gp_earned"],
+        # PLAY A: флаги оплаты для фронт-пейвола (курс иначе проходится бесплатно)
+        "paid_full": db.has_paid(uid, COURSE_ID),
+        "paid_tripwire": db.has_paid(uid, "tripwire"),
+        "paid": db.has_paid(uid, COURSE_ID) or db.has_paid(uid, "tripwire"),
     }
 
 
@@ -397,9 +402,12 @@ async def progress(
         return {"gp": gp, "completed": completed, "bonus": True}
 
     # ---- ОСНОВНОЙ КУРС (платный доступ) ----
+    # ВОРОНКА: урок 1 — бесплатный (tripwire-вход), остальные — после оплаты.
     if p.course_id == COURSE_ID and p.lesson_id in MAIN_NEW_IDS:
+        is_first_lesson = (p.lesson_id == 1)
         paid_full = db.has_paid(uid, p.course_id)
-        if not paid_full and not db.has_paid(uid, "tripwire"):
+        paid_tw = db.has_paid(uid, "tripwire")
+        if not paid_full and not paid_tw and not is_first_lesson:
             return JSONResponse({"error": "not_paid", "paid": False}, status_code=403)
     old_id = NEW_TO_OLD.get(p.lesson_id, p.lesson_id)
     gp = db.complete_lesson(uid, p.course_id, old_id)
@@ -435,12 +443,14 @@ async def referral_purchase(
     if inviter_id is None:
         return {
             "inviter_bonus": 0,
+            "inviter_id": None,
             "gp": db.get_gp(uid),
         }
 
     inviter = db.get_user(inviter_id)
     return {
         "inviter_bonus": 200,
+        "inviter_id": inviter_id,
         "inviter_code": inviter["referral_code"] if inviter else "",
         "gp": db.get_gp(uid),
     }

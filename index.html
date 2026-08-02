@@ -591,12 +591,13 @@
         </div>
         <div class="hero-title-row">
           <h2 id="next-lesson" class="skel" style="display:block;min-height:24px">—</h2>
+          <div id="arch-line" style="font-size:13px;color:var(--accent-mint);margin:2px 0 4px;font-weight:600"></div>
           <div class="hero-progress-num"><span class="st skel" id="lesson-n" style="display:inline-block;min-width:14px">—</span><span class="of">/6</span></div>
         </div>
         <div class="hero-duration">время прохождения 15–20 минут</div>
         <div class="progress skel" id="bar-wrap"><i id="bar" style="width:0%"></i></div>
         <div class="play-deck-wrap">
-          <button class="play-deck" id="play-btn" onclick="goCourse()" aria-label="Играть">
+          <button class="play-deck" id="play-btn" onclick="heroPlay()" aria-label="Играть">
             <svg viewBox="0 0 24 24"><path d="M8 5.5v13l11-6.5z"/></svg>
           </button>
           <div class="play-deck-label" id="play-label">Начать урок 1</div>
@@ -678,6 +679,16 @@
           <div class="prof-stat"><div class="n">6</div><div class="l">уроков в курсе</div></div>
         </div>
       </div>
+      <!-- E: Геймификация — weekly streak + achievements (фронтенд-only, DeviceStorage) -->
+      <div class="ach-block" id="ach-block" style="margin:14px 0">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <span style="font-family:'Unbounded';font-weight:700;font-size:15px">🔥 Серия</span>
+          <span id="streak-num" style="color:var(--accent-coral);font-weight:700;font-size:14px">—</span>
+        </div>
+        <div id="streak-week" style="display:flex;gap:6px;margin-bottom:14px"></div>
+        <span style="font-family:'Unbounded';font-weight:700;font-size:15px;display:block;margin-bottom:8px">🏆 Достижения</span>
+        <div id="ach-list" style="display:flex;flex-direction:column;gap:8px"></div>
+      </div>
       <!-- PLAY: Invite card with progress (Точка В) -->
       <div class="invite-card">
         <div class="t" id="ref-header">Пригласи напарника и получи <b>+30 ⭐</b> за каждую регистрацию!<br>А если друг купит курс — ещё <b>+200 ⭐</b> 🎧</div>
@@ -707,6 +718,26 @@
     <button data-tab="profile" onclick="switchTab('profile')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="7" r="3.5"/><path d="M5 19v-2a3 3 0 0 1 3-3h8a3 3 0 0 1 3 3v2"/><rect x="3" y="5.5" width="3.5" height="5" rx="1.5"/><rect x="17.5" y="5.5" width="3.5" height="5" rx="1.5"/></svg>Профиль</button>
   </nav>
+
+  <!-- PLAY A: Paywall-модалка (закрывает дыру воронки — курс иначе бесплатен) -->
+  <div class="modal-mask hidden" id="paywall" onclick="if(event.target===this)hidePaywall()">
+    <div class="modal" style="max-width:360px">
+      <h3 id="pw-title" style="font-size:19px;margin-bottom:6px">Открой доступ к курсу 🔥</h3>
+      <p id="pw-sub" style="color:var(--text-secondary);font-size:13px;margin:0 0 14px">Пройди ещё уроки и стань DJ</p>
+      <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:6px">
+        <button class="btn mint" id="pw-tripwire" onclick="bookPay('tripwire')">
+          <span>⚡ Быстрый старт · уроки 1–4</span><br>
+          <small style="font-weight:600;opacity:.85">500 ⭐</small>
+        </button>
+        <button class="btn" id="pw-full" onclick="bookPay('dj-basics')">
+          <span>🎧 Полный курс Pocket DJ</span><br>
+          <small style="font-weight:600;opacity:.85">2100 ⭐ · + бонусы</small>
+        </button>
+      </div>
+      <p style="font-size:11px;color:var(--text-secondary);opacity:.7;margin:8px 0 14px">Оплата через Telegram Stars. Любой платёж открывает все уроки.</p>
+      <button class="btn ghost" style="width:100%;padding:10px" onclick="hidePaywall()">Позже</button>
+    </div>
+  </div>
 
   <script>
     const tg = (window.Telegram && window.Telegram.WebApp) || {};
@@ -800,6 +831,8 @@
     const userName = tgUser.first_name || (tgUser.username ? "@"+tgUser.username : "Друг");
     const userPhoto = tgUser.photo_url || "";
     const state = {
+      isPaid: false,          // PLAY A: куплен ли доступ (tripwire/full) — для пейвола
+      paidFull: false,
       user: { name: userName, archetype: "Куратор Вайба", groovePoints: 0, referralCode: '', referralFriends: 0, referralGpEarned: 0 },
       courseProgress: { currentLessonId: null, completedLessons: [] },
       lessons: [
@@ -866,6 +899,18 @@
       if(nl && state.lessons[curId-1]){
         nl.textContent = state.lessons[curId-1].t;
       }
+      // GH: архетип-персонализация Hero (hyper-personalization 2026)
+      const archLine = document.getElementById('arch-line');
+      if(archLine){
+        const arch = state.user.archetype || 'Куратор Вайба';
+        const map = {
+          'Куратор Вайба': 'Твой вайб — собирать сеты под настроение 🎚️',
+          'Техничный Сеттер': 'Техника — твой конёк. Сведение ждёт 🎛️',
+          'Открыватель Звука': 'Ищи новое звучание. Эксперименты впереди 🔊',
+          'Хранитель Атмосферы': 'Создавай атмосферу. Глубина — твоё 🌫️',
+        };
+        archLine.textContent = map[arch] || 'Твой путь DJ начинается здесь 🎧';
+      }
       document.getElementById('discount').textContent = `Твоя скидка: −${Math.min(gp, 7000)} ⭐`;
       // автоскидка менторства
       const discAmt = Math.min(gp, 7000);
@@ -893,6 +938,7 @@
       if(pl){
         if(dc === 0){ pl.textContent = 'Начать урок 1'; }
         else if(dc >= tc){ pl.textContent = 'Курс пройден 🎉'; }
+        else if(!state.isPaid){ pl.textContent = 'Открыть доступ · 500 ⭐'; }   // BC: CTA покупки
         else { pl.textContent = 'Продолжить · урок ' + Math.min(dc+1, tc); }
       }
     }
@@ -946,6 +992,8 @@
           state.courseProgress.completedLessons = (j.course.completed_lessons || []).slice();
           if(IS_ADMIN) savedCompleted = (j.course.completed_lessons || []).slice(); // запомнить реальный прогресс БД
           state.user.archetype = j.user.archetype || 'Куратор Вайба';
+          state.isPaid = !!(j.paid);            // PLAY A: флаг оплаты для пейвола
+          state.paidFull = !!(j.paid_full);
           updateUI();
           // Снять skeleton (данные пришли)
           ['gp','done-n','lesson-n','next-lesson','bar-wrap'].forEach(id=>{
@@ -1006,6 +1054,81 @@
       navigator.clipboard.writeText(deepLink).catch(()=>{});
       showToast('✅', 'Ссылка скопирована!<br>Вставь в чат — появится кнопка «Открыть»');
     }
+    // E: Геймификация — weekly streak + achievements (фронтенд-only)
+    function loadStreak(){
+      try { return JSON.parse(tg.DeviceStorage.get('streak') || '{"days":{}, "count":0, "last":""}'); }
+      catch(_){ return {days:{}, count:0, last:""}; }
+    }
+    function saveStreak(s){
+      try { tg.DeviceStorage.set('streak', JSON.stringify(s)); } catch(_){}
+    }
+    function bumpStreak(){
+      // отметить сегодняшний день серии (раз в сутки)
+      const s = loadStreak();
+      const today = new Date().toISOString().slice(0,10);
+      if(s.last === today) return s; // уже отмечен сегодня
+      const yest = new Date(Date.now()-864e5).toISOString().slice(0,10);
+      if(s.last === yest || s.last === ""){ s.count = (s.last === yest) ? s.count+1 : 1; }
+      else { s.count = 1; } // серия сброшена (пропуск >1 дня)
+      s.last = today;
+      s.days[today] = 1;
+      saveStreak(s);
+      // streak freeze: если count >= 5 — напоминание защитить серию (четверг вечер — пик потерь)
+      return s;
+    }
+    function renderStreak(){
+      const s = loadStreak();
+      const el = document.getElementById('streak-num');
+      if(el) el.textContent = s.count > 0 ? (s.count + ' дн.') : '—';
+      const wk = document.getElementById('streak-week');
+      if(!wk) return;
+      const labels = ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
+      const now = new Date();
+      const monday = new Date(now);
+      monday.setDate(now.getDate() - ((now.getDay()+6)%7));
+      wk.innerHTML = '';
+      for(let i=0;i<7;i++){
+        const d = new Date(monday); d.setDate(monday.getDate()+i);
+        const key = d.toISOString().slice(0,10);
+        const done = !!s.days[key];
+        const cell = document.createElement('div');
+        cell.style.cssText = 'flex:1;text-align:center;font-size:10px;color:var(--text-secondary);';
+        cell.innerHTML = '<div style="height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;'+
+          (done ? 'background:linear-gradient(135deg,var(--accent-coral),var(--accent-mint));' : 'background:rgba(255,255,255,0.06);')+'">'+
+          (done ? '🔥' : labels[i][0]) + '</div><div style="margin-top:3px">'+labels[i]+'</div>';
+        wk.appendChild(cell);
+      }
+    }
+    function renderAchievements(){
+      const dc = state.courseProgress.completedLessons.length;
+      const arch = state.user.archetype || 'Куратор Вайба';
+      // ачивки по прогрессу (сложные дают выше retention — Trophy: сложные 74% vs лёгкие 32%)
+      const achs = [
+        {id:'first', name:'Первый бит', ico:'🎚️', got: dc>=1, desc:'Пройди урок 1'},
+        {id:'half',  name:'Половина пути', ico:'📀', got: dc>=3, desc:'Пройди 3 урока'},
+        {id:'all',   name:'DJ-сет собран', ico:'🎧', got: dc>=6, desc:'Пройди все 6 уроков'},
+        {id:'arch',  name:'Архетип раскрыт', ico:'✨', got: !!arch, desc:'Получи свой архетип'},
+        {id:'refer', name:'Наставник', ico:'👥', got: (state.user.referralFriends||0)>=1, desc:'Пригласи друга'},
+      ];
+      const box = document.getElementById('ach-list');
+      if(!box) return;
+      box.innerHTML = '';
+      achs.forEach(a=>{
+        const row = document.createElement('div');
+        row.style.cssText = 'display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;'+
+          (a.got ? 'background:rgba(140,226,200,0.10);border:1px solid rgba(140,226,200,0.25);' : 'background:rgba(255,255,255,0.03);opacity:.55;');
+        row.innerHTML = '<span style="font-size:20px">'+(a.got?a.ico:'🔒')+'</span>'+
+          '<div style="flex:1"><div style="font-size:13px;font-weight:600">'+a.name+'</div>'+
+          '<div style="font-size:11px;color:var(--text-secondary)">'+a.desc+'</div></div>'+
+          (a.got ? '<span style="font-size:11px;color:var(--accent-mint)">✓</span>' : '');
+        box.appendChild(row);
+      });
+    }
+    function updateGamification(){
+      renderStreak();
+      renderAchievements();
+    }
+
     function updateUIRefLink(){
       const fc = document.getElementById('ref-friends');
       if(fc){
@@ -1031,10 +1154,21 @@
       });
       if(tab==='course') renderCourse();
       if(tab==='upgrade') updateUI();
-      if(tab==='profile') updateUIRefLink();
+      if(tab==='profile'){ updateUIRefLink(); updateGamification(); }
       if(tab==='bonus') renderBonus();
     }
     function goCourse(){ switchTab('course'); }
+
+    // BC: кнопка Hero. Если урок 1 пройден, но доступ не куплен —
+    // сразу ведём в paywall (Day-0 конверсия по Adapty: 90% trial в первой сессии).
+    function heroPlay(){
+      const dc = state.courseProgress.completedLessons.length;
+      if(!state.isPaid && dc >= 1){
+        showPaywall();
+        return;
+      }
+      switchTab('course');
+    }
 
     function renderBonus(){
       const box = document.getElementById('tab-bonus');
@@ -1184,6 +1318,12 @@
 
     function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
     function openLesson(id, l){
+      // PLAY A: платный урок (не 1-й) и нет доступа → сразу paywall, без видео
+      const isFirst = (id === 1);
+      if(!state.isPaid && !isFirst){
+        showPaywall();
+        return;
+      }
       document.body.style.filter='';   // снять защитное размытие при открытии урока
       // BackButton — показать при открытии урока
       try { tg.BackButton && tg.BackButton.show(); } catch(_){}
@@ -1316,6 +1456,8 @@
         state.courseProgress.completedLessons.push(id);
         haptic('notificationOccurred');
         burst();
+        // E: отметить день серии (геймификация, фронтенд-only)
+        try { bumpStreak(); } catch(_){}
         // ADMIN-режим: тест UI, НЕ пишем прогресс в базу (чтобы не портить реальный GP/прогресс)
         if(ADMIN_MODE){
           updateUI();
@@ -1329,6 +1471,13 @@
             headers:{'Content-Type':'application/json','X-Init-Data': tg.initData || ''},
             body: JSON.stringify({course_id:'dj-basics', lesson_id:id})
           }).then(r=>{
+            if(r.status === 403){
+              // PLAY A: дыра воронки закрыта — не пишем локально, а показываем paywall
+              const sk = document.getElementById('finishBtn');
+              if(sk){ sk.style.opacity='0.4'; sk.style.pointerEvents='none'; }
+              showPaywall();
+              return null;
+            }
             if(r.ok) return r.json();
             tg.showPopup && tg.showPopup({title:'Ошибка', message:'Прогресс не сохранён ☁️'});
             return null;
@@ -1346,6 +1495,12 @@
                 setTimeout(()=>{
                   showToast('🎵', 'Позови напарника в дуэт!<br><b>Дарим по 50 ⭐</b> вам обоим 🎧<br><br><button class="btn" style="font-size:13px;padding:8px 20px;background:var(--accent-coral)" onclick="shareInvite()">Пригласить друга</button>');
                 }, 800);
+                // BC: Day-0 конверсия — если ещё не купил, предложить доступ сразу
+                if(!state.isPaid){
+                  setTimeout(()=>{
+                    showToast('🔥', 'Понравилось?<br>Открой все уроки курса<br><br><button class="btn" style="font-size:13px;padding:8px 20px;background:var(--accent-mint);color:#10201b" onclick="showPaywall()">Открыть доступ · 500 ⭐</button>');
+                  }, 4200);
+                }
               }
               // ---- Редирект на Upgrade после прохождения ВСЕГО курса (п.2) ----
               if(state.courseProgress.completedLessons.length >= state.lessons.length){
@@ -1377,6 +1532,54 @@
       }
       document.body.appendChild(b);
       setTimeout(()=>b.remove(), 1000);
+    }
+
+    function showPaywall(){
+      const pw = document.getElementById('paywall');
+      if(pw) pw.classList.remove('hidden');
+      haptic('impactOccurred');
+    }
+    function hidePaywall(){
+      const pw = document.getElementById('paywall');
+      if(pw) pw.classList.add('hidden');
+    }
+    // PLAY A: покупка курса (tripwire / full) через Telegram Stars
+    function bookPay(courseId){
+      showToast('⏳', 'Создаём счёт...');
+      const btn = document.querySelector('#paywall .btn');
+      if(btn) btn.disabled = true;
+      fetch(API_BASE + '/api/create-invoice', {
+        method:'POST',
+        headers:{'Content-Type':'application/json','X-Init-Data': tg.initData || ''},
+        body: JSON.stringify({ course_id: courseId })
+      }).then(r=>r.ok ? r.json() : r.json().then(()=>null)).then(data=>{
+        if(btn) btn.disabled = false;
+        if(!data || !data.invoice_link){
+          showToast('❌', 'Не удалось создать счёт. Попробуй позже.');
+          return;
+        }
+        tg.openInvoice(data.invoice_link, (status) => {
+          if(status === 'paid'){
+            // Бот зафиксирует платёж (on_paid → /api/grant) и обновит has_paid.
+            // Перезагружаем state, чтобы пейвол больше не мешал.
+            state.isPaid = true;
+            if(courseId === 'dj-basics') state.paidFull = true;
+            hidePaywall();
+            // Закрыть модалку урока (если открыта) и перерисовать курс — доступ открыт
+            try { closeLesson(); } catch(_){}
+            renderCourse();
+            updateUI();
+            showToast('✅', 'Доступ открыт! Смотри все уроки 🎧');
+          } else if(status === 'cancelled'){
+            showToast('👋', 'Платёж отменён');
+          } else {
+            showToast('❌', 'Ошибка оплаты');
+          }
+        });
+      }).catch(()=>{
+        if(btn) btn.disabled = false;
+        showToast('❌', 'Ошибка сети. Проверь подключение.');
+      });
     }
 
     function bookMentor(){

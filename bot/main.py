@@ -34,6 +34,33 @@ def main_kb() -> InlineKeyboardMarkup:
 
 
 async def cmd_start(msg: Message):
+    # GH: win-back — если вернулся через 30+ дней и не купил, предложить вернуться
+    try:
+        async with httpx.AsyncClient() as c:
+            r = await c.post(f"{config.BACKEND_URL}/api/init", json={
+                "init_data": msg.from_user.id,  # бот шлёт id, бэкенд вернёт last_seen/paid
+                "start_param": None,
+            }, headers={"X-Init-Data": str(msg.from_user.id)})
+            if r.status_code == 200:
+                d = r.json()
+                paid = d.get("paid") or d.get("paid_full") or d.get("paid_tripwire")
+                last = d.get("user", {}).get("last_seen") or d.get("last_seen") or ""
+                if not paid and last:
+                    try:
+                        from datetime import datetime
+                        ld = datetime.fromisoformat(last.replace("Z", ""))
+                        days = (datetime.now() - ld).days
+                        if days >= 30:
+                            await msg.answer(
+                                f"👋 С возвращением! Прошло {days} дней с твоей последней сессии.\n"
+                                "Уроки 2–6 всё ещё ждут тебя. Открой доступ со скидкой 50 ⭐ за возврат:",
+                                reply_markup=main_kb(),
+                            )
+                            return
+                    except Exception:
+                        pass
+    except Exception:
+        pass
     await msg.answer(
         "Привет! Это школа DJing 🎚\nНажми кнопку, чтобы открыть курс:",
         reply_markup=main_kb(),
@@ -63,14 +90,42 @@ async def on_paid(msg: Message):
             print(f"⚠️ /api/grant failed: {r.status_code} {r.text}")
 
         # 2) реферальный бонус инвайтеру (+200 ⭐, идемпотентно на 1 покупку)
+        #    + уведомление инвайтера, что друг купил (закрываем петлю рефералки).
         try:
-            await c.post(f"{config.BACKEND_URL}/api/referral/purchase", json={
+            rp = await c.post(f"{config.BACKEND_URL}/api/referral/purchase", json={
                 "user_id": msg.from_user.id,
             }, headers=headers)
+            if rp.status_code == 200:
+                rd = rp.json()
+                inv_id = rd.get("inviter_id")
+                if inv_id:
+                    try:
+                        await c.post(
+                            f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendMessage",
+                            json={
+                                "chat_id": inv_id,
+                                "text": "🎉 Твой друг купил курс Open Deck!\nНа твой баланс начислено +200 ⭐.",
+                                "disable_notification": False,
+                            },
+                        )
+                    except Exception:
+                        pass
         except Exception:
             pass  # не критично
 
-        # 3) если куплено менторство — списать GP-скидку (1 GP = 1 Star).
+        # 3) если куплен курс (tripwire/full) — зафиксировать платёж,
+        #    чтобы фронт-пейвол открыл доступ (has_paid). Менторство тоже фиксируем.
+        if course_id in ("tripwire", "dj-basics", "mentoring"):
+            try:
+                await c.post(f"{config.BACKEND_URL}/api/grant", json={
+                    "user_id": msg.from_user.id,
+                    "course_id": course_id,
+                    "provider": "stars",
+                }, headers=headers)
+            except Exception:
+                pass
+
+        # 4) если куплено менторство — списать GP-скидку (1 GP = 1 Star).
         #    Цена инвойса уже была снижена на GP на сервере при /api/create-invoice,
         #    здесь фиксируем само списание GP в балансе (идемпотентно по charge_id).
         if course_id == "mentoring":

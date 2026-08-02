@@ -133,6 +133,20 @@ def init():
         if not _column_exists(c, "transactions", "charge_id"):
             c.execute("ALTER TABLE transactions ADD COLUMN charge_id TEXT")
 
+        # — миграция: колонка ab_variant в transactions (LTV по A/B-вариантам)
+        if not _column_exists(c, "transactions", "ab_variant"):
+            c.execute("ALTER TABLE transactions ADD COLUMN ab_variant TEXT")
+
+        # — таблица A/B-назначений (эксперименты по ценам/локализации)
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS ab_assignments (
+                user_id INTEGER PRIMARY KEY,
+                experiment TEXT NOT NULL,
+                variant TEXT NOT NULL,
+                assigned_at TEXT DEFAULT (datetime('now'))
+            )
+        """)
+
         # — уникальный индекс на referral_code (вместо UNIQUE в колонке)
         c.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_refcode "
                   "ON users(referral_code)")
@@ -490,14 +504,56 @@ def add_gp(user_id: int, amount: int, action_type: str = "gp_earn") -> dict:
         return {"groove_points": int(new_gp)}
 
 
+# ---------------------------------------------------------------------------
+# A/B experiments (цены / локализация)
+# ---------------------------------------------------------------------------
+
+def assign_ab_variant(user_id: int, experiment: str, variants: list[str]) -> str:
+    """Детерминированно назначить вариант юзеру (stable между сессиями).
+
+    Хэш user_id+experiment → индекс варианта. Если уже назначен — вернуть
+    сохранённый (важно для честного измерения LTV).
+    """
+    with _conn() as c:
+        row = c.execute(
+            "SELECT variant FROM ab_assignments WHERE user_id=? AND experiment=?",
+            (user_id, experiment),
+        ).fetchone()
+        if row:
+            return row["variant"]
+        # детерминированный выбор: hash(uid|exp) % len(variants)
+        h = int(hashlib.sha256(f"{user_id}|{experiment}".encode()).hexdigest(), 16)
+        variant = variants[h % len(variants)]
+        c.execute(
+            "INSERT OR IGNORE INTO ab_assignments (user_id, experiment, variant) VALUES (?,?,?)",
+            (user_id, experiment, variant),
+        )
+        return variant
+
+
+def get_ab_variant(user_id: int, experiment: str) -> str | None:
+    with _conn() as c:
+        row = c.execute(
+            "SELECT variant FROM ab_assignments WHERE user_id=? AND experiment=?",
+            (user_id, experiment),
+        ).fetchone()
+        return row["variant"] if row else None
+
+
 def add_payment(user_id, course_id, provider, amount=None, currency=None,
-                status="paid", raw=""):
+                status="paid", raw="", ab_variant=None):
     with _conn() as c:
         c.execute(
             "INSERT INTO payments (user_id, course_id, provider, amount, currency, status, raw) "
             "VALUES (?,?,?,?,?,?,?)",
             (user_id, course_id, provider, amount, currency, status, raw),
         )
+        if ab_variant:
+            c.execute(
+                "INSERT INTO transactions (user_id, amount, action_type, ab_variant) "
+                "VALUES (?, 0, 'purchase_ab', ?)",
+                (user_id, ab_variant),
+            )
 
 
 def has_paid(user_id, course_id=COURSE_ID):

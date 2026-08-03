@@ -410,6 +410,7 @@
 
     .hidden{display:none}
     .modal-mask{position:fixed;inset:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:20;padding:24px}
+    .modal-mask.hidden{display:none} /* PLAY: перебивает .modal-mask{display:flex} — иначе .hidden не скрывает пейвол */
     .modal{background:#2b302e;border:1px solid rgba(255,255,255,0.1);border-radius:20px;padding:24px;max-width:340px;text-align:center}
     .modal h3{font-size:18px;margin-bottom:10px}
     .modal p{color:var(--text-secondary);font-size:14px;margin:0 0 18px}
@@ -1685,6 +1686,12 @@
     function hidePaywall(){
       const pw = document.getElementById('paywall');
       if(pw) pw.classList.add('hidden');
+      // PLAY A: если пейвол открыли из completeLesson (403), finishBtn был
+      // заблокирован — восстанавливаем, чтобы юзер мог выйти с экрана урока.
+      const sk = document.getElementById('finishBtn');
+      if(sk){ sk.style.opacity=''; sk.style.pointerEvents=''; }
+      const btn = document.querySelector('#paywall .btn');
+      if(btn) btn.disabled = false;
     }
     // PLAY A: покупка курса (tripwire / full) через Telegram Stars
     function bookPay(courseId){

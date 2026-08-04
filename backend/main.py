@@ -30,6 +30,7 @@ from pydantic import BaseModel
 from backend.auth import verify_init_data
 import backend.db as db
 import backend.prodamus_sign as prodamus_sign
+from backend.crm import router as crm_router
 
 db.init()
 
@@ -43,6 +44,9 @@ MINI_APP_DIR = Path(__file__).resolve().parent.parent  # корень проек
 COURSE_ID = "dj-basics"
 
 app = FastAPI(title="DJ School API")
+
+# CRM-админка (защищена ADMIN_KEY через подписанный cookie)
+app.include_router(crm_router)
 
 app.add_middleware(
     CORSMiddleware,
@@ -176,6 +180,7 @@ def _user_response(uid: int) -> dict:
         "referred_by": u["referred_by"],
         "archetype": u["archetype"] or "Куратор Вайба",
         "groove_points": db.get_gp(uid),
+        "bonus_lessons": _course_response(uid)["bonus_lessons"],
         "last_seen": u.get("last_seen") or "",
     }
 
@@ -270,8 +275,8 @@ async def api_init(body: InitRequest):
             if inviter_code:
                 bonus = {
                     "type": "referral_signup",
-                    "amount": 50,
-                    "message": "🎁 Подарок от друга! Тебе начислено 50 GP",
+                    "amount": 100,
+                    "message": "🎁 Подарок от друга! Тебе начислено 100 GP",
                 }
     elif sp.startswith("ref_") and existing and not existing.get("referred_by"):
         # пользователь уже существовал, но реф ссылка не была привязана
@@ -287,8 +292,8 @@ async def api_init(body: InitRequest):
             if inviter_code:
                 bonus = {
                     "type": "referral_signup",
-                    "amount": 50,
-                    "message": "🎁 Подарок от друга! Тебе начислено 50 GP",
+                    "amount": 100,
+                    "message": "🎁 Подарок от друга! Тебе начислено 100 GP",
                 }
 
     return {
@@ -328,6 +333,7 @@ async def profile(x_init_data: str = Header("", alias="X-Init-Data")):
         "referral_friends": ref_stats["friends_count"],
         "referral_gp_earned": ref_stats["gp_earned"],
         "archetype": user["archetype"] if user else "Куратор Вайба",
+        "bonus_lessons": len([x for x in db.get_completed(uid, "dj-bonus") if x in BONUS_OLD_IDS]),
     }
 
 
@@ -449,8 +455,15 @@ async def referral_purchase(
         }
 
     inviter = db.get_user(inviter_id)
+    # реально начисленный базовый бонус инвайтеру за этого invitee (500)
+    with db._conn() as _c:
+        earned = _c.execute(
+            "SELECT COALESCE(SUM(amount),0) FROM transactions "
+            "WHERE user_id=? AND action_type='referral_purchase' AND ref_user_id=?",
+            (inviter_id, uid),
+        ).fetchone()[0]
     return {
-        "inviter_bonus": 200,
+        "inviter_bonus": int(earned),
         "inviter_id": inviter_id,
         "inviter_code": inviter["referral_code"] if inviter else "",
         "gp": db.get_gp(uid),
@@ -516,8 +529,8 @@ async def gp_spend(
 
 # ---- POST /api/gp/earn ----
 REWARD_ACTIONS = {
-    "share": 20,        # поделился курсом — +20 GP
-    "daily": 10,        # ежедневный бонус — +10 GP
+    "share": 25,        # поделился курсом — +25 GP (шер = дешёвая вирусность)
+    "daily": 25,        # ежедневный бонус — +25 GP (пинг удержания, выше порог входа)
     "review": 50,       # оставил отзыв/звёзды — +50 GP
 }
 @app.post("/api/gp/earn")

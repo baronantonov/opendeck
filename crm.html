@@ -1,0 +1,1018 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="dark">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Open Deck · CRM</title>
+<style>
+  :root {
+    --bg: #0b0b12;
+    --bg-2: #10101c;
+    --surface: rgba(255,255,255,.04);
+    --surface-2: rgba(255,255,255,.07);
+    --border: rgba(255,255,255,.09);
+    --border-strong: rgba(255,255,255,.16);
+    --text: #ecedf5;
+    --muted: #9aa0b4;
+    --faint: #646a82;
+    --accent: #7c5cff;
+    --accent-2: #22d3ee;
+    --good: #34d399;
+    --warn: #fbbf24;
+    --bad: #fb7185;
+    --vip: #f0abfc;
+    --shadow: 0 18px 50px -22px rgba(0,0,0,.8);
+    --radius: 18px;
+    --radius-sm: 12px;
+    --ease: cubic-bezier(.22,.61,.36,1);
+    font-synthesis: none;
+  }
+  [data-theme="light"] {
+    --bg: #f5f6fb;
+    --bg-2: #ffffff;
+    --surface: rgba(15,18,40,.025);
+    --surface-2: rgba(15,18,40,.05);
+    --border: rgba(15,18,40,.08);
+    --border-strong: rgba(15,18,40,.16);
+    --text: #14162a;
+    --muted: #5b6076;
+    --faint: #9aa0b4;
+    --shadow: 0 18px 50px -28px rgba(20,22,42,.4);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif;
+    background:
+      radial-gradient(1200px 700px at 88% -10%, rgba(124,92,255,.20), transparent 60%),
+      radial-gradient(900px 600px at -5% 110%, rgba(34,211,238,.14), transparent 55%),
+      var(--bg);
+    color: var(--text);
+    -webkit-font-smoothing: antialiased;
+    line-height: 1.45;
+    min-height: 100%;
+  }
+  button, input, select { font: inherit; color: inherit; }
+  ::selection { background: rgba(124,92,255,.35); }
+
+  /* ---------- Layout ---------- */
+  .app { max-width: 1180px; margin: 0 auto; padding: 22px clamp(14px,3vw,28px) 60px; }
+
+  .topbar {
+    display: flex; align-items: center; gap: 14px;
+    position: sticky; top: 0; z-index: 30;
+    padding: 12px 0 16px;
+    backdrop-filter: blur(8px);
+  }
+  .brand { display: flex; align-items: center; gap: 11px; }
+  .brand .logo {
+    width: 38px; height: 38px; border-radius: 11px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    display: grid; place-items: center; font-weight: 800; font-size: 18px; color: #fff;
+    box-shadow: 0 8px 22px -8px var(--accent);
+  }
+  .brand h1 { font-size: 16px; font-weight: 700; letter-spacing: .2px; }
+  .brand .sub { font-size: 12px; color: var(--muted); }
+  .spacer { flex: 1; }
+  .iconbtn {
+    width: 40px; height: 40px; border-radius: 12px; border: 1px solid var(--border);
+    background: var(--surface); color: var(--text); cursor: pointer;
+    display: grid; place-items: center; transition: .2s var(--ease);
+  }
+  .iconbtn:hover { background: var(--surface-2); border-color: var(--border-strong); }
+
+  /* ---------- Stat cards ---------- */
+  .stats {
+    display: grid; gap: 14px; margin: 8px 0 22px;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  }
+  .stat {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 16px 18px; position: relative; overflow: hidden;
+    transition: .2s var(--ease);
+  }
+  .stat:hover { border-color: var(--border-strong); transform: translateY(-2px); }
+  .stat .label { font-size: 12px; color: var(--muted); display: flex; gap: 7px; align-items: center; }
+  .stat .value { font-size: 26px; font-weight: 750; margin-top: 6px; letter-spacing: .3px; }
+  .stat .value small { font-size: 13px; color: var(--muted); font-weight: 600; }
+  .stat .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+  .stat.accent .value { color: var(--accent); }
+  .stat.good .value { color: var(--good); }
+  .stat.vip .value { color: var(--vip); }
+
+  /* ---------- Toolbar ---------- */
+  .toolbar {
+    display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 16px;
+  }
+  .search {
+    flex: 1 1 260px; position: relative; min-width: 220px;
+  }
+  .search svg { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--faint); }
+  .search input {
+    width: 100%; padding: 11px 14px 11px 40px; border-radius: 12px;
+    background: var(--surface); border: 1px solid var(--border); outline: none;
+    transition: .18s var(--ease);
+  }
+  .search input:focus { border-color: var(--accent); background: var(--surface-2); box-shadow: 0 0 0 3px rgba(124,92,255,.15); }
+
+  .segment {
+    display: inline-flex; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 3px; gap: 2px;
+  }
+  .segment button {
+    border: 0; background: transparent; color: var(--muted); cursor: pointer;
+    padding: 8px 14px; border-radius: 9px; font-size: 13px; font-weight: 600;
+    transition: .16s var(--ease); white-space: nowrap;
+  }
+  .segment button:hover { color: var(--text); }
+  .segment button.active { background: linear-gradient(135deg, var(--accent), #946bff); color: #fff; box-shadow: 0 6px 16px -8px var(--accent); }
+
+  .select {
+    padding: 10px 12px; border-radius: 12px; background: var(--surface);
+    border: 1px solid var(--border); outline: none; cursor: pointer; color: var(--text);
+  }
+  .select:focus { border-color: var(--accent); }
+
+  /* ---------- Table ---------- */
+  .card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    overflow: hidden; box-shadow: var(--shadow);
+  }
+  .table { width: 100%; border-collapse: collapse; }
+  .table thead th {
+    text-align: left; font-size: 11.5px; text-transform: uppercase; letter-spacing: .6px;
+    color: var(--faint); font-weight: 700; padding: 14px 16px; border-bottom: 1px solid var(--border);
+    cursor: pointer; user-select: none; white-space: nowrap;
+  }
+  .table thead th .arrow { opacity: .4; font-size: 10px; }
+  .table thead th.sorted .arrow { opacity: 1; color: var(--accent); }
+  .table thead th:hover { color: var(--muted); }
+  .table tbody td { padding: 13px 16px; border-bottom: 1px solid var(--border); font-size: 14px; vertical-align: middle; }
+  .table tbody tr { cursor: pointer; transition: background .14s var(--ease); }
+  .table tbody tr:hover { background: var(--surface-2); }
+  .table tbody tr:last-child td { border-bottom: 0; }
+
+  .user-cell { display: flex; align-items: center; gap: 12px; }
+  .avatar {
+    width: 40px; height: 40px; border-radius: 12px; flex: 0 0 auto;
+    background: linear-gradient(135deg, #6d5cff, #22d3ee); display: grid; place-items: center;
+    color: #fff; font-weight: 700; font-size: 15px; object-fit: cover;
+  }
+  .user-cell .nm { font-weight: 650; display: flex; align-items: center; gap: 6px; }
+  .user-cell .un { font-size: 12.5px; color: var(--muted); }
+
+  .badge {
+    display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 999px;
+    font-size: 12px; font-weight: 650; border: 1px solid var(--border);
+  }
+  .badge.free { color: var(--muted); background: var(--surface); }
+  .badge.paid { color: var(--accent-2); background: rgba(34,211,238,.10); border-color: rgba(34,211,238,.3); }
+  .badge.vip  { color: var(--vip); background: rgba(240,171,252,.10); border-color: rgba(240,171,252,.32); }
+
+  .pill { font-variant-numeric: tabular-nums; font-weight: 650; }
+  .pill.gp { color: var(--warn); }
+  .js-edit-gp { cursor: pointer; user-select: none; }
+  .js-edit-gp:hover .pill { box-shadow: 0 0 0 2px var(--accent); }
+  .row-actions { white-space: nowrap; text-align: right; }
+  .mini-btn {
+    width: 32px; height: 32px; border-radius: 9px; border: 1px solid var(--border);
+    background: var(--surface); color: var(--text); cursor: pointer; display: inline-grid;
+    place-items: center; transition: .16s var(--ease); font-size: 15px;
+  }
+  .mini-btn:hover { background: var(--surface-2); border-color: var(--border-strong); }
+  .mini-btn.danger { color: var(--bad); border-color: rgba(251,113,133,.3); }
+  .mini-btn.danger:hover { background: rgba(251,113,133,.12); }
+  .mini-btn.ok { color: var(--good); border-color: rgba(52,211,153,.3); }
+  .mini-btn.ok:hover { background: rgba(52,211,153,.12); }
+
+  /* inline edit popover */
+  .inline-pop {
+    position: fixed; z-index: 95; background: var(--bg-2); border: 1px solid var(--border-strong);
+    border-radius: 12px; padding: 8px; box-shadow: var(--shadow); display: none; gap: 6px; align-items: center;
+  }
+  .inline-pop.open { display: flex; }
+  .inline-pop input {
+    width: 92px; padding: 7px 9px; border-radius: 9px; background: var(--surface);
+    border: 1px solid var(--border); outline: none; font-size: 14px;
+  }
+  .inline-pop input:focus { border-color: var(--accent); }
+  .inline-pop .hint { font-size: 11px; color: var(--muted); padding: 0 2px; }
+
+  /* lessons editor */
+  .lesson-list { display: flex; flex-direction: column; gap: 5px; }
+  .lesson-row {
+    display: flex; align-items: center; gap: 10px; padding: 8px 11px; border-radius: 10px;
+    background: var(--surface); border: 1px solid var(--border); cursor: pointer; transition: .14s var(--ease);
+  }
+  .lesson-row:hover { background: var(--surface-2); border-color: var(--border-strong); }
+  .lesson-row input[type="checkbox"] { width: 17px; height: 17px; accent-color: var(--accent); cursor: pointer; flex: 0 0 auto; }
+  .lesson-row .lr-tag { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); background: var(--surface-2); padding: 2px 7px; border-radius: 6px; }
+  .lesson-row .lr-id { font-size: 13.5px; font-weight: 600; }
+  .lesson-row .lr-gp { margin-left: auto; font-size: 12px; color: var(--warn); font-weight: 650; }
+  .muted { color: var(--muted); }
+  .faint { color: var(--faint); font-size: 12.5px; }
+
+  /* ---------- Pagination ---------- */
+  .pager { display: flex; align-items: center; gap: 10px; padding: 14px 16px; flex-wrap: wrap; }
+  .pager .info { color: var(--muted); font-size: 13px; }
+  .pager .sp { flex: 1; }
+  .pgbtn {
+    width: 34px; height: 34px; border-radius: 10px; border: 1px solid var(--border);
+    background: var(--surface); cursor: pointer; transition: .16s var(--ease); color: var(--text);
+  }
+  .pgbtn:hover:not(:disabled) { background: var(--surface-2); border-color: var(--border-strong); }
+  .pgbtn:disabled { opacity: .4; cursor: default; }
+  .pgbtn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+  /* ---------- Empty / loading ---------- */
+  .empty { padding: 60px 20px; text-align: center; color: var(--muted); }
+  .empty .big { font-size: 40px; margin-bottom: 10px; }
+  .skeleton { color: transparent; background: linear-gradient(90deg, var(--surface), var(--surface-2), var(--surface)); background-size: 200% 100%; animation: sh 1.2s infinite; border-radius: 8px; }
+  @keyframes sh { to { background-position: -200% 0; } }
+
+  /* ---------- Drawer ---------- */
+  .scrim {
+    position: fixed; inset: 0; background: rgba(0,0,0,.5); backdrop-filter: blur(2px);
+    opacity: 0; pointer-events: none; transition: .25s var(--ease); z-index: 40;
+  }
+  .scrim.open { opacity: 1; pointer-events: auto; }
+  .drawer {
+    position: fixed; top: 0; right: 0; height: 100%; width: min(460px, 100%);
+    background: var(--bg-2); border-left: 1px solid var(--border); z-index: 50;
+    transform: translateX(100%); transition: transform .32s var(--ease);
+    display: flex; flex-direction: column; box-shadow: -30px 0 60px -30px rgba(0,0,0,.7);
+  }
+  .drawer.open { transform: translateX(0); }
+  .drawer-head { padding: 22px 22px 18px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 14px; }
+  .drawer-head .avatar { width: 52px; height: 52px; border-radius: 14px; font-size: 19px; }
+  .drawer-head h2 { font-size: 18px; font-weight: 750; }
+  .drawer-head .un { color: var(--muted); font-size: 13px; }
+  .drawer-body { padding: 20px 22px 40px; overflow-y: auto; flex: 1; }
+  .closex { margin-left: auto; }
+
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 18px; }
+  .kv { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 11px 13px; }
+  .kv .k { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+  .kv .v { font-size: 16px; font-weight: 700; margin-top: 3px; }
+
+  .section-title { font-size: 12px; text-transform: uppercase; letter-spacing: .7px; color: var(--faint); font-weight: 700; margin: 22px 0 10px; display: flex; align-items: center; gap: 8px; }
+  .section-title::after { content: ""; flex: 1; height: 1px; background: var(--border); }
+
+  .list { display: flex; flex-direction: column; gap: 8px; }
+  .row-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); }
+  .row-item .ico { width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; background: var(--surface-2); flex: 0 0 auto; font-size: 14px; }
+  .row-item .main { flex: 1; min-width: 0; }
+  .row-item .main .t { font-size: 13.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .row-item .main .s { font-size: 12px; color: var(--muted); }
+  .row-item .amt { font-weight: 700; font-variant-numeric: tabular-nums; }
+  .row-item .amt.pos { color: var(--good); }
+  .row-item .amt.neg { color: var(--bad); }
+
+  .tag { display: inline-block; padding: 2px 8px; border-radius: 7px; font-size: 11.5px; font-weight: 650; background: var(--surface-2); border: 1px solid var(--border); color: var(--muted); }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+
+  /* ---------- Drawer actions ---------- */
+  .drawer-actions { display: flex; gap: 8px; margin: 4px 0 22px; flex-wrap: wrap; }
+  .act-btn {
+    flex: 1 1 auto; padding: 10px 12px; border-radius: 11px; cursor: pointer; font-weight: 650;
+    font-size: 13px; border: 1px solid var(--border); background: var(--surface); color: var(--text);
+    transition: .16s var(--ease); display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  }
+  .act-btn:hover { background: var(--surface-2); border-color: var(--border-strong); }
+  .act-btn.danger { color: var(--bad); border-color: rgba(251,113,133,.3); }
+  .act-btn.danger:hover { background: rgba(251,113,133,.12); }
+  .act-btn.warn { color: var(--warn); border-color: rgba(251,191,36,.3); }
+  .act-btn.warn:hover { background: rgba(251,191,36,.12); }
+  .act-btn.info { color: var(--accent); border-color: rgba(140,226,200,.3); }
+  .act-btn.info:hover { background: rgba(140,226,200,.12); }
+
+  /* ---------- Modal ---------- */
+  .modal-scrim {
+    position: fixed; inset: 0; background: rgba(0,0,0,.55); backdrop-filter: blur(3px);
+    display: grid; place-items: center; padding: 20px; z-index: 90;
+    opacity: 0; pointer-events: none; transition: .2s var(--ease);
+  }
+  .modal-scrim.open { opacity: 1; pointer-events: auto; }
+  .modal {
+    width: 100%; max-width: 380px; background: var(--bg-2); border: 1px solid var(--border-strong);
+    border-radius: 18px; padding: 22px; box-shadow: var(--shadow);
+    transform: scale(.96); transition: transform .2s var(--ease);
+  }
+  .modal-scrim.open .modal { transform: scale(1); }
+  .modal h3 { font-size: 17px; margin-bottom: 6px; }
+  .modal .muted { font-size: 13px; margin-bottom: 16px; }
+  .modal input {
+    width: 100%; padding: 11px 14px; border-radius: 12px; background: var(--surface);
+    border: 1px solid var(--border); outline: none; margin-bottom: 12px; transition: .16s var(--ease);
+  }
+  .modal input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(124,92,255,.15); }
+  .seg2 { display: inline-flex; background: var(--surface); border: 1px solid var(--border); border-radius: 11px; padding: 3px; gap: 2px; margin-bottom: 12px; width: 100%; }
+  .seg2 button { flex: 1; border: 0; background: transparent; color: var(--muted); cursor: pointer; padding: 8px; border-radius: 8px; font-size: 13px; font-weight: 600; transition: .16s var(--ease); }
+  .seg2 button.active { background: linear-gradient(135deg, var(--accent), #946bff); color: #fff; }
+  .modal-actions { display: flex; gap: 10px; margin-top: 6px; }
+  .modal-actions .btn-primary, .modal-actions .btn-ghost, .modal-actions .btn-danger { flex: 1; padding: 11px; border: 0; border-radius: 11px; cursor: pointer; font-weight: 700; font-size: 14px; }
+  .btn-ghost { background: var(--surface); border: 1px solid var(--border) !important; color: var(--text); }
+  .btn-danger { background: var(--bad); color: #fff; }
+  .btn-danger:hover { filter: brightness(1.06); }
+  .modal-err { color: var(--bad); font-size: 12.5px; min-height: 16px; margin-bottom: 4px; }
+
+  /* ---------- Test-accounts panel ---------- */
+  .testpanel { margin: 16px 0 4px; }
+  .testpanel .tp-head { display: flex; align-items: center; gap: 10px; }
+  .testpanel .tp-head .spacer { flex: 1; }
+  .testpanel .tp-count { font-size: 13px; color: var(--muted); }
+  .testpanel .list { margin-top: 12px; display: flex; flex-direction: column; gap: 6px; max-height: 220px; overflow-y: auto; }
+  .testpanel .row-item .main .t { font-size: 13px; }
+  .testpanel .row-item .main .s { font-size: 11.5px; }
+
+  /* ---------- Login ---------- */
+  .login-wrap { position: fixed; inset: 0; display: grid; place-items: center; padding: 20px; z-index: 60; background: var(--bg); }
+  .login-card { width: 100%; max-width: 380px; background: var(--surface); border: 1px solid var(--border); border-radius: 22px; padding: 32px 28px; box-shadow: var(--shadow); text-align: center; }
+  .login-card .logo { width: 56px; height: 56px; margin: 0 auto 16px; border-radius: 16px; font-size: 26px; }
+  .login-card h2 { font-size: 20px; margin-bottom: 6px; }
+  .login-card p { color: var(--muted); font-size: 13.5px; margin-bottom: 22px; }
+  .login-card input { width: 100%; padding: 13px 15px; border-radius: 13px; background: var(--bg-2); border: 1px solid var(--border); outline: none; margin-bottom: 12px; transition: .18s var(--ease); }
+  .login-card input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(124,92,255,.15); }
+  .btn-primary {
+    width: 100%; padding: 13px; border: 0; border-radius: 13px; cursor: pointer;
+    background: linear-gradient(135deg, var(--accent), #946bff); color: #fff; font-weight: 700; font-size: 15px;
+    transition: .18s var(--ease); box-shadow: 0 10px 26px -10px var(--accent);
+  }
+  .btn-primary:hover { transform: translateY(-1px); filter: brightness(1.05); }
+  .btn-primary:active { transform: translateY(0); }
+  .login-err { color: var(--bad); font-size: 13px; min-height: 18px; margin-top: 6px; }
+  .hidden { display: none !important; }
+
+  /* ---------- Toast ---------- */
+  .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(20px); z-index: 80; background: var(--bg-2); border: 1px solid var(--border-strong); padding: 12px 18px; border-radius: 13px; box-shadow: var(--shadow); opacity: 0; transition: .25s var(--ease); font-size: 14px; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  @media (max-width: 760px) {
+    .table thead { display: none; }
+    .table, .table tbody, .table tr, .table td { display: block; width: 100%; }
+    .table tbody tr { border: 1px solid var(--border); border-radius: 14px; margin-bottom: 10px; padding: 6px 4px; }
+    .table tbody td { border: 0; display: flex; justify-content: space-between; align-items: center; padding: 9px 14px; }
+    .table tbody td::before { content: attr(data-label); color: var(--faint); font-size: 12px; font-weight: 600; }
+    .table tbody td.user-td { justify-content: flex-start; }
+    .table tbody td.user-td::before { display: none; }
+    .toolbar { gap: 8px; }
+    .stat .value { font-size: 22px; }
+  }
+</style>
+</head>
+<body>
+  <!-- LOGIN -->
+  <div class="login-wrap" id="loginWrap">
+    <form class="login-card" id="loginForm">
+      <div class="logo">🎧</div>
+      <h2>Open Deck · CRM</h2>
+      <p>Панель управления учениками. Введите пароль администратора.</p>
+      <input type="password" id="keyInput" placeholder="ADMIN_KEY" autocomplete="current-password" />
+      <button class="btn-primary" type="submit" id="loginBtn">Войти</button>
+      <div class="login-err" id="loginErr"></div>
+    </form>
+  </div>
+
+  <!-- APP -->
+  <div class="app hidden" id="app">
+    <header class="topbar">
+      <div class="brand">
+        <div class="logo">🎧</div>
+        <div>
+          <h1>Open Deck</h1>
+          <div class="sub">CRM · ученики DJ School</div>
+        </div>
+      </div>
+      <div class="spacer"></div>
+      <button class="iconbtn" id="themeBtn" title="Тема">🌙</button>
+      <button class="iconbtn" id="logoutBtn" title="Выйти">⎋</button>
+    </header>
+
+    <section class="stats" id="stats"></section>
+
+    <div class="toolbar">
+      <div class="search">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+        <input type="text" id="search" placeholder="Поиск: имя, @username, код, ID…" />
+      </div>
+      <div class="segment" id="segStatus">
+        <button data-status="all" class="active">Все</button>
+        <button data-status="free">Бесплатные</button>
+        <button data-status="paid">Платные</button>
+        <button data-status="vip">VIP</button>
+      </div>
+      <select class="select" id="sortSel" title="Сортировка">
+        <option value="created">Сначала новые</option>
+        <option value="created:asc">Сначала старые</option>
+        <option value="name">По имени</option>
+        <option value="last_seen">По активности</option>
+        <option value="gp">По GP</option>
+        <option value="refers">По рефералам</option>
+        <option value="lessons">По урокам</option>
+      </select>
+    </div>
+
+    <!-- Test accounts cleanup -->
+    <div class="card testpanel hidden" id="testPanel">
+      <div class="tp-head">
+        <div class="section-title" style="margin:0">🧪 Тестовые аккаунты</div>
+        <span class="tp-count" id="testCount"></span>
+        <span class="spacer"></span>
+        <button class="act-btn danger" id="testDeleteBtn" style="flex:0 0 auto">Удалить все</button>
+      </div>
+      <div class="list" id="testList"></div>
+    </div>
+
+    <div class="card">
+      <table class="table">
+        <thead>
+          <tr>
+            <th data-sort="name">Ученик <span class="arrow"></span></th>
+            <th data-sort="status" data-nosort="1">Статус <span class="arrow"></span></th>
+            <th data-sort="gp">GP <span class="arrow"></span></th>
+            <th data-sort="lessons">Уроки <span class="arrow"></span></th>
+            <th data-sort="refers">Рефералы <span class="arrow"></span></th>
+            <th data-sort="bonus">Бонусы <span class="arrow"></span></th>
+            <th data-sort="last_seen">Заходил <span class="arrow"></span></th>
+            <th data-sort="created">Регистрация <span class="arrow"></span></th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+      <div class="pager" id="pager"></div>
+    </div>
+  </div>
+
+  <!-- DRAWER -->
+  <div class="scrim" id="scrim"></div>
+  <aside class="drawer" id="drawer">
+    <div class="drawer-head">
+      <div class="avatar" id="dAvatar">·</div>
+      <div>
+        <h2 id="dName">—</h2>
+        <div class="un" id="dUser">—</div>
+      </div>
+      <button class="iconbtn closex" id="closeDrawer">✕</button>
+    </div>
+    <div class="drawer-body" id="drawerBody"></div>
+  </aside>
+
+  <!-- GP edit modal -->
+  <div class="modal-scrim" id="gpModal">
+    <div class="modal">
+      <h3>Счёт в звёздах (GP)</h3>
+      <p class="muted" id="gpWho">—</p>
+      <div class="seg2" id="gpModeSeg">
+        <button data-mode="set" class="active">Установить</button>
+        <button data-mode="add">Начислить</button>
+        <button data-mode="subtract">Списать</button>
+      </div>
+      <input type="number" id="gpAmount" placeholder="Количество ⭐" />
+      <div class="modal-err" id="gpErr"></div>
+      <div class="modal-actions">
+        <button class="btn-ghost" id="gpCancel">Отмена</button>
+        <button class="btn-primary" id="gpSave">Сохранить</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- confirm modal -->
+  <div class="modal-scrim" id="confirmModal">
+    <div class="modal">
+      <h3 id="confirmTitle">Подтвердить</h3>
+      <p class="muted" id="confirmText">—</p>
+      <div class="modal-actions">
+        <button class="btn-ghost" id="confirmCancel">Отмена</button>
+        <button class="btn-danger" id="confirmOk">Удалить</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <!-- inline GP editor popover -->
+  <div class="inline-pop" id="inlinePop">
+    <input type="number" id="inlineGpInput" min="0" />
+    <button class="mini-btn ok" id="inlineSave" title="Сохранить">✓</button>
+    <button class="mini-btn" id="inlineCancel" title="Отменить">✕</button>
+  </div>
+
+<script>
+(function () {
+  const $ = (s) => document.querySelector(s);
+  const api = (path, opts) => fetch(path, Object.assign({ credentials: "same-origin" }, opts));
+
+  // ---------- state ----------
+  let state = { q: "", status: "all", sort: "created", order: "desc", page: 1, per_page: 25, total: 0 };
+
+  // ---------- theme ----------
+  const themeBtn = $("#themeBtn");
+  function applyTheme(t) {
+    document.documentElement.setAttribute("data-theme", t);
+    themeBtn.textContent = t === "dark" ? "🌙" : "☀️";
+    try { localStorage.setItem("crm_theme", t); } catch (e) {}
+  }
+  applyTheme((() => { try { return localStorage.getItem("crm_theme") || "dark"; } catch (e) { return "dark"; } })());
+  themeBtn.onclick = () => applyTheme(document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark");
+
+  // ---------- toast ----------
+  let toastT;
+  function toast(msg) {
+    const t = $("#toast"); t.textContent = msg; t.classList.add("show");
+    clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove("show"), 2600);
+  }
+
+  // ---------- helpers ----------
+  function esc(s) { return (s == null ? "" : String(s)).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
+  function safeUrl(s) {
+    if (s == null) return '';
+    const u = String(s).trim();
+    return /^(https?:\/\/|tg:\/\/)/i.test(u) ? u : '';
+  }
+  function fmtDate(s) {
+    if (!s) return "—";
+    const d = new Date(s.replace(" ", "T") + "Z");
+    if (isNaN(d)) return s;
+    return d.toLocaleDateString("ru-RU", { day: "2-digit", month: "short", year: "numeric" });
+  }
+  function fmtDateTime(s) {
+    if (!s) return "—";
+    const d = new Date(s.replace(" ", "T") + "Z");
+    if (isNaN(d)) return s;
+    return d.toLocaleString("ru-RU", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
+  }
+  function initials(name) {
+    const p = (name || "?").trim().split(/\s+/);
+    return ((p[0] || "")[0] || "?").toUpperCase() + ((p[1] || "")[0] || "");
+  }
+  function statusBadge(s) {
+    const map = { free: ["free", "Бесплатный"], paid: ["paid", "Платный"], vip: ["vip", "VIP"] };
+    const [cls, label] = map[s] || map.free;
+    return `<span class="badge ${cls}">${label}</span>`;
+  }
+
+  // ---------- auth ----------
+  async function boot() {
+    try {
+      const r = await api("/api/crm/stats");
+      if (r.ok) { enter(); loadAll(); }
+      else { showLogin(); }
+    } catch (e) { showLogin(); }
+  }
+  function showLogin() { $("#loginWrap").classList.remove("hidden"); $("#app").classList.add("hidden"); }
+  function enter() { $("#loginWrap").classList.add("hidden"); $("#app").classList.remove("hidden"); }
+
+  $("#loginForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const key = $("#keyInput").value;
+    const btn = $("#loginBtn"); btn.disabled = true; btn.textContent = "…";
+    try {
+      const r = await api("/crm/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key }) });
+      if (r.ok) { enter(); loadAll(); toast("Добро пожаловать 👋"); }
+      else { const j = await r.json().catch(() => ({})); $("#loginErr").textContent = j.error === "bad_key" ? "Неверный пароль" : "Ошибка входа"; }
+    } catch (e) { $("#loginErr").textContent = "Сетевая ошибка"; }
+    btn.disabled = false; btn.textContent = "Войти";
+  });
+
+  $("#logoutBtn").onclick = async () => {
+    await api("/crm/logout", { method: "POST" });
+    showLogin(); $("#keyInput").value = ""; $("#loginErr").textContent = "";
+  };
+
+  // ---------- load ----------
+  async function loadAll() {
+    await Promise.all([loadStats(), loadStudents()]);
+  }
+  async function loadStats() {
+    try {
+      const r = await api("/api/crm/stats");
+      const s = await r.json();
+      if (!r.ok) return;
+      const conv = (n) => (n / 1000).toFixed(1).replace(/\.0$/, "") + "K";
+      const convPct = (n) => (n >= 1000 ? (n / 1000).toFixed(1).replace(/\.0$/, "") + "K" : n);
+      const convOf = (n) => (n > 0 && s.total_users > 0 ? " · " + ((n / s.total_users) * 100).toFixed(0) + "%" : "");
+      const stat = (label, value, cls = "", sub = "") =>
+        `<div class="stat ${cls}"><div class="label"><span class="dot"></span>${esc(label)}</div>` +
+        `<div class="value">${esc(value)}</div>${sub ? `<div class="sub">${esc(sub)}</div>` : ""}</div>`;
+      const groups = [
+        { title: "Ученики", items: [
+          stat("Всего", s.total_users, "", `актив 24ч: ${s.active_today}`),
+          stat("Новые 7 дн", s.new_week, "accent", ""),
+          stat("Актив 24ч", s.active_today, "", ""),
+        ]},
+        { title: "Деньги", items: [
+          stat("Платные", s.paid_any, "good", `полный ${s.paid_full} · триал ${s.paid_tripwire}`),
+          stat("VIP (менторство)", s.paid_mentor, "vip", ""),
+          stat("Выручка (★)", convOf(parseInt(s.revenue_stars, 10) || 0), "good", ""),
+        ]},
+        { title: "Вовлечённость", items: [
+          stat("Рефералов", s.referrals_total, "accent", ""),
+          stat("GP в обороте", convPct(s.total_gp), "", ""),
+        ]},
+      ];
+      $("#stats").innerHTML = groups.map(g =>
+        `<div class="stat-group"><div class="stat-group-title">${esc(g.title)}</div>${g.items.join("")}</div>`
+      ).join("");
+    } catch (e) {}
+  }
+  async function loadStudents() {
+    const qs = new URLSearchParams({
+      q: state.q, status: state.status, sort: state.sort, order: state.order,
+      page: state.page, per_page: state.per_page,
+    });
+    const tbody = $("#tbody");
+    if (!tbody.dataset.loaded) tbody.innerHTML = `<tr><td colspan="7"><div class="empty">Загрузка…</div></td></tr>`;
+    try {
+      const r = await api("/api/crm/students?" + qs.toString());
+      if (r.status === 401) { showLogin(); return; }
+      const j = await r.json();
+      state.total = j.total;
+      renderStudents(j.students);
+      renderPager(j.total, j.page, j.per_page);
+      tbody.dataset.loaded = "1";
+    } catch (e) { tbody.innerHTML = `<tr><td colspan="7"><div class="empty">Ошибка загрузки</div></td></tr>`; }
+  }
+  function renderStudents(list) {
+    const tb = $("#tbody");
+    if (!list || !list.length) {
+      tb.innerHTML = `<tr><td colspan="7"><div class="empty"><div class="big">🪐</div>Никого не найдено</div></td></tr>`;
+      return;
+    }
+    tb.innerHTML = list.map(u => `
+      <tr data-id="${u.user_id}">
+        <td class="user-td" data-label="Ученик">
+          <div class="user-cell">
+            ${u.photo_url ? `<img class="avatar" src="${safeUrl(u.photo_url)}" alt="">` : `<div class="avatar">${initials(u.first_name)}</div>`}
+            <div>
+              <div class="nm">${esc(u.first_name || "Без имени")}</div>
+              <div class="un">${u.username ? "@" + esc(u.username) : "id " + u.user_id}</div>
+            </div>
+          </div>
+        </td>
+        <td data-label="Статус">${statusBadge(u.status)}</td>
+        <td data-label="GP"><span class="pill gp js-edit-gp" data-id="${u.user_id}" data-gp="${u.groove_points}">${u.groove_points.toLocaleString("ru-RU")}</span></td>
+        <td data-label="Уроки"><span class="pill">${u.lessons_done}</span></td>
+        <td data-label="Рефералы"><span class="pill">${u.refers_count}</span></td>
+        <td data-label="Бонусы">${u.bonus_unlocked > 0 ? `<span class="badge paid">${u.bonus_done}/${u.bonus_unlocked}</span>` : `<span class="faint">закрыты</span>`}</td>
+        <td data-label="Заходил"><span class="faint">${fmtDate(u.last_seen)}</span></td>
+        <td data-label="Регистрация"><span class="faint">${fmtDate(u.created_at)}</span></td>
+        <td data-label="" class="row-actions">
+          <button class="mini-btn danger" title="Удалить ученика" data-del="${u.user_id}">🗑</button>
+        </td>
+      </tr>`).join("");
+    tb.querySelectorAll("tr[data-id]").forEach(tr => {
+      tr.onclick = (e) => {
+        // не открывать drawer при клике на кнопку удаления / редактирования GP
+        if (e.target.closest("[data-del]") || e.target.closest(".js-edit-gp")) return;
+        openStudent(tr.dataset.id);
+      };
+    });
+    // делегирование: удаление строки
+    tb.querySelectorAll("[data-del]").forEach(b => {
+      b.onclick = (e) => {
+        e.stopPropagation();
+        const uid = b.dataset.del;
+        openConfirm("Удалить ученика?", `ID ${uid} будет удалён вместе с платежами, уроками и GP. Необратимо.`,
+          () => deleteUser(uid));
+      };
+    });
+    // делегирование: инлайн-редактирование GP
+    tb.querySelectorAll(".js-edit-gp").forEach(el => {
+      el.onclick = (e) => {
+        e.stopPropagation();
+        openInlineGp(el);
+      };
+    });
+  }
+
+  // ---------- Inline GP editor ----------
+  let inlineEl = null;
+  function openInlineGp(el) {
+    inlineEl = el;
+    const pop = $("#inlinePop");
+    const input = $("#inlineGpInput");
+    input.value = el.dataset.gp || "0";
+    // позиция рядом с элементом
+    const r = el.getBoundingClientRect();
+    pop.style.left = Math.min(window.innerWidth - 230, r.left) + "px";
+    pop.style.top = (r.bottom + 6) + "px";
+    pop.classList.add("open");
+    input.focus(); input.select();
+  }
+  function closeInlineGp() { $("#inlinePop").classList.remove("open"); inlineEl = null; }
+  $("#inlineCancel").onclick = closeInlineGp;
+  $("#inlineGpInput").addEventListener("keydown", (e) => { if (e.key === "Enter") $("#inlineSave").click(); if (e.key === "Escape") closeInlineGp(); });
+  document.addEventListener("click", (e) => {
+    const pop = $("#inlinePop");
+    if (pop.classList.contains("open") && !pop.contains(e.target) && !e.target.closest(".js-edit-gp")) closeInlineGp();
+  });
+  $("#inlineSave").onclick = async () => {
+    if (!inlineEl) return;
+    const uid = inlineEl.dataset.id;
+    const amt = parseInt($("#inlineGpInput").value, 10);
+    if (!Number.isFinite(amt) || amt < 0) { toast("Введите число ≥ 0"); return; }
+    try {
+      const r = await api(`/api/crm/student/${uid}/gp`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount: amt, mode: "set" }),
+      });
+      if (r.status === 401) { closeInlineGp(); showLogin(); return; }
+      if (!r.ok) { closeInlineGp(); toast("Ошибка сохранения"); return; }
+      const j = await r.json();
+      inlineEl.textContent = j.groove_points.toLocaleString("ru-RU");
+      inlineEl.dataset.gp = j.groove_points;
+      closeInlineGp();
+      toast(`GP установлен: ${j.groove_points} ⭐`);
+    } catch (e) { closeInlineGp(); toast("Сетевая ошибка"); }
+  };
+  function renderPager(total, page, per) {
+    const pages = Math.max(1, Math.ceil(total / per));
+    const pager = $("#pager");
+    let btns = "";
+    const win = [];
+    for (let i = Math.max(1, page - 2); i <= Math.min(pages, page + 2); i++) win.push(i);
+    btns += `<button class="pgbtn" data-pg="${page - 1}" ${page <= 1 ? "disabled" : ""}>‹</button>`;
+    win.forEach(p => btns += `<button class="pgbtn ${p === page ? "active" : ""}" data-pg="${p}">${p}</button>`);
+    btns += `<button class="pgbtn" data-pg="${page + 1}" ${page >= pages ? "disabled" : ""}>›</button>`;
+    pager.innerHTML = `<span class="info">Всего: <b>${total.toLocaleString("ru-RU")}</b> · стр. ${page} из ${pages}</span><span class="sp"></span>${btns}`;
+    pager.querySelectorAll(".pgbtn[data-pg]").forEach(b => {
+      b.onclick = () => { const p = +b.dataset.pg; if (p < 1 || p > pages || p === page) return; state.page = p; loadStudents(); $("#app").scrollIntoView({ behavior: "smooth", block: "start" }); };
+    });
+  }
+
+  // ---------- filters ----------
+  let searchT;
+  $("#search").addEventListener("input", (e) => {
+    clearTimeout(searchT);
+    searchT = setTimeout(() => { state.q = e.target.value.trim(); state.page = 1; loadStudents(); }, 280);
+  });
+  $("#segStatus").addEventListener("click", (e) => {
+    const b = e.target.closest("button"); if (!b) return;
+    $("#segStatus").querySelectorAll("button").forEach(x => x.classList.remove("active"));
+    b.classList.add("active"); state.status = b.dataset.status; state.page = 1; loadStudents();
+  });
+  $("#sortSel").addEventListener("change", (e) => {
+    const [s, o] = e.target.value.split(":"); state.sort = s; state.order = o || "desc"; state.page = 1; loadStudents();
+  });
+  document.querySelectorAll("th[data-sort]").forEach(th => {
+    if (th.dataset.nosort) return;
+    th.onclick = () => {
+      const s = th.dataset.sort;
+      if (state.sort === s) state.order = state.order === "desc" ? "asc" : "desc";
+      else { state.sort = s; state.order = "desc"; }
+      syncSortUI(); loadStudents();
+    };
+  });
+  function syncSortUI() {
+    document.querySelectorAll("th[data-sort]").forEach(th => {
+      const a = th.querySelector(".arrow");
+      if (th.dataset.sort === state.sort) { th.classList.add("sorted"); a.textContent = state.order === "asc" ? "▲" : "▼"; }
+      else { th.classList.remove("sorted"); a.textContent = ""; }
+    });
+    const sel = $("#sortSel");
+    if ([...sel.options].some(o => o.value === state.sort + ":" + state.order)) sel.value = state.sort + ":" + state.order;
+    else if ([...sel.options].some(o => o.value === state.sort)) sel.value = state.sort;
+  }
+
+  // ---------- drawer ----------
+  const scrim = $("#scrim"), drawer = $("#drawer");
+  function openDrawer() { scrim.classList.add("open"); drawer.classList.add("open"); }
+  function closeDrawer() { scrim.classList.remove("open"); drawer.classList.remove("open"); }
+  scrim.onclick = closeDrawer; $("#closeDrawer").onclick = closeDrawer;
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeDrawer(); });
+
+  async function openStudent(id) {
+    openDrawer();
+    $("#drawerBody").innerHTML = `<div class="empty"><div class="big">⏳</div>Загрузка профиля…</div>`;
+    $("#dName").textContent = "…"; $("#dUser").textContent = ""; $("#dAvatar").textContent = "·";
+    try {
+      const r = await api("/api/crm/student/" + id);
+      if (r.status === 401) { closeDrawer(); showLogin(); return; }
+      const s = await r.json();
+      if (s.error) { $("#drawerBody").innerHTML = `<div class="empty">Профиль не найден</div>`; return; }
+      renderStudent(s);
+    } catch (e) { $("#drawerBody").innerHTML = `<div class="empty">Ошибка загрузки</div>`; }
+  }
+
+  function renderStudent(s) {
+    const u = s.user;
+    const payTxt = s.paid_mentor ? "VIP · менторинг" : (s.paid_full ? "Прошёл полный курс" : (s.paid_tripwire ? "Трипвайр" : "Бесплатный"));
+    $("#dName").textContent = u.first_name || "Без имени";
+    $("#dUser").textContent = (u.username ? "@" + u.username : "id " + u.user_id) + " · " + (u.archetype || "");
+    const av = $("#dAvatar");
+    if (u.photo_url) { av.outerHTML = `<img class="avatar" id="dAvatar" src="${safeUrl(u.photo_url)}">`; }
+    else { av.textContent = initials(u.first_name); }
+
+    // actions
+    let actions = `<div class="drawer-actions">
+      <button class="act-btn warn" id="actGp">⭐ Счёт</button>
+      <button class="act-btn info" id="actFree">🔓 В бесплатный</button>
+      <button class="act-btn danger" id="actDel">🗑 Удалить</button>
+    </div>`;
+    const kv = (k, v) => `<div class="kv"><div class="k">${k}</div><div class="v">${v}</div></div>`;
+    let html = actions + `<div class="grid2">
+      ${kv("GP баланс", `<span style="color:var(--warn)">${s.gp.toLocaleString("ru-RU")}</span>`)}
+      ${kv("Статус", payTxt)}
+      ${kv("Рефералов", s.referrals_count)}
+      ${kv("Реф-код", `<span class="tag">${esc(u.referral_code || "—")}</span>`)}
+      ${kv("Приглашён", s.inviter ? esc(s.inviter.first_name || s.inviter.user_id) : "— сам")}
+      ${kv("Уроков", (s.lessons || []).filter(l => l.completed).length)}
+    </div>`;
+
+    // lesson progress editor
+    const lessons = (s.lessons || []).slice().sort((a, b) =>
+      (a.course_id === b.course_id) ? a.lesson_id - b.lesson_id : (a.course_id < b.course_id ? -1 : 1));
+    if (lessons.length) {
+      const items = lessons.map(l => `
+        <label class="lesson-row">
+          <input type="checkbox" class="js-lesson" data-course="${esc(l.course_id)}" data-lesson="${l.lesson_id}" ${l.completed ? "checked" : ""}/>
+          <span class="lr-tag">${esc(l.course_id)}</span>
+          <span class="lr-id">ур. ${l.lesson_id}</span>
+          ${l.gp_earned ? `<span class="lr-gp">+${l.gp_earned}★</span>` : ""}
+        </label>`).join("");
+      html += `<div class="section-title">📚 Прогресс уроков <span class="faint">(клик — изменить)</span></div><div class="lesson-list">${items}</div>`;
+    }
+
+    // payments
+    html += `<div class="section-title">💳 Платежи</div>`;
+    if (s.payments && s.payments.length) {
+      html += `<div class="list">` + s.payments.map(p => `
+        <div class="row-item">
+          <div class="ico">💳</div>
+          <div class="main"><div class="t">${esc(p.course_id)}</div><div class="s">${esc(p.provider || "")} · ${fmtDateTime(p.created_at)}</div></div>
+          <div class="amt ${p.status === "paid" ? "pos" : ""}">${p.status === "paid" ? "✓" : "·"} ${p.amount ? p.amount + "★" : ""}</div>
+        </div>`).join("") + `</div>`;
+    } else html += `<div class="faint" style="padding:4px 0">Платежей нет</div>`;
+
+    // referrals
+    html += `<div class="section-title">🤝 Приглашённые</div>`;
+    if (s.referrals && s.referrals.length) {
+      html += `<div class="list">` + s.referrals.map(rf => `
+        <div class="row-item">
+          <div class="ico">👤</div>
+          <div class="main"><div class="t">${esc(rf.first_name || "Без имени")}</div><div class="s">${rf.username ? "@" + esc(rf.username) : "id " + rf.user_id} · ${fmtDate(rf.created_at)}</div></div>
+          <div class="amt">${rf.groove_points ? rf.groove_points + "★" : ""}</div>
+        </div>`).join("") + `</div>`;
+    } else html += `<div class="faint" style="padding:4px 0">Никого не пригласил</div>`;
+
+    // transactions
+    html += `<div class="section-title">📈 История GP</div>`;
+    if (s.transactions && s.transactions.length) {
+      html += `<div class="list">` + s.transactions.slice(0, 40).map(t => {
+        const neg = t.amount < 0;
+        return `<div class="row-item">
+          <div class="ico">${neg ? "🔻" : "🔺"}</div>
+          <div class="main"><div class="t">${esc(t.action_type)}</div><div class="s">${fmtDateTime(t.timestamp)}</div></div>
+          <div class="amt ${neg ? "neg" : "pos"}">${neg ? "" : "+"}${t.amount}</div>
+        </div>`;
+      }).join("") + `</div>`;
+    } else html += `<div class="faint" style="padding:4px 0">Нет движений</div>`;
+
+    // badges
+    if (s.badges && s.badges.length) {
+      html += `<div class="section-title">🏅 Бейджи</div><div class="chips">` +
+        s.badges.map(b => `<span class="tag">${esc(b)}</span>`).join("") + `</div>`;
+    }
+
+    $("#drawerBody").innerHTML = html;
+
+    // bind lesson checkboxes
+    $("#drawerBody").querySelectorAll(".js-lesson").forEach(cb => {
+      cb.onchange = async () => {
+        const course = cb.dataset.course, lesson = parseInt(cb.dataset.lesson, 10);
+        cb.disabled = true;
+        try {
+          const r = await api(`/api/crm/student/${s.user.user_id}/lesson`, {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ course_id: course, lesson_id: lesson, completed: cb.checked }),
+          });
+          if (r.status === 401) { showLogin(); return; }
+          if (!r.ok) { toast("Ошибка сохранения урока"); cb.checked = !cb.checked; }
+          else { toast(cb.checked ? "Урок отмечен" : "Урок снят"); }
+        } catch (e) { toast("Сетевая ошибка"); cb.checked = !cb.checked; }
+        cb.disabled = false;
+      };
+    });
+
+    // bind actions
+    $("#actGp").onclick = () => openGpModal(s.user.user_id, s.user.first_name, s.gp);
+    $("#actFree").onclick = () => openConfirm(
+      "Сбросить в бесплатный?",
+      `«${s.user.first_name || s.user.user_id}» станет бесплатным: удаляются все платежи. GP и прогресс уроков сохраняются. Для теста paywall.`,
+      () => resetFree(s.user.user_id)
+    );
+    $("#actDel").onclick = () => openConfirm(
+      "Удалить ученика?",
+      `«${s.user.first_name || s.user.user_id}» будет удалён вместе с платежами, уроками и GP. Действие необратимо.`,
+      () => deleteUser(s.user.user_id)
+    );
+  }
+
+  // ---------- GP modal ----------
+  let gpState = { uid: null, mode: "set" };
+  function openGpModal(uid, name, current) {
+    gpState = { uid, mode: "set" };
+    $("#gpWho").textContent = `${name || uid} · сейчас: ${current} ⭐`;
+    $("#gpAmount").value = "";
+    $("#gpErr").textContent = "";
+    $("#gpModeSeg").querySelectorAll("button").forEach(b => b.classList.toggle("active", b.dataset.mode === "set"));
+    $("#gpModal").classList.add("open");
+    setTimeout(() => $("#gpAmount").focus(), 50);
+  }
+  function closeGpModal() { $("#gpModal").classList.remove("open"); }
+  $("#gpModeSeg").addEventListener("click", (e) => {
+    const b = e.target.closest("button"); if (!b) return;
+    gpState.mode = b.dataset.mode;
+    $("#gpModeSeg").querySelectorAll("button").forEach(x => x.classList.remove("active"));
+    b.classList.add("active");
+  });
+  $("#gpCancel").onclick = closeGpModal;
+  $("#gpModal").addEventListener("click", (e) => { if (e.target.id === "gpModal") closeGpModal(); });
+  $("#gpSave").onclick = async () => {
+    const amt = parseInt($("#gpAmount").value, 10);
+    if (!Number.isFinite(amt) || amt < 0) { $("#gpErr").textContent = "Введите неотрицательное число"; return; }
+    try {
+      const r = await api(`/api/crm/student/${gpState.uid}/gp`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount: amt, mode: gpState.mode }),
+      });
+      if (r.status === 401) { closeGpModal(); showLogin(); return; }
+      if (!r.ok) { const j = await r.json().catch(()=>({})); $("#gpErr").textContent = j.error || "Ошибка"; return; }
+      const j = await r.json();
+      closeGpModal(); toast(`Счёт обновлён: ${j.groove_points} ⭐`);
+      // обновить список и, если открыт, профиль
+      loadStudents();
+    } catch (e) { $("#gpErr").textContent = "Сетевая ошибка"; }
+  };
+
+  // ---------- Confirm modal ----------
+  let confirmCb = null;
+  function openConfirm(title, text, cb) {
+    $("#confirmTitle").textContent = title;
+    $("#confirmText").textContent = text;
+    confirmCb = cb;
+    $("#confirmModal").classList.add("open");
+  }
+  function closeConfirm() { $("#confirmModal").classList.remove("open"); confirmCb = null; }
+  $("#confirmCancel").onclick = closeConfirm;
+  $("#confirmModal").addEventListener("click", (e) => { if (e.target.id === "confirmModal") closeConfirm(); });
+  $("#confirmOk").onclick = async () => {
+    const cb = confirmCb; closeConfirm(); if (cb) await cb();
+  };
+
+  async function deleteUser(uid) {
+    const r = await api(`/api/crm/student/${uid}?confirm=1`, { method: "DELETE" });
+    if (r.status === 401) { showLogin(); return; }
+    if (r.ok) { toast("Ученик удалён"); closeDrawer(); loadStudents(); }
+    else { toast("Не удалось удалить"); }
+  }
+
+  async function resetFree(uid) {
+    const r = await api(`/api/crm/student/${uid}/reset-free`, { method: "POST" });
+    if (r.status === 401) { showLogin(); return; }
+    if (r.ok) { toast("Сброшено в бесплатный ✅"); closeDrawer(); loadStudents(); }
+    else { toast("Не удалось сбросить"); }
+  }
+
+  // ---------- Test accounts panel ----------
+  async function loadTestAccounts() {
+    try {
+      const r = await api("/api/crm/test-accounts");
+      if (!r.ok) return;
+      const j = await r.json();
+      const panel = $("#testPanel");
+      if (!j.accounts.length) { panel.classList.add("hidden"); return; }
+      panel.classList.remove("hidden");
+      const rows = j.accounts.map(a => `
+        <div class="row-item">
+          <div class="ico">🧪</div>
+          <div class="main"><div class="t">${esc(a.first_name || "Без имени")}</div><div class="s">${a.username ? "@" + esc(a.username) : "id " + a.user_id} · ${a.groove_points} ⭐</div></div>
+        </div>`).join("");
+      $("#testList").innerHTML = rows;
+      $("#testCount").textContent = `Найдено тестовых: ${j.accounts.length}`;
+    } catch (e) {}
+  }
+  $("#testDeleteBtn").onclick = () => openConfirm(
+    "Удалить все тестовые аккаунты?",
+    "Будут каскадно удалены все аккаунты с именами Tester / E2E / Adhoc / Live* и username 'tester'. Действие необратимо.",
+    async () => {
+      const r = await api("/api/crm/test-accounts/delete", {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ confirm: true }),
+      });
+      if (r.status === 401) { showLogin(); return; }
+      const j = await r.json().catch(()=>({}));
+      toast(j.deleted ? `Удалено тестовых: ${j.deleted}` : "Тестовых нет");
+      loadStudents(); loadTestAccounts();
+    }
+  );
+
+  boot();
+  // подгрузить тестовые аккаунты сразу после входа
+  const _enter = enter;
+  enter = function () { _enter(); loadTestAccounts(); };
+})();
+</script>
+</body>
+</html>

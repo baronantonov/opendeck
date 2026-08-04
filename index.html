@@ -111,6 +111,7 @@
     .btn:active{transform:scale(.97)}
     .btn.mint{background:var(--accent-mint);color:#1c201e}
     .btn.ghost{background:rgba(255,255,255,0.08);color:var(--text-primary)}
+    .btn.alt{background:linear-gradient(135deg,#8ce2c8,#f5926e);color:#1c201e}
 
     /* ---- APPLE/DECK: большая круглая Play-кнопка как на диджейской деке ---- */
     .play-deck{
@@ -771,8 +772,12 @@
           <span>🎧 Полный курс Pocket DJ</span><br>
           <small style="font-weight:600;opacity:.85">2100 ⭐ · + бонусы</small>
         </button>
+        <button class="btn alt" id="pw-prodamus" onclick="bookPayProdamus('dj-basics')">
+          <span>💳 Картой / СБП (РФ)</span><br>
+          <small style="font-weight:600;opacity:.85">МИР · Visa · СБП · рассрочка</small>
+        </button>
       </div>
-      <p style="font-size:11px;color:var(--text-secondary);opacity:.7;margin:8px 0 14px">Оплата через Telegram Stars. Любой платёж открывает все уроки.</p>
+      <p style="font-size:11px;color:var(--text-secondary);opacity:.7;margin:8px 0 14px">Оплата через Telegram Stars или картой/СБП через Prodamus. Любой платёж открывает все уроки.</p>
       <button class="btn ghost" style="width:100%;padding:10px" onclick="hidePaywall()">Позже</button>
     </div>
   </div>
@@ -1693,43 +1698,69 @@
       const btn = document.querySelector('#paywall .btn');
       if(btn) btn.disabled = false;
     }
-    // PLAY A: покупка курса (tripwire / full) через Telegram Stars
-    function bookPay(courseId){
-      showToast('⏳', 'Создаём счёт...');
-      const btn = document.querySelector('#paywall .btn');
+    // PLAY A+: покупка курса через Prodamus (карта/СБП РФ).
+    // ВАЖНО: открываем ВНЕШНИМ браузером (tg.openLink), НЕ в webview Mini App —
+    // чтобы снизить риск бана бота и корректно принять 3-D Secure / СБП.
+    // Подтверждение оплаты придёт webhook-ом на бэкенд, юзер вернётся в Mini App
+    // по urlSuccess (авто-обновление state через pollHasPaid).
+    function bookPayProdamus(courseId){
+      showToast('⏳', 'Создаём платёж...');
+      const btn = document.getElementById('pw-prodamus');
       if(btn) btn.disabled = true;
       fetch(API_BASE + '/api/create-invoice', {
         method:'POST',
         headers:{'Content-Type':'application/json','X-Init-Data': tg.initData || ''},
-        body: JSON.stringify({ course_id: courseId })
+        body: JSON.stringify({ course_id: courseId, provider: 'prodamus' })
       }).then(r=>r.ok ? r.json() : r.json().then(()=>null)).then(data=>{
         if(btn) btn.disabled = false;
-        if(!data || !data.invoice_link){
-          showToast('❌', 'Не удалось создать счёт. Попробуй позже.');
+        if(!data || !data.pay_url){
+          const detail = data && data.error ? data.error : '';
+          if(detail === 'prodamus_not_configured'){
+            showToast('⚠️', 'Prodamus не настроен. Попробуй Stars.');
+          } else {
+            showToast('❌', 'Не удалось создать платёж. Попробуй позже.');
+          }
           return;
         }
-        tg.openInvoice(data.invoice_link, (status) => {
-          if(status === 'paid'){
-            // Бот зафиксирует платёж (on_paid → /api/grant) и обновит has_paid.
-            // Перезагружаем state, чтобы пейвол больше не мешал.
-            state.isPaid = true;
-            if(courseId === 'dj-basics') state.paidFull = true;
-            hidePaywall();
-            // Закрыть модалку урока (если открыта) и перерисовать курс — доступ открыт
-            try { closeLesson(); } catch(_){}
-            renderCourse();
-            updateUI();
-            showToast('✅', 'Доступ открыт! Смотри все уроки 🎧');
-          } else if(status === 'cancelled'){
-            showToast('👋', 'Платёж отменён');
-          } else {
-            showToast('❌', 'Ошибка оплаты');
-          }
-        });
+        // открываем платёжную страницу Prodamus во внешнем браузере
+        try {
+          if(tg.openLink){ tg.openLink(data.pay_url); }
+          else { window.open(data.pay_url, '_blank'); }
+        } catch(_){
+          window.open(data.pay_url, '_blank');
+        }
+        showToast('💳', 'Оплата открылась в браузере. Вернись сюда после оплаты.');
+        // фоновый опрос: как только webhook выдаст доступ — обновляем UI
+        pollHasPaid(courseId);
       }).catch(()=>{
         if(btn) btn.disabled = false;
         showToast('❌', 'Ошибка сети. Проверь подключение.');
       });
+    }
+
+    // Опрашиваем бэкенд, пока не подтвердится оплата (webhook от Prodamus).
+    function pollHasPaid(courseId){
+      let tries = 0;
+      const timer = setInterval(async () => {
+        tries++;
+        if(tries > 30){ clearInterval(timer); return; } // ~60с
+        try {
+          const r = await fetch(API_BASE + '/api/lessons?course_id=' + courseId, {
+            headers:{'X-Init-Data': tg.initData || ''}
+          });
+          const j = await r.json();
+          if(j && j.paid){
+            clearInterval(timer);
+            state.isPaid = true;
+            if(courseId === 'dj-basics') state.paidFull = true;
+            hidePaywall();
+            try { closeLesson(); } catch(_){}
+            renderCourse();
+            updateUI();
+            showToast('✅', 'Доступ открыт! Смотри все уроки 🎧');
+          }
+        } catch(_){}
+      }, 2000);
     }
 
     function bookMentor(){

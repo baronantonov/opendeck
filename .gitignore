@@ -17,3 +17,6 @@ tunnel.log
 
 # local virtualenv (matches actual folder name)
 .venv/
+
+# Hermes agent working dir
+.hermes/

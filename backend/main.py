@@ -29,6 +29,7 @@ from pydantic import BaseModel
 
 from backend.auth import verify_init_data
 import backend.db as db
+import backend.prodamus_sign as prodamus_sign
 
 db.init()
 
@@ -615,6 +616,7 @@ def _ab_price(course_id: str, uid: int | None) -> tuple[int, str]:
 class CreateInvoice(BaseModel):
     course_id: str = "dj-basics"
     price: int | None = None  # если передан — переопределяет цену по-умолчанию
+    provider: str = "stars"   # stars | prodamus | ton
 
 @app.post("/api/create-invoice")
 async def create_invoice(
@@ -644,6 +646,33 @@ async def create_invoice(
         label = "Персональное менторство FREEDA DJ"
     else:
         return JSONResponse({"error": "unknown_course"}, status_code=400)
+
+    # --- Prodamus (карта/СБП РФ): внешний редирект, подтверждение по webhook ---
+    if body.provider == "prodamus":
+        from bot.payments.prodamus import ProdamusProvider
+        prov = ProdamusProvider()
+        # цена в рублях: берём эквивалент Stars*0.0213 (курс ~ $0.0213/Star,
+        # 1 Star ≈ 1.7₽), округляем до целых; для полного курса 2100 Stars ≈ 3570₽
+        rub = max(1, round(price * 1.7))
+        inv = await prov.create_invoice(uid, course_id, f"{rub} RUB")
+        if inv.meta.get("not_configured"):
+            return JSONResponse(
+                {"error": "prodamus_not_configured",
+                 "detail": "Prodamus не настроен (нужны PAYFORM_URL, SECRET_KEY, SYS_CODE)"},
+                status_code=503,
+            )
+        if not inv.url_or_payload:
+            return JSONResponse(
+                {"error": "prodamus_invoice_failed", "detail": inv.meta},
+                status_code=502,
+            )
+        return {
+            "provider": "prodamus",
+            "pay_url": inv.url_or_payload,
+            "order_id": inv.meta.get("order_id"),
+            "title": label,
+            "price_rub": rub,
+        }
 
     async with httpx.AsyncClient(timeout=10) as c:
         resp = await c.post(
@@ -730,25 +759,43 @@ async def grant(
     return {"ok": True}
 
 
-# ---- POST /webhooks/prodamus (unchanged) ----
+# ---- POST /webhooks/prodamus ----
+# Prodamus шлёт POST form-data + заголовок `Sign` (подпись HMAC-SHA256).
+# Алгоритм проверки — как в мануале Hmac::verify: берём все поля КРОМЕ
+# signature/Sign, сортируем ключи, json, экранируем '/', sha256 секретом.
+# Подтверждение оплаты = только этот webhook с валидной подписью.
 
 @app.post("/webhooks/prodamus")
-async def prodamus_webhook(req: Request, x_signature: str = Header(None)):
-    import hashlib, hmac, json
-    body = await req.body()
-    secret_raw = os.getenv("PRODAMUS_WEBHOOK_SECRET", "")
+async def prodamus_webhook(req: Request, sign: str = Header(None, alias="Sign")):
+    secret_raw = os.getenv("PRODAMUS_SECRET_KEY", "")
     if not secret_raw:
         return JSONResponse({"error": "webhook_not_configured"}, status_code=500)
-    secret = secret_raw.encode()
-    expected = hmac.new(secret, body, hashlib.sha256).hexdigest()
-    if not hmac.compare_digest(expected, x_signature or ""):
+
+    # Prodamus присылает form-data (application/x-www-form-urlencoded).
+    # Парсим тело вручную (без зависимости от python-multipart), т.к.
+    # в рантаймеuvicorn его может не быть -> AssertionError на req.form().
+    from urllib.parse import parse_qs
+    raw = (await req.body()).decode("utf-8", "ignore")
+    parsed = parse_qs(raw, keep_blank_values=True)
+    form_dict = {k: (v[0] if isinstance(v, list) and v else "") for k, v in parsed.items()}
+
+    if not prodamus_sign.verify_webhook(form_dict, secret_raw, sign):
         return JSONResponse({"error": "bad_signature"}, status_code=400)
-    data = json.loads(body)
-    if data.get("status") == "paid":
-        order_id = data["order_id"]
+
+    # Prodamus присылает статус оплаты в поле `status` (например "paid").
+    status = form_dict.get("status") or form_dict.get("payment_status")
+    order_id = form_dict.get("order_id") or ""
+
+    if status == "paid" and order_id:
         if db.is_webhook_processed(order_id):
             return {"ok": True, "duplicate": True}
-        user_id, course_id = order_id.split(":", 1)
-        db.add_payment(int(user_id), course_id, "prodamus", status="paid")
-        db.mark_webhook_processed(order_id)
+        try:
+            user_id, course_id = order_id.split(":", 1)
+            db.add_payment(int(user_id), course_id, "prodamus", status="paid",
+                           raw=json.dumps(form_dict, ensure_ascii=False)[:4000])
+            db.mark_webhook_processed(order_id)
+        except Exception:
+            # невалидный order_id — логируем, но отвечаем 200, чтобы Prodamus
+            # не спамил повторами
+            pass
     return {"ok": True}

@@ -76,10 +76,15 @@ TON_NETWORK = os.getenv("TON_NETWORK", "mainnet")
 TON_MERCHANT_WALLET = os.getenv("TON_MERCHANT_WALLET", "")
 TON_RPC = os.getenv("TON_RPC", "https://toncenter.com/api/v2/jsonRPC")
 
-# Prodamus (внешний редирект через openLink)
+# Prodamus (внешний редирект через openLink) — реальный REST API payform.ru
+# URL платёжной страницы вида https://<поддомен>.payform.ru/ (из адресной строки)
+PRODAMUS_PAYFORM_URL = os.getenv("PRODAMUS_PAYFORM_URL", "")
+# Секретный ключ платёжной страницы (раздел «Где найти url для уведомлений и секретный ключ»)
+PRODAMUS_SECRET_KEY = os.getenv("PRODAMUS_SECRET_KEY", "")
+# Код интеграции SYS (согласуется с поддержкой Prodamus). Один на всех клиентов интеграции.
+PRODAMUS_SYS_CODE = os.getenv("PRODAMUS_SYS_CODE", "")
+# API-ключ (логи/доп. вызовы). НЕ используется при формировании ссылки.
 PRODAMUS_API_KEY = os.getenv("PRODAMUS_API_KEY", "")
-PRODAMUS_SHOP_ID = os.getenv("PRODAMUS_SHOP_ID", "")
-PRODAMUS_WEBHOOK_SECRET = os.getenv("PRODAMUS_WEBHOOK_SECRET", "")
 
 # Backend (где живёт раздача уроков / выдача доступа)
 BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")

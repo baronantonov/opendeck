@@ -605,7 +605,7 @@
           <div class="play-deck-label" id="play-label">Начать урок 1</div>
           <div><a class="upgrade-link" onclick="switchTab('upgrade')">Персональное менторство →</a></div>
         </div>
-        <div class="gp-value">За каждый пройденный урок — <b>+50 ⭐</b>. Stars дают скидку на менторство с FREEDA DJ.</div>
+        <div class="gp-value">За каждый урок курса — <b>+50 ⭐</b>, за бонус-урок (теорию) — <b>+200 ⭐</b>. Stars дают скидку на менторство с FREEDA DJ.</div>
         <button class="btn ghost" style="width:auto;padding:10px 18px;margin-top:10px" onclick="switchTab('bonus')">🎁 Бонусные уроки</button>
       </div>
 
@@ -637,6 +637,27 @@
           </button>
         </div>
         <div id="up-status" style="font-size:12px;color:var(--accent-mint);margin:4px 0 14px;min-height:16px"></div>
+      </div>
+
+      <!-- PLAY: скидка за теорию + рефералка = бесплатный рост -->
+      <div class="offer" style="border-color:rgba(140,226,200,0.30);background:rgba(140,226,200,0.04)">
+        <div class="pill" style="color:var(--accent-mint)">Бесплатная скидка</div>
+        <h2>Заработай Stars бесплатно</h2>
+        <p style="color:var(--text-secondary);font-size:14px;line-height:1.5;margin:0 0 14px">
+          Досмотри все <b>бонус-уроки (теорию)</b> — получи <b>+200 ⭐</b> за каждый.
+          Или пригласи друзей: <b>+100 ⭐</b> вам обоим, <b>+500 ⭐</b> за покупку каждым,
+          и <b>до +2500 ⭐</b> за 10 друзей. Накопленные Stars = скидка на курс и менторство.
+        </p>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <button class="btn mint" onclick="switchTab('bonus')">
+            <span>📚 Смотреть бонус-уроки (теорию)</span><br>
+            <small style="font-weight:600;opacity:.85" id="theory-progress">0 / 4 пройдено</small>
+          </button>
+          <button class="btn" onclick="shareInvite()">
+            <span>👥 Пригласить друга</span><br>
+            <small style="font-weight:600;opacity:.85" id="ref-progress-mini">0 друзей • 0 ⭐</small>
+          </button>
+        </div>
       </div>
 
       <div class="offer">
@@ -875,6 +896,7 @@
     const state = {
       isPaid: false,          // PLAY A: куплен ли доступ (tripwire/full) — для пейвола
       paidFull: false,
+      freeLessons: 1,         // бесплатных уроков (порог входа, с бэкенда FREE_LESSONS)
       ab: {},                  // A/B-варианты (локализация и т.п.)
       user: { name: userName, archetype: "Куратор Вайба", groovePoints: 0, referralCode: '', referralFriends: 0, referralGpEarned: 0 },
       courseProgress: { currentLessonId: null, completedLessons: [] },
@@ -1001,6 +1023,11 @@
         else if(!state.isPaid){ pl.textContent = 'Открыть доступ · 500 ⭐'; }   // BC: CTA покупки
         else { pl.textContent = 'Продолжить · урок ' + Math.min(dc+1, tc); }
       }
+      // ---- Бесплатная скидка: прогресс по теории и рефералке (вкладка «Развитие») ----
+      const tp = document.getElementById('theory-progress');
+      if(tp){ const b = state.user.bonusLessons || 0; tp.textContent = `${b} / 4 пройдено`; }
+      const rm = document.getElementById('ref-progress-mini');
+      if(rm){ rm.textContent = `${(state.user.referralFriends||0)} друзей • ${(state.user.referralGpEarned||0)} ⭐`; }
     }
     updateUI();
     function applyAvatar(){
@@ -1055,7 +1082,13 @@
           state.user.archetype = j.user.archetype || 'Куратор Вайба';
           state.isPaid = !!(j.paid);            // PLAY A: флаг оплаты для пейвола
           state.paidFull = !!(j.paid_full);
+          state.freeLessons = (j.course && j.course.free_lessons) || 1;
           updateUI();
+          // Этап 1 staged-onboarding: первый вход — мягко показать зачем ⭐ (без блокировки)
+          if((j.course.completed_lessons || []).length === 0 && !seenTip('intro_econ')){
+            markTip('intro_econ');
+            setTimeout(()=> showToast('✨', 'Смотри уроки → получай <b>⭐ Stars</b> → трать на скидку курса. Приведёшь друга — <b>по 100 ⭐</b> вам обоим. Начнём с урока 1!'), 1200);
+          }
           // Снять skeleton (данные пришли)
           ['gp','done-n','lesson-n','next-lesson','bar-wrap'].forEach(id=>{
             const el = document.getElementById(id); if(el) el.classList.remove('skel');
@@ -1117,6 +1150,13 @@
       document.getElementById('toast-msg').innerHTML = msg;
       t.classList.add('show');
       setTimeout(()=> t.classList.remove('show'), 4000);
+    }
+    // staged-onboarding: помечать «видел тултип», чтобы не спамить (Trophy: мягкие подсказки лучше туториалов)
+    function seenTip(key){
+      try { return !!JSON.parse(tg.DeviceStorage.get('tips') || '{}')[key]; } catch(_){ return false; }
+    }
+    function markTip(key){
+      try { const o = JSON.parse(tg.DeviceStorage.get('tips') || '{}'); o[key]=1; tg.DeviceStorage.set('tips', JSON.stringify(o)); } catch(_){}
     }
     function shareInvite(){
       const code = state.user.referralCode;
@@ -1290,12 +1330,26 @@
       if(fc){
         const n = state.user.referralFriends || 0;
         const gp = state.user.referralGpEarned || 0;
+        // ближайший милестоун и его награда (двусторонний + бонусы за покупку)
+        const MS = {1: 100, 3: 300, 5: 1000, 10: 2500};
+        const nextN = [1,3,5,10].find(m => m > n);
+        let hint = '';
+        if(nextN !== undefined){
+          const reward = (nextN-1)*500 + MS[nextN];  // база 500/покупка + милестоун
+          hint = ` • до +${reward} ⭐ осталось ${nextN - n}`;
+        }
+        fc.textContent = '👥 ' + n + ' друг' + (n===1?'':'ей') + ' • ' + gp + ' ⭐ заработано' + hint;
         const milestones = [1,3,5,10];
         const next = milestones.find(m => m > n) || milestones[milestones.length-1];
         const pct = Math.min(100, (n / next) * 100);
-        fc.textContent = '👥 ' + n + ' друг' + (n===1?'':'ей') + ' • ' + gp + ' ⭐ заработано';
         const bar = document.getElementById('ref-bar');
         if(bar) bar.style.width = pct + '%';
+        // Этап 5 staged-onboarding: празднуем достижение милестоуна (3/5/10 друзей)
+        if(MS[n] !== undefined && !seenTip('ms_'+n)){
+          markTip('ms_'+n);
+          const labels = {1:'Первый друг!', 3:'Ты — наставник 🔥', 5:'Реф-лидер ⭐', 10:'Легенда школы 👑'};
+          setTimeout(()=> showToast('🎉', `${labels[n]} <b>+${MS[n]} ⭐</b> бонусом за ${n} друз${n===1?'а':'ей'}!`), 400);
+        }
       }
     }
 
@@ -1309,7 +1363,13 @@
         b.classList.toggle('active', b.dataset.tab===tab);
       });
       if(tab==='course') renderCourse();
-      if(tab==='upgrade') updateUI();
+      if(tab==='upgrade'){
+        updateUI();
+        if(!seenTip('upgrade_how')){
+          markTip('upgrade_how');
+          setTimeout(()=> showToast('💡', 'Здесь курс и менторство. Но <b>часть ⭐ можно заработать бесплатно</b>: бонус-уроки (+200⭐ за каждый) и друзья (+100⭐ вам обоим).'), 600);
+        }
+      }
       if(tab==='profile'){ updateUIRefLink(); updateGamification(); }
       if(tab==='bonus') renderBonus();
     }
@@ -1329,7 +1389,12 @@
     function renderBonus(){
       const box = document.getElementById('tab-bonus');
       box.innerHTML = '<h2 style="font-size:20px;margin-bottom:6px">🎁 Бонусные уроки</h2>'
-        + '<p style="color:var(--text-secondary);font-size:13px;margin:0 0 14px">Открываются по мере прохождения основного курса. За каждый — +50 ⭐.</p>';
+        + '<p style="color:var(--text-secondary);font-size:13px;margin:0 0 14px">Теория курса — смотри в свободное время. <b>За каждый бонус-урок +200 ⭐</b> (жирнее, чем основной).</p>';
+      // одноразовый тултип: почему это выгодно (staged, неблокирующий)
+      if(!seenTip('bonus_theory')){
+        markTip('bonus_theory');
+        setTimeout(()=> showToast('📚', 'Бонус-уроки — это теория. Досмотришь все 4 → ачивка «Теоретик» и <b>+800 ⭐</b> на скидку курса.'), 600);
+      }
       // Рисуем уроки СРАЗУ из локального state (без задержки на сеть),
       // затем, если API ответил, перерисовываем с реальным прогрессом.
       paintBonus(null, box);
@@ -1396,7 +1461,7 @@
           <h2 style="font-size:20px;margin-bottom:14px">${esc(lesson.title)}</h2>
           ${playerHTML}
           <ul class="summary">${bullets}</ul>
-          <button class="btn" id="finishBtn" style="opacity:0.4;pointer-events:none" onclick="completeBonusLesson(${id})">Завершить урок (+50 ⭐)</button>
+          <button class="btn" id="finishBtn" style="opacity:0.4;pointer-events:none" onclick="completeBonusLesson(${id})">Завершить урок (+200 ⭐)</button>
           <p class="hint" id="finishHint" style="text-align:center;color:var(--text-secondary);font-size:12px;margin-top:10px">Досмотри видео до конца – и кнопка станет активной</p>`;
         if(src && !isYT) setupVideo(src);
         else if(src && isYT) enableYTControls(src);
@@ -1474,9 +1539,9 @@
 
     function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
     function openLesson(id, l){
-      // PLAY A: платный урок (не 1-й) и нет доступа → сразу paywall, без видео
-      const isFirst = (id === 1);
-      if(!state.isPaid && !isFirst){
+      // PLAY A: платный урок (не из бесплатного порога) и нет доступа → сразу paywall, без видео
+      const isFreeLesson = (id <= (state.freeLessons || 1));
+      if(!state.isPaid && !isFreeLesson){
         showPaywall('dj-basics');
         return;
       }
@@ -1649,7 +1714,7 @@
               // ---- PLAY: после Урока 1 — предложить пригласить друга (Точка Б) ----
               if(id === 1){
                 setTimeout(()=>{
-                  showToast('🎵', 'Позови напарника в дуэт!<br><b>Дарим по 50 ⭐</b> вам обоим 🎧<br><br><button class="btn" style="font-size:13px;padding:8px 20px;background:var(--accent-coral)" onclick="shareInvite()">Пригласить друга</button>');
+                  showToast('🎵', 'Позови напарника в дуэт!<br><b>Дарим по 100 ⭐</b> вам обоим 🎧<br>Приведёшь 3-х друзей — ещё <b>+300 ⭐</b><br><br><button class="btn" style="font-size:13px;padding:8px 20px;background:var(--accent-coral)" onclick="shareInvite()">Пригласить друга</button>');
                 }, 800);
                 // BC: Day-0 конверсия — если ещё не купил, предложить доступ сразу
                 if(!state.isPaid){

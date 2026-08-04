@@ -139,6 +139,17 @@ before = gp(inviter_id)
 r = client.post("/api/gp/spend", json={"amount": 75, "reason": "streak_freeze"}, headers=ua(inviter_id))
 check("streak-freeze списал 75", r.status_code == 200 and (before - gp(inviter_id)) == 75, f"delta={before-gp(inviter_id)}")
 
+print("== FREE_LESSONS флаг воронки ==")
+# урок 1 — бесплатен (FREE_LESSONS=1)
+r = client.post("/api/progress", json={"course_id": "dj-basics", "lesson_id": 1}, headers=ua(base+10))
+check("free-урок 1 без оплаты -> 200", r.status_code == 200, f"status={r.status_code}")
+# урок 2 — заблокирован без оплаты (403 not_paid)
+r = client.post("/api/progress", json={"course_id": "dj-basics", "lesson_id": 2}, headers=ua(base+11))
+check("урок 2 без оплаты -> 403", r.status_code == 403, f"status={r.status_code}")
+# init отдаёт free_lessons
+r = client.post("/api/init", json={"init_data": sign_init(base+12), "start_param": ""})
+check("init.free_lessons == 1", r.json().get("course", {}).get("free_lessons") == 1)
+
 print()
 print(f"ИТОГО: {passed} PASS / {failed} FAIL")
 sys.exit(1 if failed else 0)

@@ -92,6 +92,12 @@ BONUS_NEW_TO_OLD = {i: i for i in BONUS_OLD_IDS}
 TOTAL_MAIN = len(MAIN_OLD_IDS)
 TOTAL_BONUS = len(BONUS_OLD_IDS)
 
+# A/B эксперимент: сколько основных уроков бесплатны (порог входа).
+# База = 1 (урок 1 как крючок, tripwire-воронка). Поднять до 2 дало бы
+# больше «вкуса» перед paywall — НО это снижает Day-0 конверсию (Adapty: 90%
+# trial в первой сессии). Держим 1, флаг готов к A/B через assign_ab_variant.
+FREE_LESSONS = 1
+
 COURSE_MAIN = [
     {"id": i + 1, "title": COURSE[COURSE_ID][MAIN_OLD_IDS[i] - 1]["title"]}
     for i in range(TOTAL_MAIN)
@@ -204,6 +210,7 @@ def _course_response(uid: int) -> dict:
         "bonus_lessons": bonus_completed,
         "total_bonus_lessons": bonus_total,
         "bonus_unlocked": len(main_completed) >= main_total,
+        "free_lessons": FREE_LESSONS,
     }
 
 
@@ -409,12 +416,13 @@ async def progress(
         return {"gp": gp, "completed": completed, "bonus": True}
 
     # ---- ОСНОВНОЙ КУРС (платный доступ) ----
-    # ВОРОНКА: урок 1 — бесплатный (tripwire-вход), остальные — после оплаты.
+    # ВОРОНКА: первые FREE_LESSONS уроков — бесплатно (tripwire-вход),
+    # остальные — после оплаты.
     if p.course_id == COURSE_ID and p.lesson_id in MAIN_NEW_IDS:
-        is_first_lesson = (p.lesson_id == 1)
+        is_free_lesson = (p.lesson_id <= FREE_LESSONS)
         paid_full = db.has_paid(uid, p.course_id)
         paid_tw = db.has_paid(uid, "tripwire")
-        if not paid_full and not paid_tw and not is_first_lesson:
+        if not paid_full and not paid_tw and not is_free_lesson:
             return JSONResponse({"error": "not_paid", "paid": False}, status_code=403)
     old_id = NEW_TO_OLD.get(p.lesson_id, p.lesson_id)
     gp = db.complete_lesson(uid, p.course_id, old_id)

@@ -759,25 +759,24 @@
   </nav>
 
   <!-- PLAY A: Paywall-модалка (закрывает дыру воронки — курс иначе бесплатен) -->
+  <!-- Единый экран: 1 курс + выбор способа оплаты (Stars / карта-СБП через Prodamus) -->
   <div class="modal-mask hidden" id="paywall" onclick="if(event.target===this)hidePaywall()">
     <div class="modal" style="max-width:360px">
       <h3 id="pw-title" style="font-size:19px;margin-bottom:6px">Открой доступ к курсу 🔥</h3>
       <p id="pw-sub" style="color:var(--text-secondary);font-size:13px;margin:0 0 14px">Пройди ещё уроки и стань DJ</p>
+
+      <!-- Выбор способа оплаты -->
       <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:6px">
-        <button class="btn mint" id="pw-tripwire" onclick="bookPay('tripwire')">
-          <span>⚡ Быстрый старт · уроки 1–4</span><br>
-          <small style="font-weight:600;opacity:.85">500 ⭐</small>
+        <button class="btn mint" id="pw-stars" onclick="bookPay(currentPaywallCourse)">
+          <span>⭐ Оплатить Stars</span><br>
+          <small id="pw-stars-price" style="font-weight:600;opacity:.85">2100 ⭐</small>
         </button>
-        <button class="btn" id="pw-full" onclick="bookPay('dj-basics')">
-          <span>🎧 Полный курс Pocket DJ</span><br>
-          <small style="font-weight:600;opacity:.85">2100 ⭐ · + бонусы</small>
-        </button>
-        <button class="btn alt" id="pw-prodamus" onclick="bookPayProdamus('dj-basics')">
+        <button class="btn alt" id="pw-card" onclick="bookPayProdamus(currentPaywallCourse)">
           <span>💳 Картой / СБП (РФ)</span><br>
-          <small style="font-weight:600;opacity:.85">МИР · Visa · СБП · рассрочка</small>
+          <small id="pw-card-price" style="font-weight:600;opacity:.85">МИР · Visa · СБП · рассрочка</small>
         </button>
       </div>
-      <p style="font-size:11px;color:var(--text-secondary);opacity:.7;margin:8px 0 14px">Оплата через Telegram Stars или картой/СБП через Prodamus. Любой платёж открывает все уроки.</p>
+      <p style="font-size:11px;color:var(--text-secondary);opacity:.7;margin:8px 0 14px">Выбери способ: Stars (внутри Telegram) или карта/СБП через Prodamus. Любой платёж открывает все уроки.</p>
       <button class="btn ghost" style="width:100%;padding:10px" onclick="hidePaywall()">Позже</button>
     </div>
   </div>
@@ -1313,7 +1312,7 @@
     function heroPlay(){
       const dc = state.courseProgress.completedLessons.length;
       if(!state.isPaid && dc >= 1){
-        showPaywall();
+        showPaywall('dj-basics');
         return;
       }
       switchTab('course');
@@ -1470,7 +1469,7 @@
       // PLAY A: платный урок (не 1-й) и нет доступа → сразу paywall, без видео
       const isFirst = (id === 1);
       if(!state.isPaid && !isFirst){
-        showPaywall();
+        showPaywall('dj-basics');
         return;
       }
       document.body.style.filter='';   // снять защитное размытие при открытии урока
@@ -1624,7 +1623,7 @@
               // PLAY A: дыра воронки закрыта — не пишем локально, а показываем paywall
               const sk = document.getElementById('finishBtn');
               if(sk){ sk.style.opacity='0.4'; sk.style.pointerEvents='none'; }
-              showPaywall();
+              showPaywall('dj-basics');
               return null;
             }
             if(r.ok) return r.json();
@@ -1647,7 +1646,7 @@
                 // BC: Day-0 конверсия — если ещё не купил, предложить доступ сразу
                 if(!state.isPaid){
                   setTimeout(()=>{
-                    showToast('🔥', 'Понравилось?<br>Открой все уроки курса<br><br><button class="btn" style="font-size:13px;padding:8px 20px;background:var(--accent-mint);color:#10201b" onclick="showPaywall()">Открыть доступ · 500 ⭐</button>');
+                    showToast('🔥', 'Понравилось?<br>Открой все уроки курса<br><br><button class="btn" style="font-size:13px;padding:8px 20px;background:var(--accent-mint);color:#10201b" onclick="showPaywall(\'tripwire\')">Открыть доступ · 500 ⭐</button>');
                   }, 4200);
                 }
               }
@@ -1683,7 +1682,20 @@
       setTimeout(()=>b.remove(), 1000);
     }
 
-    function showPaywall(){
+    // Единый paywall: курс + выбор способа (Stars / карта). currentPaywallCourse
+    // используется кнопками pw-stars / pw-card. Цены берём из COURSE_PRICES.
+    let currentPaywallCourse = 'dj-basics';
+    const COURSE_PRICES = {
+      'tripwire': { stars: '500 ⭐', rub: '≈ 850 ₽' },
+      'dj-basics': { stars: '2100 ⭐', rub: '≈ 3570 ₽' },
+    };
+    function showPaywall(courseId){
+      currentPaywallCourse = courseId || 'dj-basics';
+      const p = COURSE_PRICES[currentPaywallCourse] || COURSE_PRICES['dj-basics'];
+      const sp = document.getElementById('pw-stars-price');
+      const cp = document.getElementById('pw-card-price');
+      if(sp) sp.textContent = p.stars;
+      if(cp) cp.textContent = p.rub + ' · МИР · Visa · СБП';
       const pw = document.getElementById('paywall');
       if(pw) pw.classList.remove('hidden');
       haptic('impactOccurred');
@@ -1761,6 +1773,44 @@
           }
         } catch(_){}
       }, 2000);
+    }
+
+    // PLAY A: покупка курса (tripwire / full) через Telegram Stars (нативно).
+    // Бот зафиксирует платёж по successful_payment -> /api/grant, а фронт
+    // обновит state, чтобы пейвол больше не мешал.
+    function bookPay(courseId){
+      showToast('⏳', 'Создаём счёт...');
+      const btn = document.getElementById('pw-stars');
+      if(btn) btn.disabled = true;
+      fetch(API_BASE + '/api/create-invoice', {
+        method:'POST',
+        headers:{'Content-Type':'application/json','X-Init-Data': tg.initData || ''},
+        body: JSON.stringify({ course_id: courseId })
+      }).then(r=>r.ok ? r.json() : r.json().then(()=>null)).then(data=>{
+        if(btn) btn.disabled = false;
+        if(!data || !data.invoice_link){
+          showToast('❌', 'Не удалось создать счёт. Попробуй позже.');
+          return;
+        }
+        tg.openInvoice(data.invoice_link, (status) => {
+          if(status === 'paid'){
+            state.isPaid = true;
+            if(courseId === 'dj-basics') state.paidFull = true;
+            hidePaywall();
+            try { closeLesson(); } catch(_){}
+            renderCourse();
+            updateUI();
+            showToast('✅', 'Доступ открыт! Смотри все уроки 🎧');
+          } else if(status === 'cancelled'){
+            showToast('👋', 'Платёж отменён');
+          } else {
+            showToast('❌', 'Ошибка оплаты');
+          }
+        });
+      }).catch(()=>{
+        if(btn) btn.disabled = false;
+        showToast('❌', 'Ошибка сети. Проверь подключение.');
+      });
     }
 
     function bookMentor(){

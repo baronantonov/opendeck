@@ -87,24 +87,29 @@ class ProdamusProvider(PaymentProvider):
         except Exception:
             amount_rub = 1990
 
+        # Плоские поля (как в мануале Prodamus): products[0][name] и т.д.
+        # httpx сериализует dict с такими ключами в корректный
+        # application/x-www-form-urlencoded (НЕ как JSON-массив).
+        # ВНИМАНИЕ: твоя платёжная форма (baronantonov.payform.ru) в текущем
+        # режиме НЕ требует и НЕ проверяет поле signature при создании ссылки —
+        # передача signature вызывает 400. Поэтому шлём параметры БЕЗ подписи;
+        # подпись проверяется только на входящем webhook (см. backend/main.py).
         params: dict = {
             "do": "link",
             "sys": config.PRODAMUS_SYS_CODE,
             "order_id": order_id,
             "currency": "rub",
-            "products": [
-                {
-                    "name": "Курс DJ School — Open Deck",
-                    "price": amount_rub,
-                    "quantity": 1,
-                    "type": "course",
-                }
-            ],
+            "products[0][name]": "Курс DJ School — Open Deck",
+            "products[0][price]": amount_rub,
+            "products[0][quantity]": 1,
+            "products[0][type]": "course",
             "urlNotification": f"{config.BACKEND_URL}/webhooks/prodamus",
             "urlSuccess": f"{config.MINI_APP_URL}",
             "urlReturn": f"{config.MINI_APP_URL}",
         }
-        params["signature"] = sign_params(params, config.PRODAMUS_SECRET_KEY)
+        # Подпись НЕ отправляется (форма не проверяет её при создании ссылки).
+        # sign_params оставлен для справки / если включите проверку в кабинете.
+        # params["signature"] = sign_params(params, config.PRODAMUS_SECRET_KEY)
 
         try:
             async with httpx.AsyncClient(timeout=15, follow_redirects=False) as c:

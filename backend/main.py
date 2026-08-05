@@ -577,6 +577,30 @@ async def gp_earn(
     return result
 
 
+# ---- POST /api/archetype/share — Share-your-archetype Team Loop ----
+
+@app.post("/api/archetype/share")
+async def archetype_share(
+    req: Request,
+    x_init_data: str = Header("", alias="X-Init-Data"),
+):
+    """Пользователь поделился карточкой своего архетипа (DJ-персоны).
+
+    Фронтенд рендерит карточку (canvas) и шерит её через TG shareToStory /
+    Web Share API / clipboard, а ПОСЛЕ этого зовёт этот эндпоинт, чтобы
+    сервер начислил +20 GP ЗА ОДИН РАЗ (idempotent, см. db.apply_archetype_share).
+
+    Сервер — единственный авторитет по GP: фронт НЕ начисляет сам (иначе
+    двойная выплата при реплее/двойном тапе). Награда привязана к факту
+    шера карточки, что поднимает виральность без спам-брибов.
+    """
+    uid = _resolve_uid(x_init_data, None, {})
+    if uid is None:
+        return JSONResponse({"error": "bad_init_data"}, status_code=401)
+    result = db.apply_archetype_share(uid)
+    return result
+
+
 # ---- Цены в Stars ----
 # 1 Star ≈ $0.014 для покупателя. Цена с учётом комиссии Apple/Google (~30% на мобильных).
 # Creator получает ~$0.013 за Star после вывода.

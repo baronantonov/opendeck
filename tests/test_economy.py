@@ -150,6 +150,25 @@ check("урок 2 без оплаты -> 403", r.status_code == 403, f"status={r
 r = client.post("/api/init", json={"init_data": sign_init(base+12), "start_param": ""})
 check("init.free_lessons == 1", r.json().get("course", {}).get("free_lessons") == 1)
 
+print("== P2: Share-archetype Team Loop (idempotent +20) ==")
+share_uid = base + 20
+client.post("/api/init", json={"init_data": sign_init(share_uid, "Sharer"), "start_param": ""})
+before = gp(share_uid)
+r = client.post("/api/archetype/share", headers=ua(share_uid))
+check("archetype/share ok", r.status_code == 200, f"status={r.status_code}")
+check("archetype/share +20 GP", gp(share_uid) - before == 20, f"delta={gp(share_uid)-before}")
+check("archetype/share amount=20", r.json().get("amount") == 20)
+check("archetype/share shared=True", r.json().get("shared") is True)
+# повторный вызов -> без двойного начисления (защита от фрода/реплея)
+before = gp(share_uid)
+r2 = client.post("/api/archetype/share", headers=ua(share_uid))
+check("archetype/share idempotent (0)", gp(share_uid) == before, f"gp={gp(share_uid)}")
+check("archetype/share повтор amount=0", r2.json().get("amount") == 0)
+check("archetype/share повтор shared=True", r2.json().get("shared") is True)
+# без init_data -> 401
+r3 = client.post("/api/archetype/share", headers={})
+check("archetype/share без auth -> 401", r3.status_code == 401, f"status={r3.status_code}")
+
 print()
 print(f"ИТОГО: {passed} PASS / {failed} FAIL")
 sys.exit(1 if failed else 0)

@@ -569,6 +569,16 @@
         </div>
       </div>
 
+      <!-- Share-your-archetype Team Loop (флагман гэймификации) -->
+      <div class="team-share" onclick="shareArchetype()" id="team-share-card" style="display:flex;align-items:center;gap:12px;margin:12px 14px;padding:14px 16px;border-radius:16px;background:linear-gradient(135deg,#1d3b32,#13314a);border:1px solid rgba(120,220,180,.25);cursor:pointer">
+        <div style="font-size:30px">🎧</div>
+        <div style="flex:1">
+          <div style="font-weight:700;font-size:14px;color:#bdf3da">Я — <span id="ts-arch">Куратор Вайба</span></div>
+          <div style="font-size:12px;color:#9fb8c9;margin-top:2px">Собери свою команду DJ — поделись кем ты стал</div>
+        </div>
+        <div style="font-size:12px;font-weight:700;color:#ffd28a;white-space:nowrap">+20 ⭐</div>
+      </div>
+
       <div class="manifest">
         <div class="m-row">
           <div class="m-btn" onclick="toggleManifest(0)">
@@ -1002,6 +1012,8 @@
       const gb = document.getElementById('gp-balance');
       if(gb) gb.textContent = gp + ' ⭐';
       // профиль
+      const tsArch = document.getElementById('ts-arch');
+      if(tsArch) tsArch.textContent = state.user.archetype || 'Куратор Вайба';
       const pb = document.getElementById('avatar-big');
       if(pb && userPhoto) {
         pb.style.backgroundImage = `url("${userPhoto}")`;
@@ -1165,6 +1177,64 @@
       haptic('notificationOccurred');
       navigator.clipboard.writeText(deepLink).catch(()=>{});
       showToast('✅', 'Ссылка скопирована!<br>Вставь в чат — появится кнопка «Открыть»');
+    }
+    // E2: Share-your-archetype Team Loop — флагман гэймификации (Octalysis: identity > points)
+    // Пользователь шерит карточку СВОЕГО архетипа (DJ-персоны) с зашитой рефералкой.
+    // Это White-Hat: шерится личность, не «+20⭐ за друга» → выше конверсия, не спам.
+    function shareArchetype(){
+      const arch = state.user.archetype || 'Куратор Вайба';
+      const gp = state.user.groovePoints || 0;
+      const done = state.courseProgress.completedLessons.length;
+      const code = state.user.referralCode;
+      if(!code){ showToast('⚠️', 'Реф-код не загружен'); return; }
+      haptic('notificationOccurred');
+      // карточка (canvas) — рисуем клиентски, сервер не грузим
+      const cv = document.createElement('canvas');
+      cv.width = 1080; cv.height = 1080;
+      const x = cv.getContext('2d');
+      const g = x.createLinearGradient(0,0,1080,1080);
+      g.addColorStop(0,'#1d3b32'); g.addColorStop(1,'#13314a');
+      x.fillStyle = g; x.fillRect(0,0,1080,1080);
+      x.fillStyle = '#bdf3da'; x.font = 'bold 72px sans-serif'; x.textAlign='center';
+      x.fillText('🎧 Open Deck', 540, 360);
+      x.fillStyle = '#ffffff'; x.font = 'bold 96px sans-serif';
+      x.fillText(arch, 540, 500);
+      x.fillStyle = '#9fb8c9'; x.font = '40px sans-serif';
+      x.fillText(done + ' уроков · ' + gp + ' ⭐', 540, 600);
+      x.fillStyle = '#ffd28a'; x.font = 'bold 44px sans-serif';
+      x.fillText('Собери свою команду DJ →', 540, 720);
+      const link = 'https://t.me/OpenDeck_bot/app?startapp=ref_' + code;
+      cv.toBlob(async (blob)=>{
+        const file = (blob && blob.size) ? new File([blob], 'archetype.png', {type:'image/png'}) : null;
+        // в TG WebView — нативный шер в Stories
+        if(window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.shareToStory){
+          try { window.Telegram.WebApp.shareToStory(link, { text: 'Я — ' + arch + ' 🎧 в Open Deck. Собери команду!' }); }
+          catch(_){}
+        }
+        // вне TG / фолбэк — Web Share API с картинкой, либо копия ссылки
+        if(file && navigator.canShare && navigator.canShare({files:[file]})){
+          try { await navigator.share({ files:[file], text: link }); } catch(_){}
+        } else if(navigator.share){
+          try { await navigator.share({ text: link }); } catch(_){}
+        } else {
+          navigator.clipboard.writeText(link).catch(()=>{});
+          showToast('✅', 'Ссылка скопирована!<br>Поделись — появится кнопка «Открыть»');
+        }
+        // СЕРВЕР — единственный авторитет по GP: фронт НЕ начисляет сам
+        fetch(API_BASE + '/api/archetype/share', {
+          method:'POST',
+          headers:{'Content-Type':'application/json','X-Init-Data':(window.Telegram&&window.Telegram.WebApp?window.Telegram.WebApp.initData:'')}
+        }).then(r=>r.ok?r.json():null).then(j=>{
+          if(j && typeof j.groove_points === 'number'){
+            state.user.groovePoints = j.groove_points;
+            updateUI();
+            if(j.amount > 0) showToast('🎉', 'Команда растёт! +' + j.amount + ' ⭐');
+            else showToast('✅', 'Карточка уже в деле — команда ждёт!');
+          } else {
+            showToast('✅', 'Карточка отправлена!');
+          }
+        }).catch(()=> showToast('⚠️', 'Не удалось начислить ⭐, но шер прошёл'));
+      }, 'image/png');
     }
     // E: Геймификация — weekly streak + achievements (фронтенд-only)
     function loadStreak(){

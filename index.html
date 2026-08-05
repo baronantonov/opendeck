@@ -137,6 +137,18 @@
       border:1px solid rgba(140,226,200,0.18);border-radius:14px;font-size:12.5px;
       color:var(--text-secondary);line-height:1.55;text-align:center}
     .gp-value b{color:var(--accent-mint)}
+    /* микро-подсказка на экране (вместо всплывающих тултипов) */
+    .micro-hint{margin-top:12px;padding:9px 12px;background:rgba(140,226,200,0.06);
+      border:1px solid rgba(140,226,200,0.16);border-radius:10px;font-size:11.5px;
+      color:var(--text-secondary);line-height:1.5}
+    .micro-hint b{color:var(--accent-mint)}
+    /* inline CTA-блок после урока 1 (вместо попапа) */
+    .cta-inline{margin-top:14px;padding:14px 16px;border-radius:14px;
+      background:linear-gradient(135deg,rgba(245,146,110,0.10),rgba(140,226,200,0.08));
+      border:1px solid rgba(140,226,200,0.22)}
+    .cta-inline .t{font-size:13px;color:var(--text-secondary);line-height:1.5;margin-bottom:10px}
+    .cta-inline .row{display:flex;gap:10px;flex-wrap:wrap}
+    .cta-inline .row .btn{font-size:13px;padding:9px 16px;width:auto}
     /* APPLE: hero теперь центрирован — кнопка и подписи по центру, воздух вокруг */
     .hero{ text-align:center }
     .hero .hero-head{ text-align:left }
@@ -574,7 +586,7 @@
         <div style="font-size:30px">🎧</div>
         <div style="flex:1">
           <div style="font-weight:700;font-size:14px;color:#bdf3da">Я — <span id="ts-arch">Куратор Вайба</span></div>
-          <div style="font-size:12px;color:#9fb8c9;margin-top:2px">Собери свою команду DJ — поделись кем ты стал</div>
+          <div style="font-size:12px;color:#9fb8c9;margin-top:2px">Собери свою команду DJ. Поделись кем ты стал</div>
         </div>
         <div style="font-size:12px;font-weight:700;color:#ffd28a;white-space:nowrap">+20 ⭐</div>
       </div>
@@ -615,7 +627,8 @@
           <div class="play-deck-label" id="play-label">Начать урок 1</div>
           <div><a class="upgrade-link" onclick="switchTab('upgrade')">Персональное менторство →</a></div>
         </div>
-        <div class="gp-value">За каждый урок курса — <b>+50 ⭐</b>, за бонус-урок (теорию) — <b>+200 ⭐</b>. Stars дают скидку на менторство с FREEDA DJ.</div>
+        <div class="gp-value">За каждый урок курса <b>+50 ⭐</b>, за бонус-урок (теорию) <b>+200 ⭐</b>. Stars дают скидку на менторство с FREEDA DJ.</div>
+        <div class="micro-hint">Смотри уроки → получай <b>⭐ Stars</b> → трать на скидку курса. Приведёшь друга <b>по 100 ⭐</b> вам обоим. Начнём с урока 1!</div>
         <button class="btn ghost" style="width:auto;padding:10px 18px;margin-top:10px" onclick="switchTab('bonus')">🎁 Бонусные уроки</button>
       </div>
 
@@ -632,7 +645,7 @@
       <!-- BC: постоянный центр монетизации (tripwire/full) — не только через пейвол-модалку -->
       <div class="offer" style="border-color:rgba(245,146,110,0.30)">
         <div class="pill" style="color:var(--accent-coral)">Доступ к курсу</div>
-        <h2>Pocket DJ — базовый курс</h2>
+        <h2>Pocket DJ. Базовый курс</h2>
         <p style="color:var(--text-secondary);font-size:14px;line-height:1.5;margin:0 0 14px">
           6 уроков с нуля до первого сета: оборудование, beatmatching, сведение, эффекты, чтение танцпола.
         </p>
@@ -654,10 +667,11 @@
         <div class="pill" style="color:var(--accent-mint)">Бесплатная скидка</div>
         <h2>Заработай Stars бесплатно</h2>
         <p style="color:var(--text-secondary);font-size:14px;line-height:1.5;margin:0 0 14px">
-          Досмотри все <b>бонус-уроки (теорию)</b> — получи <b>+200 ⭐</b> за каждый.
+          Досмотри все <b>бонус-уроки (теорию)</b> <b>+200 ⭐</b> за каждый.
           Или пригласи друзей: <b>+100 ⭐</b> вам обоим, <b>+500 ⭐</b> за покупку каждым,
           и <b>до +2500 ⭐</b> за 10 друзей. Накопленные Stars = скидка на курс и менторство.
         </p>
+        <div class="micro-hint">Большую часть <b>⭐ можно заработать бесплатно</b>: бонус-уроки и друзья. Оплата нужна только за полный доступ и менторство.</div>
         <div style="display:flex;flex-direction:column;gap:10px">
           <button class="btn mint" onclick="switchTab('bonus')">
             <span>📚 Смотреть бонус-уроки (теорию)</span><br>
@@ -711,7 +725,7 @@
         <div class="pill" style="color:var(--accent-mint)">Следующий уровень</div>
         <h2>Курс «Advanced DJ»</h2>
         <p style="color:var(--text-secondary);font-size:14px;margin:0 0 14px">Переход от техники к искусству: глубокое сведение, эффекты, живые сеты и авторский почерк.</p>
-        <button class="btn mint" onclick="comingSoon('Advanced DJ','Полный курс «Advanced DJ» откроется позже — переход от техники к искусству: глубокое сведение, эффекты, живые сеты.')">Подробнее</button>
+        <button class="btn mint" onclick="comingSoon('Advanced DJ','Полный курс «Advanced DJ» откроется позже. Переход от техники к искусству: глубокое сведение, эффекты, живые сеты.')">Подробнее</button>
       </div>
     </section>
 
@@ -761,7 +775,7 @@
       </div>
       <!-- PLAY: Invite card with progress (Точка В) -->
       <div class="invite-card">
-        <div class="t" id="ref-header">Пригласи напарника и получи <b>+30 ⭐</b> за каждую регистрацию!<br>А если друг купит курс — ещё <b>+200 ⭐</b> 🎧</div>
+        <div class="t" id="ref-header">Пригласи напарника и получи <b>+30 ⭐</b> за каждую регистрацию!<br>А если друг купит курс <b>+200 ⭐</b> 🎧</div>
         <div id="ref-friends" style="font-size:12px;color:var(--text-secondary);margin-bottom:8px">Загрузка...</div>
         <div style="height:6px;background:rgba(255,255,255,0.1);border-radius:4px;margin:0 0 10px;overflow:hidden">
           <div id="ref-bar" style="height:100%;width:0%;background:linear-gradient(90deg,var(--accent-coral),var(--accent-mint));border-radius:4px;transition:width .5s"></div>
@@ -978,7 +992,7 @@
       const up = document.getElementById('up-status');
       if(up){
         if(state.isPaid){
-          up.textContent = '✅ Доступ к курсу открыт — смотри уроки во вкладке «Курс»';
+          up.textContent = '✅ Доступ к курсу открыт. Смотри уроки во вкладке «Курс»';
           const tw = document.getElementById('up-tripwire');
           const fl = document.getElementById('up-full');
           if(tw) tw.style.display = 'none';
@@ -1096,11 +1110,7 @@
           state.paidFull = !!(j.paid_full);
           state.freeLessons = (j.course && j.course.free_lessons) || 1;
           updateUI();
-          // Этап 1 staged-onboarding: первый вход — мягко показать зачем ⭐ (без блокировки)
-          if((j.course.completed_lessons || []).length === 0 && !seenTip('intro_econ')){
-            markTip('intro_econ');
-            setTimeout(()=> showToast('✨', 'Смотри уроки → получай <b>⭐ Stars</b> → трать на скидку курса. Приведёшь друга — <b>по 100 ⭐</b> вам обоим. Начнём с урока 1!'), 1200);
-          }
+          // (обучающий онбординг «зачем ⭐» теперь микро-подсказкой на дашборде — см. .micro-hint)
           // Снять skeleton (данные пришли)
           ['gp','done-n','lesson-n','next-lesson','bar-wrap'].forEach(id=>{
             const el = document.getElementById(id); if(el) el.classList.remove('skel');
@@ -1435,10 +1445,7 @@
       if(tab==='course') renderCourse();
       if(tab==='upgrade'){
         updateUI();
-        if(!seenTip('upgrade_how')){
-          markTip('upgrade_how');
-          setTimeout(()=> showToast('💡', 'Здесь курс и менторство. Но <b>часть ⭐ можно заработать бесплатно</b>: бонус-уроки (+200⭐ за каждый) и друзья (+100⭐ вам обоим).'), 600);
-        }
+        // (пояснение «часть ⭐ бесплатно» теперь микро-подсказкой в блоке «Бесплатная скидка»)
       }
       if(tab==='profile'){ updateUIRefLink(); updateGamification(); }
       if(tab==='bonus') renderBonus();
@@ -1459,12 +1466,9 @@
     function renderBonus(){
       const box = document.getElementById('tab-bonus');
       box.innerHTML = '<h2 style="font-size:20px;margin-bottom:6px">🎁 Бонусные уроки</h2>'
-        + '<p style="color:var(--text-secondary);font-size:13px;margin:0 0 14px">Теория курса — смотри в свободное время. <b>За каждый бонус-урок +200 ⭐</b> (жирнее, чем основной).</p>';
-      // одноразовый тултип: почему это выгодно (staged, неблокирующий)
-      if(!seenTip('bonus_theory')){
-        markTip('bonus_theory');
-        setTimeout(()=> showToast('📚', 'Бонус-уроки — это теория. Досмотришь все 4 → ачивка «Теоретик» и <b>+800 ⭐</b> на скидку курса.'), 600);
-      }
+        + '<p style="color:var(--text-secondary);font-size:13px;margin:0 0 14px">Теория курса — смотри в свободное время. <b>За каждый бонус-урок +200 ⭐</b> (жирнее, чем основной).</p>'
+        + '<div class="micro-hint">Бонус-уроки — это теория. Досмотришь все 4 → ачивка «Теоретик» и <b>+800 ⭐</b> на скидку курса.</div>';
+      // (одноразовый тултип bonus_theory заменён на микро-подсказку выше)
       // Рисуем уроки СРАЗУ из локального state (без задержки на сеть),
       // затем, если API ответил, перерисовываем с реальным прогрессом.
       paintBonus(null, box);
@@ -1605,6 +1609,19 @@
         if(open){ el.onclick = ()=> openLesson(id, l); }
         box.appendChild(el);
       });
+      // Inline-CTA после урока 1 (вместо попапа): пригласить друга + открыть доступ.
+      // Показываем навсегда после прохождения урока 1 — без блокировки и без таймеров.
+      if(comp.includes(1)){
+        const cta = document.createElement('div');
+        cta.className = 'cta-inline';
+        cta.innerHTML =
+          '<div class="t">Понравилось? Позови напарника в дуэт — <b>дар</b>им по <b>100 ⭐</b> вам обоим 🎧. Приведёшь 3-х друзей — ещё <b>+300 ⭐</b>.</div>' +
+          '<div class="row">' +
+            '<button class="btn" style="background:var(--accent-coral)" onclick="shareInvite()">Пригласить друга</button>' +
+            (state.isPaid ? '' : '<button class="btn mint" style="color:#10201b" onclick="showPaywall(\'tripwire\')">Открыть доступ · 500 ⭐</button>') +
+          '</div>';
+        box.appendChild(cta);
+      }
     }
 
     function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
@@ -1781,18 +1798,6 @@
               if(tg.DeviceStorage){
                 try { tg.DeviceStorage.set('completed', JSON.stringify(state.courseProgress.completedLessons)); } catch(_){}
               }
-              // ---- PLAY: после Урока 1 — предложить пригласить друга (Точка Б) ----
-              if(id === 1){
-                setTimeout(()=>{
-                  showToast('🎵', 'Позови напарника в дуэт!<br><b>Дарим по 100 ⭐</b> вам обоим 🎧<br>Приведёшь 3-х друзей — ещё <b>+300 ⭐</b><br><br><button class="btn" style="font-size:13px;padding:8px 20px;background:var(--accent-coral)" onclick="shareInvite()">Пригласить друга</button>');
-                }, 800);
-                // BC: Day-0 конверсия — если ещё не купил, предложить доступ сразу
-                if(!state.isPaid){
-                  setTimeout(()=>{
-                    showToast('🔥', 'Понравилось?<br>Открой все уроки курса<br><br><button class="btn" style="font-size:13px;padding:8px 20px;background:var(--accent-mint);color:#10201b" onclick="showPaywall(\'tripwire\')">Открыть доступ · 500 ⭐</button>');
-                  }, 4200);
-                }
-              }
               // ---- Редирект на Upgrade после прохождения ВСЕГО курса (п.2) ----
               if(state.courseProgress.completedLessons.length >= state.lessons.length){
                 setTimeout(()=>{
@@ -1800,6 +1805,7 @@
                   switchTab('upgrade');
                 }, 900);
               }
+              // CTA «пригласи друга / открой доступ» теперь inline-блоком на экране курса (renderCourse), не попапом
             }
           }).catch(()=>{
             tg.showPopup && tg.showPopup({title:'Сеть', message:'Проверь подключение к интернету ☁️'});

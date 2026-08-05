@@ -556,6 +556,54 @@ def add_gp(user_id: int, amount: int, action_type: str = "gp_earn") -> dict:
         return {"groove_points": int(new_gp)}
 
 
+def apply_archetype_share(user_id: int) -> dict:
+    """Share-your-archetype Team Loop (флагман гэймификации).
+
+    Пользователь шерит карточку своего архетипа (DJ-персоны) с зашитой
+    рефералкой. Это White-Hat (identity expression, по Octalysis) — шерится
+    сама личность, а не «+20⭐ за друга», поэтому конверсия выше и не читается
+    как спам. Возвращаем +20 GP ЗА ОДИН РАЗ (idempotent по action_type).
+
+    ИДЕМПОТЕНТНОСТЬ (защита от фрода/накрутки): если транзакция
+    'archetype_share' для user уже есть — НЕ начисляем повторно, возвращаем
+    текущий баланс с shared=True, amount=0. Это ловит реплей эндпоинта и
+    двойной тап на кнопку «Поделиться».
+
+    Возвращает {groove_points, shared, amount}.
+    """
+    SHARE_REWARD = 20
+    with _conn() as c:
+        _uid = int(user_id)
+        already = c.execute(
+            "SELECT 1 FROM transactions WHERE user_id=? "
+            "AND action_type='archetype_share' LIMIT 1",
+            (_uid,),
+        ).fetchone()
+        if already:
+            row = c.execute(
+                "SELECT groove_points FROM users WHERE user_id=?", (_uid,)
+            ).fetchone()
+            return {
+                "groove_points": int(row["groove_points"]),
+                "shared": True,
+                "amount": 0,
+            }
+        # guard + award в ОДНОЙ транзакции (нет race / farm)
+        c.execute(
+            "UPDATE users SET groove_points = groove_points + ? WHERE user_id=?",
+            (SHARE_REWARD, _uid),
+        )
+        c.execute(
+            "INSERT INTO transactions (user_id, amount, action_type) "
+            "VALUES (?, ?, 'archetype_share')",
+            (_uid, SHARE_REWARD),
+        )
+        new_gp = c.execute(
+            "SELECT groove_points FROM users WHERE user_id=?", (_uid,)
+        ).fetchone()[0]
+        return {"groove_points": int(new_gp), "shared": True, "amount": SHARE_REWARD}
+
+
 # ---------------------------------------------------------------------------
 # A/B experiments (цены / локализация)
 # ---------------------------------------------------------------------------

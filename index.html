@@ -20,6 +20,11 @@
       --accent-coral:#f5926e;
     }
     *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+    /* Доступность: видимый фокус на всех интерактивных элементах (HIGH) */
+    :focus-visible{outline:2px solid var(--accent-mint);outline-offset:2px;border-radius:6px}
+    button:focus-visible,.m-btn:focus-visible,.lesson:focus-visible,
+    .dash-head:focus-visible,.nav button:focus-visible,.play-deck:focus-visible,
+    .upgrade-link:focus-visible,.cta-inline .btn:focus-visible{outline:2px solid var(--accent-mint);outline-offset:2px}
     html,body{margin:0;padding:0}
     body{
       font-family:'Inter',sans-serif;color:var(--text-primary);
@@ -30,7 +35,7 @@
       -webkit-font-smoothing:antialiased;
     }
     h1,h2,h3{font-family:'Unbounded',sans-serif;margin:0}
-    .wrap{padding:calc(env(safe-area-inset-top) + 20px) 18px 12px;max-width:520px;margin:0 auto}
+    .wrap{padding:calc(env(safe-area-inset-top) + 20px) 18px 28px;max-width:520px;margin:0 auto}
 
     /* ---- Dashboard ---- */
     /* ---- Компактный хедер ---- */
@@ -99,10 +104,13 @@
     /* APPLE: заголовок урока — главный фокус (крупнее, чем цифра) */
     .hero h2{font-size:23px;margin:8px 0 6px;line-height:1.28}
     .hero-duration{font-size:11px;color:var(--text-secondary);opacity:.65;margin:0 0 4px;letter-spacing:.02em}
-    .progress{height:8px;border-radius:999px;background:rgba(255,255,255,0.12);overflow:hidden;margin-bottom:16px}
+    .progress{height:10px;border-radius:999px;background:rgba(255,255,255,0.16);overflow:hidden;margin-bottom:18px}
     .progress > i{display:block;height:100%;background:var(--accent-mint);border-radius:999px;transition:width .6s ease}
     .btn{
-      width:100%;border:0;border-radius:999px;background:var(--accent-coral);color:#fff;
+      width:100%;border:0;border-radius:999px;background:var(--accent-coral);color:#1c201e;
+      /* фокус-кольцо для клавиатурной навигации (HIGH a11y) */
+      outline:none;
+      -webkit-tap-highlight-color:transparent}
       font-family:'Unbounded',sans-serif;font-weight:700;font-size:15px;padding:14px;cursor:pointer;
       display:flex;align-items:center;justify-content:center;gap:8px;transition:transform .15s ease;
       animation:heroIn .5s cubic-bezier(.34,1.4,.64,1) both}
@@ -116,7 +124,7 @@
     /* ---- APPLE/DECK: большая круглая Play-кнопка как на диджейской деке ---- */
     .play-deck{
       width:112px;height:112px;border-radius:50%;border:0;cursor:pointer;
-      background:radial-gradient(circle at 32% 28%, #ffb894, var(--accent-coral) 62%, #d96b48);
+      background:radial-gradient(circle at 32% 28%, rgba(255,255,255,0.35), var(--accent-coral) 62%, rgba(0,0,0,0.18));
       box-shadow:0 0 60px rgba(245,146,110,0.55), 0 10px 34px rgba(245,146,110,0.5), inset 0 -5px 14px rgba(0,0,0,0.28), inset 0 4px 10px rgba(255,255,255,0.35);
       display:flex;align-items:center;justify-content:center;
       margin:0 auto;position:relative;
@@ -228,6 +236,23 @@
     .free .t{font-size:13px;line-height:1.4}
     .free .t b{color:var(--text-primary)}
 
+    /* ---- Ценность: маркетинг-сетка на главном (почему учиться) ---- */
+    .value-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:14px 0}
+    .value-card{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06);
+      border-radius:16px;padding:13px 12px;text-align:center;
+      animation:heroIn .5s cubic-bezier(.34,1.4,.64,1) both}
+    .value-grid .value-card:nth-child(1){animation-delay:.30s}
+    .value-grid .value-card:nth-child(2){animation-delay:.36s}
+    .value-grid .value-card:nth-child(3){animation-delay:.42s}
+    .value-card .value-ic{font-size:24px;line-height:1;margin-bottom:7px}
+    .value-card .value-t{font-family:'Unbounded',sans-serif;font-weight:700;font-size:13px;color:var(--text-primary);margin-bottom:4px}
+    .value-card .value-d{font-size:11px;line-height:1.4;color:var(--text-secondary)}
+
+    /* ---- Отзывчивость на тап: scale(0.96) для главных CTA ---- */
+    .btn:active{transform:scale(.96)}           /* было .97 — приводим к 0.96 по better-ui */
+    .play-deck:active{transform:scale(.96);box-shadow:0 0 40px rgba(245,146,110,0.65), 0 4px 14px rgba(245,146,110,0.45), inset 0 2px 8px rgba(0,0,0,0.35)}  /* было .93 */
+    .team-share:active{transform:scale(.98);background:rgba(140,226,200,0.14)}
+
     /* ---- Course list ---- */
     .lesson{
       display:flex;align-items:center;gap:14px;background:rgba(255,255,255,0.05);
@@ -296,7 +321,7 @@
       .hero h2{font-size:20px}
       .hero .hero-progress-num{font-size:18px}
       .hero .hero-progress-num .of{font-size:12px}
-      .hero-duration{font-size:9px;margin:-6px 0 10px}
+      .hero-duration{font-size:11px;margin:-6px 0 10px}
       .m-row .m-btn{font-size:10px;padding:8px 6px}
       .m-panel.open{padding:12px 12px;font-size:11px}
       .btn{font-size:13px;padding:11px}
@@ -553,9 +578,10 @@
   </button>
   <div class="wrap">
   <!-- PLAY: Toast -->
-  <div class="toast" id="toast"><div class="ic" id="toast-ic">🎁</div><div class="t" id="toast-msg">Сообщение</div><span class="close" onclick="document.getElementById('toast').classList.remove('show')">✕</span></div>
-    <!-- TAB 1: Dashboard -->
+  <div class="toast" id="toast" role="status" aria-live="polite"><div class="ic" id="toast-ic">🎁</div><div class="t" id="toast-msg">Сообщение</div><span class="close" onclick="document.getElementById('toast').classList.remove('show')">✕</span></div>
+    <!-- TAB 1: Главный экран -->
     <section id="tab-home">
+      <!-- 1. Шапка: приветствие + прогресс (компактно, клик → профиль) -->
       <div class="dash-head shim" onclick="switchTab('profile')">
         <div class="user-avatar" id="avatar-main"></div>
         <div class="dash-info">
@@ -570,48 +596,10 @@
         </div>
       </div>
 
-      <div class="quote" id="quote" onclick="toggleQuote()">
-        <div class="quote-head">
-          <div class="ql">Open Deck<span class="ql-sub">Свободная дека</span></div>
-          <span class="qarr">▼</span>
-        </div>
-        <div class="quote-body">
-          <div>Это о смелости быть собой. О том, чтобы не бояться ошибок, а видеть в них стиль. О том, чтобы не следовать трендам, а создавать свой вайб.</div>
-          <div class="qm">Мы не относимся к музыке слишком серьезно – мы играем в нее, так же, как играем в жизнь: с легкостью, открытостью и любопытством.</div>
-        </div>
-      </div>
-
-      <!-- Share-your-archetype Team Loop (флагман гэймификации) -->
-      <div class="team-share" onclick="shareArchetype()" id="team-share-card" style="display:flex;align-items:center;gap:12px;margin:12px 14px;padding:14px 16px;border-radius:16px;background:linear-gradient(135deg,#1d3b32,#13314a);border:1px solid rgba(120,220,180,.25);cursor:pointer">
-        <div style="font-size:30px">🎧</div>
-        <div style="flex:1">
-          <div style="font-weight:700;font-size:14px;color:#bdf3da">Я — <span id="ts-arch">Куратор Вайба</span></div>
-          <div style="font-size:12px;color:#9fb8c9;margin-top:2px">Собери свою команду DJ. Поделись кем ты стал</div>
-        </div>
-        <div style="font-size:12px;font-weight:700;color:#ffd28a;white-space:nowrap">+20 ⭐</div>
-      </div>
-
-      <div class="manifest">
-        <div class="m-row">
-          <div class="m-btn" onclick="toggleManifest(0)">
-            Open Deck <span class="arr">▼</span>
-          </div>
-          <div class="m-btn" onclick="toggleManifest(1)">
-            Open Heart <span class="arr">▼</span>
-          </div>
-          <div class="m-btn" onclick="toggleManifest(2)">
-            Open Mind <span class="arr">▼</span>
-          </div>
-        </div>
-        <div class="m-panel" id="m-panel">
-          <span class="mt" id="m-title"></span>
-          <div id="m-body"></div>
-        </div>
-      </div>
-
+      <!-- 2. Hero: текущий урок — главный фокус и CTA -->
       <div class="hero shim">
         <div class="hero-head">
-          <div class="tag">Текущий урок</div>
+          <div class="tag">Продолжаем учиться</div>
         </div>
         <div class="hero-title-row">
           <h2 id="next-lesson" class="skel" style="display:block;min-height:24px">—</h2>
@@ -621,18 +609,67 @@
         <div class="hero-duration">время прохождения 15–20 минут</div>
         <div class="progress skel" id="bar-wrap"><i id="bar" style="width:0%"></i></div>
         <div class="play-deck-wrap">
-          <button class="play-deck" id="play-btn" onclick="heroPlay()" aria-label="Играть">
+          <button class="play-deck" id="play-btn" onclick="heroPlay()" aria-label="Играть урок">
             <svg viewBox="0 0 24 24"><path d="M8 5.5v13l11-6.5z"/></svg>
           </button>
           <div class="play-deck-label" id="play-label">Начать урок 1</div>
-          <div><a class="upgrade-link" onclick="switchTab('upgrade')">Персональное менторство →</a></div>
+          <a class="upgrade-link" onclick="switchTab('upgrade')">Персональное менторство →</a>
         </div>
-        <div class="gp-value">За каждый урок курса <b>+50 ⭐</b>, за бонус-урок (теорию) <b>+200 ⭐</b>. Stars дают скидку на менторство с FREEDA DJ.</div>
-        <div class="micro-hint">Смотри уроки → получай <b>⭐ Stars</b> → трать на скидку курса. Приведёшь друга <b>по 100 ⭐</b> вам обоим. Начнём с урока 1!</div>
-        <button class="btn ghost" style="width:auto;padding:10px 18px;margin-top:10px" onclick="switchTab('bonus')">🎁 Бонусные уроки</button>
       </div>
 
-      </section>
+      <!-- 3. Ценность: зачем учиться (маркетинг-блок) -->
+      <div class="value-grid">
+        <div class="value-card">
+          <div class="value-ic">🎚️</div>
+          <div class="value-t">С нуля до сета</div>
+          <div class="value-d">6 уроков: оборудование, сведение, чтение танцпола</div>
+        </div>
+        <div class="value-card">
+          <div class="value-ic">🎁</div>
+          <div class="value-t">Бесплатные ⭐</div>
+          <div class="value-d">Бонус-уроки и друзья = скидка на курс</div>
+        </div>
+        <div class="value-card">
+          <div class="value-ic">🎧</div>
+          <div class="value-t">Свой вайб</div>
+          <div class="value-d">Учись играть, а не копировать чужое</div>
+        </div>
+      </div>
+
+      <!-- 4. Акция / реферал / соцпруф -->
+      <div class="team-share" onclick="shareArchetype()" id="team-share-card" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' ')shareArchetype()">
+        <div style="font-size:30px">🎧</div>
+        <div style="flex:1">
+          <div style="font-weight:700;font-size:14px;color:var(--accent-mint)">Я — <span id="ts-arch">Куратор Вайба</span></div>
+          <div style="font-size:12px;color:var(--text-secondary);margin-top:2px">Собери свою команду DJ. Поделись кем ты стал</div>
+        </div>
+        <div style="font-size:12px;font-weight:700;color:var(--accent-coral);white-space:nowrap">+20 ⭐</div>
+      </div>
+
+      <button class="btn ghost" style="width:auto;padding:11px 18px;margin-top:4px" onclick="switchTab('bonus')">🎁 Бонусные уроки</button>
+
+      <!-- 5. Манифест (раскрывающийся) -->
+      <div class="manifest">
+        <div class="m-row">
+          <div class="m-btn" role="button" tabindex="0" onclick="toggleManifest(0)" onkeydown="if(event.key==='Enter'||event.key===' ')toggleManifest(0)">
+            Open Deck <span class="arr">▼</span>
+          </div>
+          <div class="m-btn" role="button" tabindex="0" onclick="toggleManifest(1)" onkeydown="if(event.key==='Enter'||event.key===' ')toggleManifest(1)">
+            Open Heart <span class="arr">▼</span>
+          </div>
+          <div class="m-btn" role="button" tabindex="0" onclick="toggleManifest(2)" onkeydown="if(event.key==='Enter'||event.key===' ')toggleManifest(2)">
+            Open Mind <span class="arr">▼</span>
+          </div>
+        </div>
+        <div class="m-panel" id="m-panel">
+          <span class="mt" id="m-title"></span>
+          <div id="m-body"></div>
+        </div>
+      </div>
+
+      <div class="gp-value">За каждый урок курса <b>+50 ⭐</b>, за бонус-урок (теорию) <b>+200 ⭐</b>. Stars дают скидку на менторство с FREEDA DJ.</div>
+      <div class="micro-hint">Смотри уроки → получай <b>⭐ Stars</b> → трать на скидку курса. Приведёшь друга <b>по 100 ⭐</b> вам обоим. Начнём с урока 1!</div>
+    </section>
 
     <!-- TAB 2: Course -->
     <section id="tab-course" class="hidden"></section>
@@ -790,16 +827,16 @@
   </div>
 
   <!-- Bottom navigation -->
-  <nav class="nav" id="nav">
-    <button data-tab="home" class="active" onclick="switchTab('home')">
+  <nav class="nav" id="nav" role="tablist" aria-label="Разделы приложения">
+    <button data-tab="home" class="active" role="tab" aria-selected="true" onclick="switchTab('home')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10l9-8 9 8v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/><path d="M9 21V12h6v9"/></svg>Главная</button>
-    <button data-tab="course" onclick="switchTab('course')">
+    <button data-tab="course" role="tab" aria-selected="false" onclick="switchTab('course')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M10 9.2a1 1 0 0 1 1.1-1l4 2.3a1 1 0 0 1 0 1.7l-4 2.3A1 1 0 0 1 10 14.8z" fill="currentColor" stroke="none"/></svg>Курс</button>
-    <button data-tab="bonus" onclick="switchTab('bonus')">
+    <button data-tab="bonus" role="tab" aria-selected="false" onclick="switchTab('bonus')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12l-8-8-8 8 8 8 8-8z"/><path d="M12 4v16" stroke-dasharray="2 2"/></svg>Бонусы</button>
-    <button data-tab="upgrade" onclick="switchTab('upgrade')">
+    <button data-tab="upgrade" role="tab" aria-selected="false" onclick="switchTab('upgrade')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>Развитие</button>
-    <button data-tab="profile" onclick="switchTab('profile')">
+    <button data-tab="profile" role="tab" aria-selected="false" onclick="switchTab('profile')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="7" r="3.5"/><path d="M5 19v-2a3 3 0 0 1 3-3h8a3 3 0 0 1 3 3v2"/><rect x="3" y="5.5" width="3.5" height="5" rx="1.5"/><rect x="17.5" y="5.5" width="3.5" height="5" rx="1.5"/></svg>Профиль</button>
   </nav>
 
@@ -1203,15 +1240,15 @@
       cv.width = 1080; cv.height = 1080;
       const x = cv.getContext('2d');
       const g = x.createLinearGradient(0,0,1080,1080);
-      g.addColorStop(0,'#1d3b32'); g.addColorStop(1,'#13314a');
+      g.addColorStop(0,'#2b302e'); g.addColorStop(1,'#1c201e');
       x.fillStyle = g; x.fillRect(0,0,1080,1080);
-      x.fillStyle = '#bdf3da'; x.font = 'bold 72px sans-serif'; x.textAlign='center';
+      x.fillStyle = '#8ce2c8'; x.font = 'bold 72px sans-serif'; x.textAlign='center';
       x.fillText('🎧 Open Deck', 540, 360);
       x.fillStyle = '#ffffff'; x.font = 'bold 96px sans-serif';
       x.fillText(arch, 540, 500);
-      x.fillStyle = '#9fb8c9'; x.font = '40px sans-serif';
+      x.fillStyle = '#c0a0a8'; x.font = '40px sans-serif';
       x.fillText(done + ' уроков · ' + gp + ' ⭐', 540, 600);
-      x.fillStyle = '#ffd28a'; x.font = 'bold 44px sans-serif';
+      x.fillStyle = '#f5926e'; x.font = 'bold 44px sans-serif';
       x.fillText('Собери свою команду DJ →', 540, 720);
       const link = 'https://t.me/OpenDeck_bot/app?startapp=ref_' + code;
       cv.toBlob(async (blob)=>{
@@ -1525,20 +1562,21 @@
 
       window.openBonusLesson = function(id, lesson){
         const box = document.getElementById('tab-bonus');
+        const pid = 'b' + (++playerUid); activePlayerId = pid;  // уникальный id плеера (фикс дублей)
         const bullets = (lesson.d||[]).map(x=>`<li>${esc(x)}</li>`).join('');
         const src = lesson.video || "";
         const isYT = src.includes('youtube.com/embed') || src.includes('youtu.be');
         const playerHTML = src
-          ? (isYT ? `<div class="vwrap" id="vw"><iframe id="ytplayer" style="position:absolute;inset:0;width:100%;height:100%;border:0" src="https://www.youtube.com/embed/${ytId(src)}?playsinline=1&rel=0&modestbranding=1&fs=1&enablejsapi=1" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe><div class="wm" id="wm">${esc(userName)}</div><div class="vbar"><button onclick="ytPlayToggle()" title="Play/Pause"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></button><div class="seek" id="seek" onclick="ytSeek(event)"><i id="seekbar"></i></div></div></div>` : `<div class="vwrap" id="vw"><video id="v" playsinline></video><div class="wm" id="wm">${esc(userName)}</div><div class="bigplay" id="bp"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></div><div class="vbar"><button onclick="vwPlay()" title="Play/Pause"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></button><div class="seek" id="seek" onclick="vwSeek(event)"><i id="seekbar"></i></div></div></div>`)
+          ? (isYT ? `<div class="vwrap" id="vw-${pid}"><iframe id="ytplayer-${pid}" style="position:absolute;inset:0;width:100%;height:100%;border:0" src="https://www.youtube.com/embed/${ytId(src)}?playsinline=1&rel=0&modestbranding=1&fs=1&enablejsapi=1" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe><div class="wm" id="wm-${pid}">${esc(userName)}</div><div class="vbar"><button onclick="ytPlayToggle()" title="Play/Pause"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></button><div class="seek" id="seek-${pid}" onclick="ytSeek(event)"><i id="seekbar-${pid}"></i></div></div></div>` : `<div class="vwrap" id="vw-${pid}"><video id="v-${pid}" playsinline></video><div class="wm" id="wm-${pid}">${esc(userName)}</div><div class="bigplay" id="bp-${pid}"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></div><div class="vbar"><button onclick="vwPlay()" title="Play/Pause"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></button><div class="seek" id="seek-${pid}" onclick="vwSeek(event)"><i id="seekbar-${pid}"></i></div></div></div>`)
           : `<div class="player"><svg class="play" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></div>`;
         box.innerHTML = `<button class="btn ghost" style="width:auto;padding:10px 16px;margin-bottom:14px" onclick="renderBonus()">← Назад</button>
           <h2 style="font-size:20px;margin-bottom:14px">${esc(lesson.title)}</h2>
           ${playerHTML}
           <ul class="summary">${bullets}</ul>
-          <button class="btn" id="finishBtn" style="opacity:0.4;pointer-events:none" onclick="completeBonusLesson(${id})">Завершить урок (+200 ⭐)</button>
-          <p class="hint" id="finishHint" style="text-align:center;color:var(--text-secondary);font-size:12px;margin-top:10px">Досмотри видео до конца – и кнопка станет активной</p>`;
-        if(src && !isYT) setupVideo(src);
-        else if(src && isYT) enableYTControls(src);
+          <button class="btn" id="finishBtn-${pid}" style="opacity:0.4;pointer-events:none" onclick="completeBonusLesson(${id})">Завершить урок (+200 ⭐)</button>
+          <p class="hint" id="finishHint-${pid}" style="text-align:center;color:var(--text-secondary);font-size:12px;margin-top:10px">Досмотри видео до конца – и кнопка станет активной</p>`;
+        if(src && !isYT) setupVideo(src, pid);
+        else if(src && isYT) enableYTControls(src, pid);
       };
 
       window.completeBonusLesson = function(id){
@@ -1626,6 +1664,7 @@
 
     function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
     function openLesson(id, l){
+      const pid = 'c' + (++playerUid); activePlayerId = pid;  // уникальный id плеера (фикс дублей)
       // PLAY A: платный урок (не из бесплатного порога) и нет доступа → сразу paywall, без видео
       const isFreeLesson = (id <= (state.freeLessons || 1));
       if(!state.isPaid && !isFreeLesson){
@@ -1642,36 +1681,37 @@
       const isYT = src.includes('youtube.com/embed') || src.includes('youtu.be');
       const playerHTML = src
         ? (isYT
-            ? `<div class="vwrap" id="vw">
-                         <iframe id="ytplayer" style="position:absolute;inset:0;width:100%;height:100%;border:0"
+            ? `<div class="vwrap" id="vw-${pid}">
+                         <iframe id="ytplayer-${pid}" style="position:absolute;inset:0;width:100%;height:100%;border:0"
                            src="https://www.youtube.com/embed/${ytId(src)}?playsinline=1&rel=0&modestbranding=1&fs=1&enablejsapi=1"
                            allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
                            allowfullscreen></iframe>
-                         <div class="wm" id="wm">${esc(userName)}</div>
+                         <div class="wm" id="wm-${pid}">${esc(userName)}</div>
                          <div class="vbar">
                            <button onclick="ytPlayToggle()" title="Play/Pause"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></button>
-                           <div class="seek" id="seek" onclick="ytSeek(event)"><i id="seekbar"></i></div>
+                           <div class="seek" id="seek-${pid}" onclick="ytSeek(event)"><i id="seekbar-${pid}"></i></div>
                          </div></div>`
-            : `<div class="vwrap" id="vw"><video id="v" playsinline></video>
-             <div class="wm" id="wm">${esc(userName)}</div>
-             <div class="bigplay" id="bp"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></div>
+            : `<div class="vwrap" id="vw-${pid}"><video id="v-${pid}" playsinline></video>
+             <div class="wm" id="wm-${pid}">${esc(userName)}</div>
+             <div class="bigplay" id="bp-${pid}"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></div>
              <div class="vbar">
                <button onclick="vwPlay()" title="Play/Pause"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></button>
-               <div class="seek" id="seek" onclick="vwSeek(event)"><i id="seekbar"></i></div>
+               <div class="seek" id="seek-${pid}" onclick="vwSeek(event)"><i id="seekbar-${pid}"></i></div>
                <button class="spd" onclick="vwSpeed()" title="Скорость">1×</button>
-             </div></div>`)
-        : `<div class="player"><svg class="play" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></div>`;
+             </div></div>`)        : `<div class="player"><svg class="play" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></div>`;
       box.innerHTML = `<button class="btn ghost" style="width:auto;padding:10px 16px;margin-bottom:14px" onclick="renderCourse()">← Назад</button>
         <h2 style="font-size:20px;margin-bottom:14px">${esc(l.t)}</h2>
         ${playerHTML}
         <ul class="summary">${bullets}</ul>
-        <button class="btn" id="finishBtn" style="opacity:0.4;pointer-events:none" onclick="completeLesson(${id})">Завершить урок (+50 ⭐)</button>
-        <p class="hint" id="finishHint" style="text-align:center;color:var(--text-secondary);font-size:12px;margin-top:10px">Досмотри видео до конца – и кнопка станет активной</p>`;
-      if(src && !isYT) setupVideo(src);
-      else if(src && isYT) enableYTControls(src);
+        <button class="btn" id="finishBtn-${pid}" style="opacity:0.4;pointer-events:none" onclick="completeLesson(${id})">Завершить урок (+50 ⭐)</button>
+        <p class="hint" id="finishHint-${pid}" style="text-align:center;color:var(--text-secondary);font-size:12px;margin-top:10px">Досмотри видео до конца – и кнопка станет активной</p>`;
+      if(src && !isYT) setupVideo(src, pid);
+      else if(src && isYT) enableYTControls(src, pid);
     }
 
     let vwVid=null, vwHls=null, ytPlayer=null, ytTimer=null;
+    let activePlayerId = null;   // id активного плеера (решает коллизию id между course/bonus)
+    let playerUid = 0;
 
     // Остановить ВСЁ видео при уходе со страницы / сворачивании
     function stopVideoAll(){
@@ -1694,7 +1734,7 @@
       // Если API не загрузится (блок webview) — видео всё равно играет через iframe.
       const onApi = ()=>{
         try{
-          ytPlayer = new YT.Player('ytplayer', {
+          ytPlayer = new YT.Player('ytplayer-'+pid, {
             events: {
               onStateChange: (e)=>{ if(e.data === YT.PlayerState.ENDED) markWatched(); }
             }
@@ -1705,7 +1745,7 @@
               if(ytPlayer && ytPlayer.getDuration){
                 const d = ytPlayer.getDuration(), c = ytPlayer.getCurrentTime();
                 if(d > 0 && c / d >= 0.95) markWatched();
-                const sb = document.getElementById('seekbar'); if(sb) sb.style.width = (c/(d||1)*100)+'%';
+                const sb = document.getElementById('seekbar-'+pid); if(sb) sb.style.width = (c/(d||1)*100)+'%';
               }
             }catch(_){}
           }, 2000);
@@ -1723,28 +1763,28 @@
     }
 
     function markWatched(){
-      const btn = document.getElementById('finishBtn');
-      const hint = document.getElementById('finishHint');
+      const btn = document.getElementById('finishBtn-'+activePlayerId);
+      const hint = document.getElementById('finishHint-'+activePlayerId);
       if(btn){ btn.style.opacity='1'; btn.style.pointerEvents='auto'; }
       if(hint){ hint.style.display='none'; }
     }
-    function setupVideo(src){
-      const v=document.getElementById('v'); vwVid=v;
-      const bp=document.getElementById('bp');
+    function setupVideo(src, pid){
+      const v=document.getElementById('v-'+pid); vwVid=v;
+      const bp=document.getElementById('bp-'+pid);
       if(src.endsWith('.m3u8') && window.Hls && Hls.isSupported()){
         vwHls=new Hls(); vwHls.loadSource(src); vwHls.attachMedia(v);
       } else { v.src=src; }
       bp.onclick=()=>{ v.play(); bp.style.display='none'; };
-      v.addEventListener('timeupdate',()=>{ const s=document.getElementById('seekbar'); if(s) s.style.width=(v.currentTime/(v.duration||1)*100)+'%';
+      v.addEventListener('timeupdate',()=>{ const s=document.getElementById('seekbar-'+pid); if(s) s.style.width=(v.currentTime/(v.duration||1)*100)+'%';
         if(v.duration && v.currentTime/v.duration >= 0.95) markWatched(); });
       v.addEventListener('ended', ()=> markWatched());
-      const vw=document.getElementById('vw');
+      const vw=document.getElementById('vw-'+pid);
       vw.addEventListener('click',()=>vw.classList.add('showbar'));
       setTimeout(()=>vw&&vw.classList.remove('showbar'),2500);
     }
     function vwPlay(){ if(!vwVid) return; vwVid.paused?vwVid.play():vwVid.pause(); }
-    function vwSpeed(){ if(!vwVid) return; const r=[1,1.25,1.5,0.75]; let i=r.indexOf(vwVid.playbackRate); i=(i+1)%r.length; vwVid.playbackRate=r[i]; document.querySelector('.vbar .spd').textContent=r[i]+'×'; }
-    function vwSeek(e){ if(!vwVid) return; const b=document.getElementById('seek').getBoundingClientRect(); vwVid.currentTime=((e.clientX-b.left)/b.width)*(vwVid.duration||0); }
+    function vwSpeed(){ if(!vwVid) return; const r=[1,1.25,1.5,0.75]; let i=r.indexOf(vwVid.playbackRate); i=(i+1)%r.length; vwVid.playbackRate=r[i]; const sp=document.querySelector('#vw-'+activePlayerId+' .vbar .spd'); if(sp) sp.textContent=r[i]+'×'; }
+    function vwSeek(e){ if(!vwVid) return; const b=document.getElementById('seek-'+activePlayerId).getBoundingClientRect(); vwVid.currentTime=((e.clientX-b.left)/b.width)*(vwVid.duration||0); }
 
     // YouTube-плеер: свои кнопки Play/Pause и полоса перемотки
     function ytPlayToggle(){
@@ -1754,7 +1794,7 @@
     }
     function ytSeek(e){
       if(!ytPlayer || !ytPlayer.getDuration) return;
-      const b = document.getElementById('seek').getBoundingClientRect();
+      const b = document.getElementById('seek-'+activePlayerId).getBoundingClientRect();
       const frac = (e.clientX-b.left)/b.width;
       ytPlayer.seekTo(frac * ytPlayer.getDuration(), true);
     }
@@ -2036,11 +2076,6 @@
       } else {
         alert(text);
       }
-    }
-
-    function toggleQuote(){
-      const q = document.getElementById('quote');
-      if(q) q.classList.toggle('open');
     }
 
     function toggleManifest(idx){

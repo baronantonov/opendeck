@@ -525,7 +525,7 @@
       <div class="offer" style="background:linear-gradient(160deg,rgba(140,226,200,0.14),var(--surface) 55%);border-color:rgba(140,226,200,0.24)">
         <div class="pill" style="color:var(--accent-mint)">Бесплатная скидка</div>
         <h2>Заработай Stars бесплатно</h2>
-        <p class="desc">Бонус-уроки – <b style="color:var(--accent-mint)">+200 ⭐</b> за каждый. Друзья: <b>+100 ⭐</b> вам обоим, <b>+500 ⭐</b> за их покупку.</p>
+        <p class="desc">Бонус-уроки – <b style="color:var(--accent-mint)">+200 ⭐</b> за каждый. Друзья: <b>+100 ⭐</b> вам обоим, <b>+200 ⭐</b> за их покупку.</p>
         <div style="display:flex;flex-direction:column;gap:10px">
           <button class="btn secondary" onclick="switchTab('bonus')"><svg class="icn" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg> Бонус-уроки<span class="sub" id="theory-progress">0 / 4 пройдено</span></button>
           <button class="btn primary" onclick="shareInvite()">Пригласить друга<span class="sub" id="ref-progress-mini">0 друзей • 0 ⭐</span></button>
@@ -549,7 +549,7 @@
           <li><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg><span><b>Доступ к записям</b> всех сессий</span></li>
           <li><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg><span><b>Поддержка</b> в чате между сессиями</span></li>
         </ul>
-        <div class="price"><del>21000 ⭐</del><span class="disc" id="discount">Твоя скидка: −0 ⭐</span></div>
+        <div class="price"><span class="disc" id="discount">Твоя скидка: −0 ⭐</span></div>
         <div class="price"><span class="final" id="mentor-final">21000 ⭐</span></div>
         <div class="seats">Осталось 2 места из 5 в этом месяце</div>
         <div class="gp-auto">
@@ -874,10 +874,10 @@
         };
         archLine.textContent = map[arch] || 'Твой путь DJ начинается здесь';
       }
-      document.getElementById('discount').textContent = `Твоя скидка: −${Math.min(gp, 7000)} ⭐`;
-      // автоскидка менторства
-      const discAmt = Math.min(gp, 7000);
-      const finalStars = Math.max(14000, 21000 - discAmt);
+      document.getElementById('discount').textContent = `Твоя скидка: −${Math.min(gp, 4600)} ⭐`;
+      // автоскидка менторства (1 GP = 1 Star, кап MENTOR_GP_CAP, floor MENTOR_FLOOR)
+      const discAmt = Math.min(gp, 4600);
+      const finalStars = Math.max(23400, 28000 - discAmt);
       const mf = document.getElementById('mentor-final');
       if(mf) mf.textContent = finalStars + ' ⭐';
       const gb = document.getElementById('gp-balance');

@@ -602,11 +602,14 @@ async def archetype_share(
 
 
 # ---- Цены в Stars ----
-# 1 Star ≈ $0.014 для покупателя. Цена с учётом комиссии Apple/Google (~30% на мобильных).
-# Creator получает ~$0.013 за Star после вывода.
+# 1 Star ≈ $0.0143 для покупателя ($300 = 21000 Stars, см. MENTOR_PRICE).
+# Комиссия Stars: 30% платёж + 10% вывод = 40% → Creator нет 60% (≈$0.0086/Star).
+# Цель: net Фриды за менторство ≥ $200 → gross ≥ $333 ≈ 23333⭐ → FLOOR 23400.
 TRIPWIRE_PRICE = 500      # $7   → 500 Stars
 FULL_COURSE_PRICE = 2100  # $30  → 2100 Stars
-MENTOR_PRICE = 21000      # $300 → 21000 Stars
+MENTOR_PRICE = 28000      # $400 → 28000 Stars (gross; floor защищает net $200)
+MENTOR_FLOOR = 23400      # минимальный gross менторства (net $200 после 40% комиссии)
+MENTOR_GP_CAP = 4600      # макс GP-скидка (28000 - 4600 = 23400 = floor)
 
 # ---- A/B эксперименты (Adapty: локализация +62% LTV, структура trial +59%) ----
 # Варианты цен для tripwire/full. Если эксперимент ВЫКЛЮЧЕН (active=False) —
@@ -684,10 +687,11 @@ async def create_invoice(
         price, variant = _ab_price(COURSE_ID, uid)
         label = "Pocket DJ: полный курс"
     elif course_id == "mentoring":
-        # автоскидка 1 GP = 1 Star, макс 7000, итог не ниже 14000
+        # автоскидка 1 GP = 1 Star, макс MENTOR_GP_CAP, итог не ниже MENTOR_FLOOR
+        # (floor гарантирует net Фриды ≥ $200 после 40% комиссии Stars)
         gp = db.get_gp(uid)
-        disc = min(gp, 7000)
-        price = max(14000, MENTOR_PRICE - disc)
+        disc = min(gp, MENTOR_GP_CAP)
+        price = max(MENTOR_FLOOR, MENTOR_PRICE - disc)
         label = "Персональное менторство FREEDA DJ"
     else:
         return JSONResponse({"error": "unknown_course"}, status_code=400)

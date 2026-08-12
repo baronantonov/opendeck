@@ -550,15 +550,14 @@
           <li><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg><span><b>Поддержка</b> в чате между сессиями</span></li>
         </ul>
         <div class="price"><span class="disc" id="discount">Твоя скидка: −0 ⭐</span></div>
-        <div class="price"><span class="final" id="mentor-final">21000 ⭐</span></div>
+        <div class="price"><span class="final" id="mentor-final">28000 ⭐</span></div>
         <div class="seats">Осталось 2 места из 5 в этом месяце</div>
         <div class="gp-auto">
           <div class="lbl">Твои Stars</div>
           <div class="val" id="gp-balance">0 ⭐</div>
           <div class="small">Автоматически вычтем из цены менторства</div>
         </div>
-        <button class="btn coral" onclick="bookMentor()">Забронировать место</button>
-        <button class="btn primary" style="margin-top:10px" onclick="bookMentorTribute()">Оплатить через Tribute (карта / СБП)</button>
+        <button class="btn coral" onclick="showMentorPay()">Оплатить менторство</button>
       </div>
 
       <div class="offer" style="border-color:rgba(140,226,200,0.25)">
@@ -646,6 +645,26 @@
       </div>
       <div class="foot-note">Быстрый старт (уроки 1–4) – низкий порог входа. Полный курс + бонусы – сразу весь доступ.</div>
       <button class="btn ghost" style="width:100%;padding:11px" onclick="hidePaywall()">Позже</button>
+    </div>
+
+    <!-- Модалка выбора способа оплаты менторства -->
+    <div class="modal-mask hidden" id="mentor-pay" onclick="if(event.target===this)hideMentorPay()">
+      <div class="modal">
+        <h3>Оплатить менторство FREEDA DJ</h3>
+        <p>Выбери способ. Через Stars списываем накопленные ⭐, через Tribute — фикс-цена картой / СБП.</p>
+        <div class="pay-row">
+          <button class="btn primary" onclick="bookMentor()">
+            <svg class="icn" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            Оплатить Stars<span class="sub" id="mp-stars-price">28000 ⭐</span>
+          </button>
+          <button class="btn coral" onclick="bookMentorTribute()">
+            <svg class="icn" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+            Через Tribute (карта / СБП)<span class="sub">$230 · USDT-вывод</span>
+          </button>
+        </div>
+        <div class="foot-note">Менторство = 4 сессии 1-на-1. Net FREEDA после комиссий ≥ $200. Через Stars цена снижается на твои ⭐.</div>
+        <button class="btn ghost" style="width:100%;padding:11px" onclick="hideMentorPay()">Позже</button>
+      </div>
     </div>
   </div>
 
@@ -1718,6 +1737,22 @@
       const btn = document.querySelector('#paywall .btn');
       if(btn) btn.disabled = false;
     }
+
+    // Менторство: модалка выбора способа (Stars со скидкой / Tribute фикс).
+    function showMentorPay(){
+      const gp = state.user.groovePoints || 0;
+      const discAmt = Math.min(gp, 4600);
+      const finalStars = Math.max(23400, 28000 - discAmt);
+      const msp = document.getElementById('mp-stars-price');
+      if(msp) msp.textContent = finalStars.toLocaleString('ru-RU') + ' ⭐' + (discAmt ? ' (−' + discAmt + ')' : '');
+      const mp = document.getElementById('mentor-pay');
+      if(mp) mp.classList.remove('hidden');
+      haptic('impactOccurred');
+    }
+    function hideMentorPay(){
+      const mp = document.getElementById('mentor-pay');
+      if(mp) mp.classList.add('hidden');
+    }
     // PLAY A+: покупка курса через Prodamus (карта/СБП РФ).
     // ВАЖНО: открываем ВНЕШНИМ браузером (tg.openLink), НЕ в webview Mini App —
     // чтобы снизить риск бана бота и корректно принять 3-D Secure / СБП.
@@ -1841,7 +1876,8 @@
         tg.openInvoice(data.invoice_link, (status) => {
           if(status === 'paid'){
             // ⚠️ НЕ зовём /api/gp/apply и /api/referral/purchase отсюда!
-            // Цена инвойса уже снижена на сервере (1 GP = 1 Star, max 7000).
+            // Цена инвойса уже снижена на сервере (1 GP = 1 Star, max 4600,
+            // floor 23400⭐ = net $200 Фриды после 40% комиссии Stars).
             // Списание GP и реф-бонус инвайтеру (+200 ⭐) фиксирует БОТ
             // по successful_payment (идемпотентно по charge_id). Повторный
             // вызов от фронта привёл бы к двойному списанию GP / накрутке.

@@ -17,7 +17,7 @@ import backend.db as db
 _tmp = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
 _tmp.close()
 db.DB_PATH = Path(_tmp.name)
-    db.init()  # переинициализать таблицы в temp БД (pytest-glob: main уже вызвал init() с дефолтным путём)
+db.init()  # переинициализировать таблицы в temp БД (pytest-glob: main уже вызвал init() с дефолтным путём)
 
 from fastapi.testclient import TestClient
 from backend.main import app

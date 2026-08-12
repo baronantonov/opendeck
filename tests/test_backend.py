@@ -9,6 +9,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 TOKEN = "TEST_BOT_TOKEN"
 os.environ["BOT_TOKEN"] = TOKEN
 os.environ["PRODAMUS_WEBHOOK_SECRET"] = "TEST_PRODAMUS_SECRET"
+# backend /webhooks/prodamus читает именно PRODAMUS_SECRET_KEY
+os.environ["PRODAMUS_SECRET_KEY"] = "TEST_PRODAMUS_SECRET"
 os.environ["INTERNAL_API_KEY"] = "TEST_INTERNAL_KEY"
 
 # SQLite на tempfile — каждый прогон изолирован
@@ -21,6 +23,7 @@ db.DB_PATH = Path(_tmp_db.name)
 from fastapi.testclient import TestClient
 from backend.main import app
 from backend.auth import verify_init_data
+import backend.prodamus_sign as prodamus_sign
 
 # --- Локальный генератор валидного init_data (бывшая _build_valid_init_data из auth.py) ---
 def make_init_data(token, user_id, age=60):
@@ -74,11 +77,16 @@ check("уроки доступны ПОСЛЕ оплаты (paid=true)", j.get("
 check("вернулось 6 уроков (PLAY-remap основного курса)", len(j.get("lessons", [])) == 6)
 
 print("== Webhook Prodamus (HMAC) ==")
-body = json.dumps({"status": "paid", "order_id": f"{uid}:dj-basics"}).encode()
-sig = hmac.new(b"TEST_PRODAMUS_SECRET", body, hashlib.sha256).hexdigest()
-r = client.post("/webhooks/prodamus", content=body, headers={"x-signature": sig})
+# Prodamus шлёт form-data (application/x-www-form-urlencoded) + заголовок `Sign`.
+# Подпись = алгоритм prodamus_sign: все поля (кроме signature/Sign), сортировка
+# ключей, json(ensure_ascii=False, separators), '/' -> '\/', HMAC-SHA256 секретом.
+webhook_secret = os.environ["PRODAMUS_WEBHOOK_SECRET"]
+webhook_form = {"status": "paid", "order_id": f"{uid}:dj-basics"}
+webhook_body = urllib.parse.urlencode(webhook_form).encode()
+webhook_sig = prodamus_sign.sign_params(webhook_form, webhook_secret)
+r = client.post("/webhooks/prodamus", content=webhook_body, headers={"Sign": webhook_sig})
 check("валидный webhook принят", r.status_code == 200)
-r = client.post("/webhooks/prodamus", content=body, headers={"x-signature": "bad"})
+r = client.post("/webhooks/prodamus", content=webhook_body, headers={"Sign": "bad"})
 check("поддельный webhook отклонён (400)", r.status_code == 400)
 
 print("== init_data verify (прямой) ==")
@@ -106,9 +114,10 @@ r1 = client.post("/api/referral/purchase", json={"user_id": fr_uid},
 r2 = client.post("/api/referral/purchase", json={"user_id": fr_uid},
                  headers={"Authorization": "Bearer TEST_INTERNAL_KEY"})
 gp_after = db.get_gp(inv_uid)
-# инвайтер: +30 за signup invitee + ровно +200 за purchase (двойной вызов не накручивает)
-check("реф-бонус инвайтеру = +30 (signup) +200 (purchase), двойной вызов не накручивает",
-      gp_after == 230)
+# инвайтер: +100 за signup invitee (SIGNUP_INVITER) + ровно +500 за purchase
+# (PURCHASE_BONUS, двойной вызов не накручивает — идемпотентно по invitee)
+check("реф-бонус инвайтеру = +100 (signup) +500 (purchase), двойной вызов не накручивает",
+      gp_after == 600)
 
 # менторство: списание GP идемпотентно по charge_id
 client.post("/api/progress", json={"course_id": "dj-basics", "lesson_id": 2},
@@ -126,7 +135,8 @@ after = db.get_gp(fr_uid)
 check("двойной gp/apply по тому же charge_id НЕ списывает повторно",
       a2.get("duplicate") is True and after == before - a1.get("discount", 0))
 
-print(f"\nИтог: {passed} PASS / {failed} FAIL")
-# Удалить tempfile
-os.unlink(_tmp_db.name)
-sys.exit(1 if failed else 0)
+if __name__ == "__main__":
+    print(f"\nИтог: {passed} PASS / {failed} FAIL")
+    # Удалить tempfile
+    os.unlink(_tmp_db.name)
+    sys.exit(1 if failed else 0)

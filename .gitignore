@@ -20,3 +20,11 @@ tunnel.log
 
 # Hermes agent working dir
 .hermes/
+
+# repowise local index (codebase intelligence, machine-local)
+.repowise/
+
+# repowise editor-setup artifacts (never commit)
+.vscode/
+.mcp.json
+tunnel-keys/id_ed25519.pub

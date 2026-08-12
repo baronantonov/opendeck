@@ -18,28 +18,29 @@
        дозированные акценты. Без декоративного шума и лишних анимаций.
        ============================================================ */
     :root{
-      --bg:#171a19;              /* глубокий тёмный фон */
-      --surface:#1f2322;         /* карточки */
-      --surface-2:#262b29;       /* hover / активные */
-      --line:#2c3230;            /* деликатные границы */
-      --text:#f2f4f3;            /* основной текст */
-      --text-2:#a3ada9;          /* вторичный текст */
-      --text-3:#6e7874;          /* третичный / подписи */
+      --bg:#232827;              /* тёплый тёмно-оливковый фон */
+      --bg-grad:#2b302e;         /* верх фона */
+      --surface:#2e3432;         /* карточки */
+      --surface-2:#38403d;       /* hover / активные */
+      --line:#3f4744;            /* деликатные границы */
+      --text:#f4f7f5;            /* основной текст */
+      --text-2:#c7cccc;          /* вторичный текст */
+      --text-3:#9aa3a0;          /* третичный / подписи */
       --accent-mint:#8ce2c8;     /* первичный акцент */
       --accent-coral:#f5926e;    /* вторичный акцент */
       --accent-mauve:#c0a0a8;    /* третичный акцент */
       --danger:#ff8f8f;
-      --r-lg:20px;
-      --r-md:14px;
-      --r-sm:10px;
-      --shadow-card:0 1px 2px rgba(0,0,0,0.2);
+      --r-lg:20px;--r-md:14px;--r-sm:10px;
+      --shadow-card:0 2px 6px rgba(0,0,0,0.28);
     }
     *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
     :focus-visible{outline:2px solid var(--accent-mint);outline-offset:2px;border-radius:8px}
     html,body{margin:0;padding:0}
     body{
       font-family:'Inter',sans-serif;font-weight:400;
-      color:var(--text);background:var(--bg);
+      color:var(--text);
+      background:linear-gradient(160deg,var(--bg-grad),var(--bg) 50%);
+      background-attachment:fixed;
       min-height:100vh;min-height:100dvh;
       -webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;
       padding-bottom:calc(env(safe-area-inset-bottom) + 96px);
@@ -87,45 +88,52 @@
     .btn.sm{padding:10px 18px;font-size:13px;width:auto}
 
     /* ---- Hero (главный фокус) ---- */
-    .hero{background:linear-gradient(160deg,var(--surface-2),var(--surface));
-      border:1px solid var(--line);border-radius:var(--r-lg);padding:22px 20px;position:relative;overflow:hidden}
+    .hero{background:linear-gradient(150deg,rgba(140,226,200,0.22),rgba(245,146,110,0.18) 55%,rgba(192,160,168,0.10));
+      border:1px solid rgba(140,226,200,0.28);border-radius:var(--r-lg);padding:18px 16px;position:relative;overflow:hidden}
+    .hero::after{content:'';position:absolute;top:-50px;right:-50px;width:170px;height:170px;border-radius:50%;
+      background:radial-gradient(circle,rgba(140,226,200,0.14),transparent 70%);pointer-events:none}
     .hero .hero-body{position:relative;z-index:1}
-    .hero .hero-top{display:flex;align-items:flex-start;justify-content:space-between;gap:14px}
-    .hero .lesson-title{font-family:'Unbounded',sans-serif;font-size:17px;line-height:1.35;
-      margin-top:4px;color:var(--text);min-height:24px}
-    .hero .lesson-sub{font-size:12px;color:var(--text-3);margin-top:2px}
-    .hero .count{flex:none;text-align:right;font-family:'Unbounded',sans-serif;
-      font-size:30px;font-weight:600;color:var(--text);line-height:1}
-    .hero .count .of{font-size:14px;color:var(--text-2);font-weight:500}
-    .progress{height:4px;border-radius:99px;background:var(--line);
-      overflow:hidden;margin-top:16px}
-    .progress > i{display:block;height:100%;background:var(--accent-mint);
-      border-radius:99px;transition:width .5s ease}
+    .hero .eyebrow{margin-bottom:10px}
+    .hero-main{display:flex;align-items:center;gap:16px}
+    .hero-text{flex:1;min-width:0}
+    .hero .lesson-title{font-family:'Unbounded',sans-serif;font-size:19px;line-height:1.3;
+      margin-top:2px;color:var(--text);min-height:24px}
+    .hero .arch-line{font-size:13px;color:var(--accent-mint);margin-top:4px;font-weight:500}
+    .hero .count{flex:none;text-align:left;font-family:'Unbounded',sans-serif;
+      font-size:28px;font-weight:600;color:var(--accent-mint);line-height:1;margin-top:6px}
+    .hero .count .of{font-size:13px;color:var(--text-2);font-weight:500}
+    .progress{height:6px;border-radius:99px;background:rgba(255,255,255,0.14);
+      overflow:hidden;margin-top:14px}
+    .progress > i{display:block;height:100%;border-radius:99px;transition:width .5s ease;
+      background:linear-gradient(90deg,var(--accent-mint),var(--accent-coral))}
 
     /* ---- Play ---- */
-    .play-row{display:flex;flex-direction:column;align-items:center;gap:12px;margin-top:20px}
+    .play-row{display:flex;flex-direction:column;align-items:center;gap:10px;margin-top:16px}
     .play-deck{
-      width:84px;height:84px;border-radius:50%;border:0;cursor:pointer;
-      background:var(--accent-mint);color:#10201b;
+      width:104px;height:104px;border-radius:50%;border:0;cursor:pointer;flex:none;
+      background:radial-gradient(circle at 32% 28%,rgba(255,255,255,0.35),var(--accent-coral) 58%,#d96b48);
+      color:#fff;
       display:flex;align-items:center;justify-content:center;
-      box-shadow:0 8px 30px rgba(140,226,200,0.25);
+      box-shadow:0 12px 38px rgba(245,146,110,0.42),inset 0 -4px 12px rgba(0,0,0,0.22),inset 0 3px 8px rgba(255,255,255,0.3);
       transition:transform .12s ease,box-shadow .2s ease;
       -webkit-tap-highlight-color:transparent}
     .play-deck:active{transform:scale(.96)}
-    .play-deck svg{width:32px;height:32px;fill:#10201b;margin-left:4px}
-    .play-deck-label{font-size:12px;color:var(--text-2);font-weight:500}
-    .upgrade-link{font-size:12px;color:var(--accent-mint);cursor:pointer;
+    .play-deck svg{width:42px;height:42px;fill:#fff;margin-left:6px;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.3))}
+    .play-deck-label{font-size:14px;color:var(--text);font-weight:600}
+    .upgrade-link{font-size:12.5px;color:var(--accent-mint);cursor:pointer;
       text-decoration:none;border-bottom:1px solid rgba(140,226,200,0.3);padding-bottom:1px}
     .upgrade-link:active{opacity:.7}
 
-    /* ---- Value grid ---- */
+    /* ---- Value grid (цветные, лаконично) ---- */
     .value-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:4px}
     .value-card{background:var(--surface);border:1px solid var(--line);
-      border-radius:var(--r-md);padding:14px 12px;text-align:left}
-    .value-card .value-ic{font-size:18px;line-height:1;margin-bottom:8px}
-    .value-card .value-t{font-family:'Unbounded',sans-serif;font-size:11.5px;font-weight:600;
-      color:var(--text);margin-bottom:3px}
-    .value-card .value-d{font-size:10.5px;line-height:1.45;color:var(--text-2)}
+      border-radius:var(--r-md);padding:14px 12px;text-align:left;position:relative;overflow:hidden}
+    .value-card .value-ic{font-size:20px;line-height:1;margin-bottom:8px}
+    .value-card .value-t{font-family:'Unbounded',sans-serif;font-size:12px;font-weight:600;color:var(--text);margin-bottom:2px}
+    .value-card .value-d{font-size:10.5px;line-height:1.4;color:var(--text-2)}
+    .value-card:nth-child(1){background:linear-gradient(150deg,rgba(245,146,110,0.18),var(--surface));border-color:rgba(245,146,110,0.25)}
+    .value-card:nth-child(2){background:linear-gradient(150deg,rgba(140,226,200,0.16),var(--surface));border-color:rgba(140,226,200,0.22)}
+    .value-card:nth-child(3){background:linear-gradient(150deg,rgba(192,160,168,0.16),var(--surface));border-color:rgba(192,160,168,0.22)}
 
     /* ---- Team share ---- */
     .team-share{display:flex;align-items:center;gap:12px;background:var(--surface);
@@ -423,18 +431,18 @@
       <div class="hero">
         <div class="hero-body">
           <div class="eyebrow">Продолжаем</div>
-          <div class="hero-top">
-            <div style="flex:1;min-width:0">
-              <div class="lesson-title skel" id="next-lesson" style="display:block">—</div>
-              <div id="arch-line" style="font-size:12px;color:var(--accent-mint);margin-top:2px;font-weight:500"></div>
-            </div>
-            <div class="count"><span class="st skel" id="lesson-n">—</span><span class="of">/6</span></div>
-          </div>
-          <div class="progress skel" id="bar-wrap"><i id="bar" style="width:0%"></i></div>
-          <div class="play-row">
+          <div class="hero-main">
             <button class="play-deck" id="play-btn" onclick="heroPlay()" aria-label="Играть урок">
               <svg viewBox="0 0 24 24"><path d="M8 5.5v13l11-6.5z"/></svg>
             </button>
+            <div class="hero-text">
+              <div class="lesson-title skel" id="next-lesson" style="display:block">—</div>
+              <div id="arch-line"></div>
+              <div class="count"><span class="st skel" id="lesson-n">—</span><span class="of">/6</span></div>
+            </div>
+          </div>
+          <div class="progress skel" id="bar-wrap"><i id="bar" style="width:0%"></i></div>
+          <div class="play-row">
             <div class="play-deck-label" id="play-label">Начать урок 1</div>
             <a class="upgrade-link" onclick="switchTab('upgrade')" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' ')switchTab('upgrade')">Персональное менторство →</a>
           </div>
@@ -443,9 +451,9 @@
 
       <!-- Ценность -->
       <div class="value-grid">
-        <div class="value-card"><div class="value-ic">🎚️</div><div class="value-t">С нуля до сета</div><div class="value-d">6 уроков: оборудование, сведение, танцпол</div></div>
-        <div class="value-card"><div class="value-ic">🎁</div><div class="value-t">Бесплатные ⭐</div><div class="value-d">Бонусы и друзья = скидка на курс</div></div>
-        <div class="value-card"><div class="value-ic">🎧</div><div class="value-t">Свой вайб</div><div class="value-d">Играй, а не копируй чужое</div></div>
+        <div class="value-card"><div class="value-ic">🎚️</div><div class="value-t">С нуля</div><div class="value-d">6 уроков до сета</div></div>
+        <div class="value-card"><div class="value-ic">🎁</div><div class="value-t">Бонусы</div><div class="value-d">⭐ за просмотры</div></div>
+        <div class="value-card"><div class="value-ic">🎧</div><div class="value-t">Свой вайб</div><div class="value-d">играй по-своему</div></div>
       </div>
 
       <!-- Команда / архетип -->
@@ -453,7 +461,7 @@
         <div class="ic">🎧</div>
         <div class="flex">
           <div class="t">Я — <span id="ts-arch">Куратор Вайба</span></div>
-          <div class="d">Собери свою команду DJ</div>
+          <div class="d">Собери команду DJ</div>
         </div>
         <div class="reward">+20 ⭐</div>
       </div>
@@ -471,8 +479,7 @@
         </div>
       </div>
 
-      <div class="gp-value">За каждый урок курса <b>+50 ⭐</b>, за бонус-урок <b>+200 ⭐</b>. Stars дают скидку на менторство с FREEDA DJ.</div>
-      <div class="micro-hint">Смотри уроки → получай <b>⭐</b> → трать на скидку курса. Приведёшь друга <b>по 100 ⭐</b> вам обоим.</div>
+      <div class="micro-hint">Уроки дают <b>⭐ Stars</b> → скидка на курс. Приведи друга — <b>+100 ⭐</b> обоим.</div>
     </section>
 
     <!-- ============ COURSE ============ -->

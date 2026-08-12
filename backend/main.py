@@ -13,7 +13,7 @@
   POST /webhooks/prodamus       — вебхук оплаты
 """
 from __future__ import annotations
-import os, json, httpx
+import os, json, httpx, hmac
 from pathlib import Path
 
 try:
@@ -723,6 +723,28 @@ async def create_invoice(
             "price_rub": rub,
         }
 
+    elif body.provider == "tribute":
+        from bot.payments.tribute import TributeProvider
+        prov = TributeProvider()
+        inv = await prov.create_invoice(uid, course_id, f"{price} XTR")
+        if inv.meta.get("not_configured"):
+            return JSONResponse(
+                {"error": "tribute_not_configured",
+                 "detail": "Tribute не настроен (нужны TRIBUTE_MENTOR_PRODUCT_ID)"},
+                status_code=503,
+            )
+        if not inv.url_or_payload:
+            return JSONResponse(
+                {"error": "tribute_invoice_failed", "detail": inv.meta},
+                status_code=502,
+            )
+        return {
+            "provider": "tribute",
+            "pay_url": inv.url_or_payload,
+            "order_id": inv.meta.get("order_id"),
+            "title": label,
+        }
+
     async with httpx.AsyncClient(timeout=10) as c:
         resp = await c.post(
             f"https://api.telegram.org/bot{BOT_TOKEN}/createInvoiceLink",
@@ -847,4 +869,54 @@ async def prodamus_webhook(req: Request, sign: str = Header(None, alias="Sign"))
             # невалидный order_id — логируем, но отвечаем 200, чтобы Prodamus
             # не спамил повторами
             pass
+    return {"ok": True}
+
+
+# ---- POST /webhooks/tribute ----
+# Tribute шлёт webhook new_digital_product при успешной оплате digital-продукта
+# (менторство FREEDA DJ). Подтверждение оплаты = только этот webhook.
+# Подпись: Tribute передаёт header (точный алгоритм не документирован в open-docs) —
+# если приходит заголовок подписи, проверяем HMAC-SHA256(тело, TRIBUTE_API_KEY);
+# если нет — принимаем при наличии purchase_id (логируем отсутствие подписи).
+@app.post("/webhooks/tribute")
+async def tribute_webhook(req: Request, x_signature: str = Header(None, alias="X-Signature")):
+    api_key = os.getenv("TRIBUTE_API_KEY", "")
+    if not api_key:
+        return JSONResponse({"error": "webhook_not_configured"}, status_code=500)
+
+    import hashlib
+    raw = await req.body()
+    # опциональная проверка подписи (если Tribute шлёт X-Signature)
+    if x_signature:
+        computed = hmac.new(api_key.encode(), raw, hashlib.sha256).hexdigest()
+        if not hmac.compare_digest(computed, x_signature):
+            return JSONResponse({"error": "bad_signature"}, status_code=400)
+
+    try:
+        body = json.loads(raw.decode("utf-8", "ignore"))
+    except Exception:
+        return JSONResponse({"error": "bad_json"}, status_code=400)
+
+    # Tribute webhook payload содержит purchase_id и поля продукта/юзера.
+    # order_id мы НЕ формируем при создании ссылки (Tribute-продукт статичен),
+    # поэтому привязываем по telegram user_id из payload, если есть, иначе
+    # по purchase_id как уникальному ключу идемпотентности.
+    purchase_id = str(body.get("purchase_id") or body.get("id") or "")
+    if not purchase_id:
+        return JSONResponse({"error": "no_purchase_id"}, status_code=400)
+
+    # idempotency: тот же purchase_id не начисляем дважды
+    if db.is_webhook_processed(purchase_id):
+        return {"ok": True, "duplicate": True}
+
+    # Курс менторства — единственный Tribute-продукт в этом проекте.
+    user_id = body.get("user_id") or body.get("telegram_id")
+    course_id = "mentoring"
+    try:
+        if user_id:
+            db.add_payment(int(user_id), course_id, "tribute", status="paid",
+                           raw=json.dumps(body, ensure_ascii=False)[:4000])
+        db.mark_webhook_processed(purchase_id)
+    except Exception:
+        pass
     return {"ok": True}

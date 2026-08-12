@@ -558,6 +558,7 @@
           <div class="small">Автоматически вычтем из цены менторства</div>
         </div>
         <button class="btn coral" onclick="bookMentor()">Забронировать место</button>
+        <button class="btn primary" style="margin-top:10px" onclick="bookMentorTribute()">Оплатить через Tribute (карта / СБП)</button>
       </div>
 
       <div class="offer" style="border-color:rgba(140,226,200,0.25)">
@@ -1822,8 +1823,8 @@
 
     function bookMentor(){
       const gp = state.user.groovePoints || 0;
-      const discAmt = Math.min(gp, 7000);
-      const finalPrice = Math.max(14000, 21000 - discAmt);
+      const discAmt = Math.min(gp, 4600);
+      const finalPrice = Math.max(23400, 28000 - discAmt);
       showToast(ICON('refresh'), 'Создаём счёт...');
       const btn = document.querySelector('.offer .btn');
       if(btn) btn.disabled = true;
@@ -1854,6 +1855,28 @@
         });
       }).catch(()=>{
         if(btn) btn.disabled = false;
+        showToast('❌', 'Ошибка сети. Проверь подключение.');
+      });
+    }
+
+    // Tribute-канал: фикс-цена ($230, net Фриды ~$207 после 10% комиссии).
+    // GP-скидка НЕ применяется (Tribute API не умеет динамическую цену).
+    // Подтверждение оплаты — вебхук new_digital_product (backend /webhooks/tribute).
+    function bookMentorTribute(){
+      showToast(ICON('refresh'), 'Открываем Tribute...');
+      fetch(API_BASE + '/api/create-invoice', {
+        method:'POST',
+        headers:{'Content-Type':'application/json','X-Init-Data': tg.initData || ''},
+        body: JSON.stringify({ course_id:'mentoring', provider:'tribute' })
+      }).then(r=>r.ok ? r.json() : r.json().then(()=>null)).then(data=>{
+        if(!data || !data.pay_url){
+          if(data && data.detail){ showToast('❌', data.detail); }
+          else { showToast('❌', 'Tribute не настроен. Попробуй оплату через Stars.'); }
+          return;
+        }
+        if(tg.openLink){ tg.openLink(data.pay_url); }
+        else { location.href = data.pay_url; }
+      }).catch(()=>{
         showToast('❌', 'Ошибка сети. Проверь подключение.');
       });
     }

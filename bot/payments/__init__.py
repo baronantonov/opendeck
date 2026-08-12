@@ -3,11 +3,13 @@ from bot.payments.base import PaymentProvider
 from bot.payments.stars import StarsProvider
 from bot.payments.ton import TonProvider
 from bot.payments.prodamus import ProdamusProvider
+from bot.payments.tribute import TributeProvider
 
 _PROVIDERS = {
     "stars": StarsProvider,
     "ton": TonProvider,
     "prodamus": ProdamusProvider,
+    "tribute": TributeProvider,
 }
 
 

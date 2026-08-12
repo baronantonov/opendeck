@@ -88,3 +88,11 @@ PRODAMUS_API_KEY = os.getenv("PRODAMUS_API_KEY", "")
 
 # Backend (где живёт раздача уроков / выдача доступа)
 BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
+
+# Tribute (карта / СБП / USDT) — платёжный провайдер для менторства.
+# Digital-продукт имеет фиксированную цену ($230, net Фриды ~$207 после 10% комиссии).
+# Динамическая GP-скидка НЕ применяется (Tribute API не умеет динамическую цену) —
+# скидка только в Stars-канале. Подтверждение оплаты — вебхук new_digital_product.
+TRIBUTE_API_KEY = os.getenv("TRIBUTE_API_KEY", "")
+TRIBUTE_WEBHOOK_URL = os.getenv("TRIBUTE_WEBHOOK_URL", "")
+TRIBUTE_MENTOR_PRODUCT_ID = os.getenv("TRIBUTE_MENTOR_PRODUCT_ID", "")

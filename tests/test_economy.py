@@ -171,4 +171,5 @@ check("archetype/share без auth -> 401", r3.status_code == 401, f"status={r3.
 
 print()
 print(f"ИТОГО: {passed} PASS / {failed} FAIL")
-sys.exit(1 if failed else 0)
+if __name__ == "__main__":
+    sys.exit(1 if failed else 0)

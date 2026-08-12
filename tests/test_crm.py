@@ -163,4 +163,5 @@ check("logout -> ok", r.status_code == 200)
 
 os.unlink(_tmp.name)
 print(f"\nИтог CRM: {passed} PASS / {failed} FAIL")
-sys.exit(1 if failed else 0)
+if __name__ == "__main__":
+    sys.exit(1 if failed else 0)

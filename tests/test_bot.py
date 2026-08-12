@@ -56,4 +56,5 @@ r2 = client.get("/api/lessons?course_id=dj-basics", headers={"X-Init-Data": "has
 check("без init_data доступ не светится (защита)", r2.json().get("error") == "bad_init_data")
 
 print(f"\nИтог бота: {passed} PASS / {failed} FAIL")
-sys.exit(1 if failed else 0)
+if __name__ == "__main__":
+    sys.exit(1 if failed else 0)

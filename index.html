@@ -1857,6 +1857,11 @@
     }
 
     function bookMentor(){
+      // Opening outside Telegram (прямая ссылка) — tg недоступен.
+      if(typeof tg === 'undefined' || !tg.openInvoice){
+        showToast('ℹ️', 'Оплата работает внутри Telegram. Открой Mini App через бота @OpenDeck_bot.');
+        return;
+      }
       const gp = state.user.groovePoints || 0;
       const discAmt = Math.min(gp, 4600);
       const finalPrice = Math.max(23400, 28000 - discAmt);

@@ -20,12 +20,15 @@ os.environ["INTERNAL_API_KEY"] = "TEST_INTERNAL_KEY"
 os.environ["ADMIN_KEY"] = "super-secret-crm-key"
 
 import backend.db as db
-from backend.auth import verify_init_data
+from fastapi.testclient import TestClient
+
+# изолированная БД ДО импорта backend.main (иначе db.init() создаст таблицы
+# в дефолтной БД, а тест будет работать с пустой temp-БД -> no such table)
 _tmp = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
 _tmp.close()
 db.DB_PATH = Path(_tmp.name)
 
-from fastapi.testclient import TestClient
+from backend.auth import verify_init_data
 import backend.main as main
 from backend.main import app
 

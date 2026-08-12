@@ -182,7 +182,7 @@
 
     /* ---- Lesson list ---- */
     .lesson{display:flex;align-items:center;gap:14px;background:var(--surface);
-      border:1px solid var(--line);border-radius:var(--r-md);padding:15px 16px;cursor:pointer;
+      border:1px solid var(--line);border-radius:var(--r-md);padding:16px 16px;cursor:pointer;
       transition:border-color .15s,background .15s,transform .12s ease}
     .lesson + .lesson{margin-top:8px}
     .lesson:active{border-color:var(--accent-mint);transform:scale(.99)}
@@ -193,8 +193,8 @@
       display:flex;align-items:center;justify-content:center;font-weight:600;font-size:13px;flex:none;color:var(--text)}
     .lesson.done .num{background:var(--accent-mint);color:#10201b}
     .lesson.locked .num{color:var(--text-3)}
-    .lesson .ttl{flex:1;min-width:0;font-size:15px;font-weight:500;line-height:1.3;color:var(--text)}
-    .lesson .ttl .sub{display:block;font-size:12px;font-weight:400;color:var(--text-2);margin-top:3px}
+    .lesson .ttl{flex:1;min-width:0;font-size:16px;font-weight:500;line-height:1.3;color:var(--text)}
+    .lesson .ttl .sub{display:block;font-size:13px;font-weight:400;color:var(--text-2);margin-top:3px}
     .lesson .ttl .hint{display:block;font-size:11px;font-weight:400;color:var(--text-3);margin-top:3px}
     .lesson .check,.lesson .lock{width:18px;height:18px;flex:none}
     .lesson .check{color:var(--accent-mint)}
@@ -203,14 +203,14 @@
     /* ---- Upgrade / offers ---- */
     .offer{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);
       padding:20px;margin-bottom:12px}
-    .offer .pill{display:inline-block;font-size:10px;font-weight:600;letter-spacing:.1em;
+    .offer .pill{display:inline-block;font-size:11px;font-weight:600;letter-spacing:.1em;
       text-transform:uppercase;color:var(--text-3);margin-bottom:10px}
-    .offer h2{font-size:17px;margin-bottom:10px}
-    .offer .desc{font-size:13px;color:var(--text-2);line-height:1.5;margin-bottom:16px}
+    .offer h2{font-size:19px;margin-bottom:10px;line-height:1.25}
+    .offer .desc{font-size:14px;color:var(--text-2);line-height:1.5;margin-bottom:16px}
     .price{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:4px}
     .price del{color:var(--text-3);font-size:13px}
     .price .disc{color:var(--accent-mint);font-size:12px;font-weight:600}
-    .price .final{font-family:'Unbounded',sans-serif;font-weight:600;font-size:28px;color:var(--accent-coral)}
+    .price .final{font-family:'Unbounded',sans-serif;font-weight:600;font-size:30px;color:var(--accent-coral)}
     .seats{color:var(--text-3);font-size:12px;margin-bottom:14px}
     .incl{list-style:none;margin:0 0 16px;padding:0}
     .incl li{display:flex;gap:10px;align-items:flex-start;font-size:13px;line-height:1.45;
@@ -224,17 +224,17 @@
     .sess .n{width:28px;height:28px;border-radius:50%;flex:none;display:flex;align-items:center;
       justify-content:center;font-family:'Unbounded',sans-serif;font-weight:600;font-size:12px;
       background:rgba(245,146,110,0.12);color:var(--accent-coral)}
-    .sess .ttt{font-size:14px;font-weight:500}
-    .sess .dss{font-size:12px;color:var(--text-2);margin-top:2px}
+    .sess .ttt{font-size:14.5px;font-weight:500}
+    .sess .dss{font-size:12.5px;color:var(--text-2);margin-top:2px}
     .gp-auto{background:var(--surface-2);border:1px solid var(--line);
       border-radius:var(--r-md);padding:14px 16px;text-align:center;margin-bottom:14px}
     .gp-auto .lbl{font-size:12px;color:var(--text-2)}
-    .gp-auto .val{font-family:'Unbounded',sans-serif;font-weight:600;font-size:20px;color:var(--accent-mint);margin-top:2px}
+    .gp-auto .val{font-family:'Unbounded',sans-serif;font-weight:600;font-size:22px;color:var(--accent-mint);margin-top:2px}
     .gp-auto .small{font-size:11px;color:var(--text-3);margin-top:2px}
 
     /* ---- Profile ---- */
-    .prof-card{text-align:center;padding:26px 20px 22px;background:var(--surface);
-      border:1px solid var(--line);border-radius:var(--r-lg)}
+    .prof-card{text-align:center;padding:24px 20px 22px;background:linear-gradient(160deg,rgba(140,226,200,0.16),var(--surface) 60%);
+      border:1px solid rgba(140,226,200,0.2);border-radius:var(--r-lg)}
     .prof-avatar{width:96px;height:96px;border-radius:50%;margin:0 auto;
       display:flex;align-items:center;justify-content:center;
       background:var(--surface-2);color:var(--text);font-weight:600;font-size:34px;
@@ -244,30 +244,30 @@
       padding:5px 14px;border-radius:99px;background:var(--surface-2);
       border:1px solid var(--line)}
     .prof-badge .txt{font-size:11px;font-weight:600;color:var(--accent-mint);letter-spacing:.02em}
-    .prof-name{font-family:'Unbounded',sans-serif;font-size:18px;margin-top:12px;color:var(--text)}
+    .prof-name{font-family:'Unbounded',sans-serif;font-size:19px;margin-top:12px;color:var(--text)}
     .prof-stats{display:flex;gap:8px;margin-top:18px}
     .prof-stat{flex:1;background:var(--surface-2);border:1px solid var(--line);
       border-radius:var(--r-md);padding:13px 8px;text-align:center}
-    .prof-stat .n{font-family:'Unbounded',sans-serif;font-weight:600;font-size:19px;color:var(--accent-mint)}
+    .prof-stat .n{font-family:'Unbounded',sans-serif;font-weight:600;font-size:20px;color:var(--accent-mint)}
     .prof-stat:nth-child(2) .n{color:var(--accent-coral)}
     .prof-stat:nth-child(3) .n{color:var(--text)}
-    .prof-stat .l{font-size:10.5px;color:var(--text-3);margin-top:2px;line-height:1.3}
+    .prof-stat .l{font-size:11px;color:var(--text-2);margin-top:2px;line-height:1.3}
     .ach-block{background:var(--surface);border:1px solid var(--line);
       border-radius:var(--r-lg);padding:18px;margin-top:12px}
-    .ach-block .sec-head h2{font-size:15px}
+    .ach-block .sec-head h2{font-size:16px}
 
     /* ---- Rewards rows ---- */
     .rrow{display:flex;align-items:center;justify-content:space-between;gap:10px;
       background:var(--surface-2);border:1px solid var(--line);border-radius:var(--r-md);
-      padding:12px 14px;width:100%;cursor:pointer;font-family:'Inter',sans-serif;
-      font-size:13px;color:var(--text);text-align:left;margin-top:8px}
+      padding:14px 16px;width:100%;cursor:pointer;font-family:'Inter',sans-serif;
+      font-size:14px;color:var(--text);text-align:left;margin-top:8px}
     .rrow:active{background:var(--surface)}
-    .rrow b{color:var(--text-2);font-weight:600;white-space:nowrap}
+    .rrow b{color:var(--accent-mint);font-weight:600;white-space:nowrap}
 
     /* ---- Invite card ---- */
     .invite-card{background:var(--surface);border:1px solid var(--line);
       border-radius:var(--r-lg);padding:18px;text-align:center}
-    .invite-card .t{font-size:13px;line-height:1.5;margin-bottom:12px;color:var(--text-2)}
+    .invite-card .t{font-size:14px;line-height:1.5;margin-bottom:12px;color:var(--text-2)}
     .invite-card .t b{color:var(--accent-coral)}
     .refbar{height:5px;background:var(--line);border-radius:99px;margin:10px 0;overflow:hidden}
     .refbar > i{display:block;height:100%;width:0;background:var(--accent-mint);border-radius:99px;transition:width .5s ease}
@@ -279,10 +279,10 @@
       transition:background .15s}
     .rowp + .rowp{margin-top:8px}
     .rowp:active{background:var(--surface-2)}
-    .rowp .icw{width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;
+    .rowp .icw{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;
       background:var(--surface-2);flex:none}
-    .rowp .icw svg{width:17px;height:17px;color:var(--text-2)}
-    .rowp .tt{font-size:14px;flex:1;color:var(--text)}
+    .rowp .icw svg{width:18px;height:18px;color:var(--accent-mint)}
+    .rowp .tt{font-size:15px;flex:1;color:var(--text)}
     .rowp .sub2{font-size:11px;color:var(--text-3);white-space:nowrap}
     .divider{height:1px;background:var(--line);margin:14px 0 12px}
 
@@ -501,13 +501,12 @@
         <div id="up-status" style="font-size:12px;color:var(--accent-mint);margin-top:12px;min-height:16px"></div>
       </div>
 
-      <div class="offer" style="border-color:rgba(140,226,200,0.25)">
+      <div class="offer" style="background:linear-gradient(160deg,rgba(140,226,200,0.14),var(--surface) 55%);border-color:rgba(140,226,200,0.24)">
         <div class="pill" style="color:var(--accent-mint)">Бесплатная скидка</div>
         <h2>Заработай Stars бесплатно</h2>
-        <p class="desc">Досмотри все <b style="color:var(--accent-mint)">бонус-уроки</b> — <b>+200 ⭐</b> за каждый. Пригласи друзей: <b>+100 ⭐</b> вам обоим, <b>+500 ⭐</b> за покупку каждым, <b>до +2500 ⭐</b> за 10 друзей.</p>
-        <div class="micro-hint" style="margin-bottom:14px">Большую часть <b>⭐ можно заработать бесплатно</b>: бонус-уроки и друзья.</div>
+        <p class="desc">Бонус-уроки — <b style="color:var(--accent-mint)">+200 ⭐</b> за каждый. Друзья: <b>+100 ⭐</b> вам обоим, <b>+500 ⭐</b> за их покупку.</p>
         <div style="display:flex;flex-direction:column;gap:10px">
-          <button class="btn secondary" onclick="switchTab('bonus')">📚 Смотреть бонус-уроки<span class="sub" id="theory-progress">0 / 4 пройдено</span></button>
+          <button class="btn secondary" onclick="switchTab('bonus')">📚 Бонус-уроки<span class="sub" id="theory-progress">0 / 4 пройдено</span></button>
           <button class="btn primary" onclick="shareInvite()">👥 Пригласить друга<span class="sub" id="ref-progress-mini">0 друзей • 0 ⭐</span></button>
         </div>
       </div>

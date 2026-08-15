@@ -669,6 +669,23 @@
   </div>
 
   <script>
+    // Version-bust для Telegram WebView: если GitHub Pages отдал новый файл
+    // с другим app-version, принудительно перезагружаемся (сброс кэша TG).
+    // Маркер <!-- app-version:HASH --> вшивается bump-version.sh при деплое.
+    (function(){
+      try {
+        const m = document.documentElement.outerHTML.match(/app-version:([0-9a-f]+)/);
+        if(!m) return;
+        const v = m[1];
+        const key = 'opendeck_app_version';
+        if(localStorage.getItem(key) && localStorage.getItem(key) !== v){
+          localStorage.setItem(key, v);
+          location.reload(true);
+          return;
+        }
+        localStorage.setItem(key, v);
+      } catch(e){ /* localStorage может быть недоступен в приватном режиме */ }
+    })();
 
     const tg = (window.Telegram && window.Telegram.WebApp) || {};
     // Единый комплект линейных SVG-иконок (вместо эмоджи)

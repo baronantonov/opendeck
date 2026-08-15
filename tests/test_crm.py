@@ -12,12 +12,15 @@ os.environ["PRODAMUS_SECRET_KEY"] = "TEST_PRODAMUS_SECRET"
 os.environ["INTERNAL_API_KEY"] = "TEST_INTERNAL_KEY"
 os.environ["ADMIN_KEY"] = "super-secret-crm-key"
 
-# изолированная БД
+# изолированная БД ДО импорта backend.main (иначе db.init() создаст таблицы
+# в дефолтной БД, а тест будет работать с пустой temp-БД -> no such table)
 import backend.db as db
 _tmp = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
 _tmp.close()
 db.DB_PATH = Path(_tmp.name)
-db.init()  # переинициализировать таблицы в temp БД (pytest-glob: main уже вызвал init() с дефолтным путём)
+db.init()
+
+# БД также изолируется централизованно в tests/conftest.py (temp + db.init до импорта)
 
 from fastapi.testclient import TestClient
 from backend.main import app

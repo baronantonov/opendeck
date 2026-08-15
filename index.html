@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="ru">
 <head>
+  <!--opendeck-version:f32c3b0-->
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
@@ -670,11 +671,11 @@
 
   <script>
     // Version-bust для Telegram WebView: если GitHub Pages отдал новый файл
-    // с другим app-version, принудительно перезагружаемся (сброс кэша TG).
-    // Маркер <!-- app-version:HASH --> вшивается bump-version.sh при деплое.
+    // с другой версией, принудительно перезагружаемся (сброс кэша TG).
+    // Специальный HTML-маркер версии вшивается bump-version.sh при деплое.
     (function(){
       try {
-        const m = document.documentElement.outerHTML.match(/app-version:([0-9a-f]+)/);
+        const m = document.documentElement.outerHTML.match(/opendeck-version:([0-9a-f]+)/);
         if(!m) return;
         const v = m[1];
         const key = 'opendeck_app_version';

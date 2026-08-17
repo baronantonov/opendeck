@@ -426,7 +426,7 @@
     <div class="toast" id="toast" role="status" aria-live="polite">
       <div class="ic" id="toast-ic"></div>
       <div class="t" id="toast-msg">Сообщение</div>
-      <span class="close" onclick="document.getElementById('toast').classList.remove('show')" aria-label="Закрыть">✕</span>
+      <span class="close" onclick="document.getElementById('toast').classList.remove('show')" aria-label="Закрыть">×</span>
     </div>
 
     <!-- ============ MAIN / HOME ============ -->
@@ -441,7 +441,7 @@
             <div style="display:flex;flex-wrap:wrap;column-gap:8px;row-gap:2px;font-size:11.5px;color:var(--text-2)">
               <span><span id="archetype">Куратор Вайба</span></span>
               <span style="opacity:.4">·</span>
-              <span><span class="gp-v skel" id="gp" style="display:inline-block;min-width:16px;color:var(--accent-mint);font-weight:600">–</span> ⭐</span>
+              <span><span class="gp-v skel" id="gp" style="display:inline-block;min-width:16px;color:var(--accent-mint);font-weight:600">–</span> ★</span>
               <span style="opacity:.4">·</span>
               <span><span class="st skel" id="done-n" style="display:inline-block;min-width:12px;font-weight:600">–</span>/6 ур.</span>
             </div>
@@ -474,7 +474,7 @@
       <!-- Ценность -->
       <div class="value-grid">
         <div class="value-card"><div class="value-ic"><svg class="icn" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></div><div class="value-t">С нуля</div><div class="value-d">6 уроков до сета</div></div>
-        <div class="value-card"><div class="value-ic"><svg class="icn" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13"/><path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7"/><path d="M7.5 8a2.5 2.5 0 0 1 2.5-2.5c1 0 2 .8 2 2.5M16.5 8a2.5 2.5 0 0 0-2.5-2.5c-1 0-2 .8-2 2.5"/></svg></div><div class="value-t">Бонусы</div><div class="value-d">⭐ за просмотры</div></div>
+        <div class="value-card"><div class="value-ic"><svg class="icn" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13"/><path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7"/><path d="M7.5 8a2.5 2.5 0 0 1 2.5-2.5c1 0 2 .8 2 2.5M16.5 8a2.5 2.5 0 0 0-2.5-2.5c-1 0-2 .8-2 2.5"/></svg></div><div class="value-t">Бонусы</div><div class="value-d">★ за просмотры</div></div>
         <div class="value-card"><div class="value-ic"><svg class="icn" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 14v-3a9 9 0 0 1 18 0v3"/><path d="M21 14a2 2 0 0 1-2 2h-1a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1h1a2 2 0 0 1 2 2z"/><path d="M3 14a2 2 0 0 0 2 2h1a1 1 0 0 0 1-1v-3a1 1 0 0 0-1-1H5a2 2 0 0 0-2 2z"/></svg></div><div class="value-t">Свой вайб</div><div class="value-d">играй по-своему</div></div>
       </div>
 
@@ -485,7 +485,7 @@
           <div class="t">Я – <span id="ts-arch">Куратор Вайба</span></div>
           <div class="d">Собери команду DJ</div>
         </div>
-        <div class="reward">+20 ⭐</div>
+        <div class="reward">+20 ★</div>
       </div>
 
       <!-- Manifest -->
@@ -501,7 +501,7 @@
         </div>
       </div>
 
-      <div class="micro-hint">Уроки дают <b>⭐ Stars</b> → скидка на курс. Приведи друга – <b>+100 ⭐</b> обоим.</div>
+      <div class="micro-hint">Уроки дают <b>★ Stars</b> → скидка на курс. Приведи друга – <b>+100 ★</b> обоим.</div>
     </section>
 
     <!-- ============ COURSE ============ -->
@@ -517,8 +517,8 @@
         <h2>Pocket DJ. Базовый курс</h2>
         <p class="desc">6 уроков с нуля до первого сета: оборудование, beatmatching, сведение, эффекты, чтение танцпола.</p>
         <div style="display:flex;flex-direction:column;gap:10px">
-          <button class="btn primary" id="up-tripwire" onclick="bookPay('tripwire')"><svg class="icn" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg> Быстрый старт · уроки 1–4<span class="sub">500 ⭐</span></button>
-          <button class="btn coral" id="up-full" onclick="bookPay('dj-basics')"><svg class="icn" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="1"/></svg> Полный курс + бонусы<span class="sub">2100 ⭐</span></button>
+          <button class="btn primary" id="up-tripwire" onclick="bookPay('tripwire')"><svg class="icn" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg> Быстрый старт · уроки 1–4<span class="sub">500 ★</span></button>
+          <button class="btn coral" id="up-full" onclick="bookPay('dj-basics')"><svg class="icn" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="1"/></svg> Полный курс + бонусы<span class="sub">2100 ★</span></button>
         </div>
         <div id="up-status" style="font-size:12px;color:var(--accent-mint);margin-top:12px;min-height:16px"></div>
       </div>
@@ -526,10 +526,10 @@
       <div class="offer" style="background:linear-gradient(160deg,rgba(140,226,200,0.14),var(--surface) 55%);border-color:rgba(140,226,200,0.24)">
         <div class="pill" style="color:var(--accent-mint)">Бесплатная скидка</div>
         <h2>Заработай Stars бесплатно</h2>
-        <p class="desc">Бонус-уроки – <b style="color:var(--accent-mint)">+200 ⭐</b> за каждый. Друзья: <b>+100 ⭐</b> вам обоим, <b>+200 ⭐</b> за их покупку.</p>
+        <p class="desc">Бонус-уроки – <b style="color:var(--accent-mint)">+200 ★</b> за каждый. Друзья: <b>+100 ★</b> вам обоим, <b>+200 ★</b> за их покупку.</p>
         <div style="display:flex;flex-direction:column;gap:10px">
           <button class="btn secondary" onclick="switchTab('bonus')"><svg class="icn" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg> Бонус-уроки<span class="sub" id="theory-progress">0 / 4 пройдено</span></button>
-          <button class="btn primary" onclick="shareInvite()">Пригласить друга<span class="sub" id="ref-progress-mini">0 друзей • 0 ⭐</span></button>
+          <button class="btn primary" onclick="shareInvite()">Пригласить друга<span class="sub" id="ref-progress-mini">0 друзей • 0 ★</span></button>
         </div>
       </div>
 
@@ -550,12 +550,12 @@
           <li><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg><span><b>Доступ к записям</b> всех сессий</span></li>
           <li><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg><span><b>Поддержка</b> в чате между сессиями</span></li>
         </ul>
-        <div class="price"><span class="disc" id="discount">Твоя скидка: −0 ⭐</span></div>
-        <div class="price"><span class="final" id="mentor-final">28000 ⭐</span></div>
+        <div class="price"><span class="disc" id="discount">Твоя скидка: −0 ★</span></div>
+        <div class="price"><span class="final" id="mentor-final">28000 ★</span></div>
         <div class="seats">Осталось 2 места из 5 в этом месяце</div>
         <div class="gp-auto">
           <div class="lbl">Твои Stars</div>
-          <div class="val" id="gp-balance">0 ⭐</div>
+          <div class="val" id="gp-balance">0 ★</div>
           <div class="small">Автоматически вычтем из цены менторства</div>
         </div>
         <button class="btn coral" onclick="showMentorPay()">Оплатить менторство</button>
@@ -595,14 +595,14 @@
       <div class="ach-block">
         <h2 style="font-size:16px;display:flex;align-items:center;gap:8px"><svg class="icn" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13"/><path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7"/><path d="M7.5 8a2.5 2.5 0 0 1 2.5-2.5c1 0 2 .8 2 2.5M16.5 8a2.5 2.5 0 0 0-2.5-2.5c-1 0-2 .8-2 2.5"/></svg> Бесплатные Stars</h2>
         <p class="body" style="margin-top:4px">Зарабатывай Stars за действия – трать на скидку менторства или разморозку серии.</p>
-        <button class="rrow" id="rw-share" onclick="earnGP('share')"><span style="display:flex;align-items:center;gap:10px"><svg class="icn" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg> Поделиться курсом</span><b>+20 ⭐</b></button>
-        <button class="rrow" id="rw-daily" onclick="earnGP('daily')"><span style="display:flex;align-items:center;gap:10px"><svg class="icn" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18"/><path d="M8 2v4"/><path d="M16 2v4"/></svg> Ежедневный бонус</span><b>+10 ⭐</b></button>
-        <button class="rrow" id="rw-review" onclick="earnGP('review')"><span style="display:flex;align-items:center;gap:10px"><svg class="icn" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> Оставить отзыв</span><b>+50 ⭐</b></button>
+        <button class="rrow" id="rw-share" onclick="earnGP('share')"><span style="display:flex;align-items:center;gap:10px"><svg class="icn" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg> Поделиться курсом</span><b>+20 ★</b></button>
+        <button class="rrow" id="rw-daily" onclick="earnGP('daily')"><span style="display:flex;align-items:center;gap:10px"><svg class="icn" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18"/><path d="M8 2v4"/><path d="M16 2v4"/></svg> Ежедневный бонус</span><b>+10 ★</b></button>
+        <button class="rrow" id="rw-review" onclick="earnGP('review')"><span style="display:flex;align-items:center;gap:10px"><svg class="icn" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> Оставить отзыв</span><b>+50 ★</b></button>
       </div>
 
       <!-- Invite -->
       <div class="invite-card" style="margin-top:12px">
-        <div class="t" id="ref-header">Пригласи напарника – <b>+100 ⭐</b> вам обоим при его регистрации! А когда друг купит курс – ещё <b>+200 ⭐</b> тебе.</div>
+        <div class="t" id="ref-header">Пригласи напарника – <b>+100 ★</b> вам обоим при его регистрации! А когда друг купит курс – ещё <b>+200 ★</b> тебе.</div>
         <div id="ref-friends" style="font-size:12px;color:var(--text-2)">Загрузка...</div>
         <div class="refbar"><i id="ref-bar"></i></div>
         <button class="btn primary sm" style="width:auto;padding:10px 26px;display:inline-flex" onclick="shareInvite()"><svg class="icn" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg> Пригласить друга</button>
@@ -637,12 +637,12 @@
       <h3 id="pw-title">Открой доступ к курсу</h3>
       <p id="pw-sub">Пройди ещё уроки и стань DJ</p>
       <div class="pay-row">
-        <button class="btn primary" id="pw-stars" onclick="bookPay(currentPaywallCourse)"><svg class="icn" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> Оплатить Stars<span class="sub" id="pw-stars-price">2100 ⭐</span></button>
+        <button class="btn primary" id="pw-stars" onclick="bookPay(currentPaywallCourse)"><svg class="icn" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> Оплатить Stars<span class="sub" id="pw-stars-price">2100 ★</span></button>
         <button class="btn coral" id="pw-prodamus" onclick="bookPayProdamus(currentPaywallCourse)"><svg class="icn" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg> Картой / СБП<span class="sub" id="pw-card-price">МИР · Visa · СБП</span></button>
       </div>
       <div class="upsell" style="margin:10px 0 6px;padding:10px 12px;border:1px solid var(--accent-mint);border-radius:12px;background:rgba(140,226,200,.08)">
         <div style="font-size:13px;color:var(--text)">Хочешь сразу весь курс + бонусы?</div>
-        <button class="btn mint" style="color:#10201b;width:100%;margin-top:8px" onclick="bookPay('dj-basics')">Открыть весь курс + бонусы · 2100 ⭐</button>
+        <button class="btn mint" style="color:#10201b;width:100%;margin-top:8px" onclick="bookPay('dj-basics')">Открыть весь курс + бонусы · 2100 ★</button>
       </div>
       <div class="foot-note">Быстрый старт (уроки 1–4) – низкий порог входа. Полный курс + бонусы – сразу весь доступ.</div>
       <button class="btn ghost" style="width:100%;padding:11px" onclick="hidePaywall()">Позже</button>
@@ -652,18 +652,18 @@
     <div class="modal-mask hidden" id="mentor-pay" onclick="if(event.target===this)hideMentorPay()">
       <div class="modal">
         <h3>Оплатить менторство FREEDA DJ</h3>
-        <p>Выбери способ. Через Stars списываем накопленные ⭐, через Tribute — фикс-цена картой / СБП.</p>
+        <p>Выбери способ. Через Stars списываем накопленные ★, через Tribute – фикс-цена картой / СБП.</p>
         <div class="pay-row">
           <button class="btn primary" onclick="bookMentor()">
             <svg class="icn" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-            Оплатить Stars<span class="sub" id="mp-stars-price">28000 ⭐</span>
+            Оплатить Stars<span class="sub" id="mp-stars-price">28000 ★</span>
           </button>
           <button class="btn coral" onclick="bookMentorTribute()">
             <svg class="icn" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
             Через Tribute (карта / СБП)<span class="sub">$230 · USDT-вывод</span>
           </button>
         </div>
-        <div class="foot-note">Менторство = 4 сессии 1-на-1. Net FREEDA после комиссий ≥ $200. Через Stars цена снижается на твои ⭐.</div>
+        <div class="foot-note">Менторство = 4 сессии 1-на-1. Net FREEDA после комиссий ≥ $200. Через Stars цена снижается на твои ★.</div>
         <button class="btn ghost" style="width:100%;padding:11px" onclick="hideMentorPay()">Позже</button>
       </div>
     </div>
@@ -887,7 +887,7 @@
       const up = document.getElementById('up-status');
       if(up){
         if(state.isPaid){
-          up.textContent = '✅ Доступ к курсу открыт. Смотри уроки во вкладке «Курс»';
+          up.textContent = '★ Доступ к курсу открыт. Смотри уроки во вкладке «Курс»';
           const tw = document.getElementById('up-tripwire');
           const fl = document.getElementById('up-full');
           if(tw) tw.style.display = 'none';
@@ -912,14 +912,14 @@
         };
         archLine.textContent = map[arch] || 'Твой путь DJ начинается здесь';
       }
-      document.getElementById('discount').textContent = `Твоя скидка: −${Math.min(gp, 4600)} ⭐`;
+      document.getElementById('discount').textContent = `Твоя скидка: −${Math.min(gp, 4600)} ★`;
       // автоскидка менторства (1 GP = 1 Star, кап MENTOR_GP_CAP, floor MENTOR_FLOOR)
       const discAmt = Math.min(gp, 4600);
       const finalStars = Math.max(23400, 28000 - discAmt);
       const mf = document.getElementById('mentor-final');
-      if(mf) mf.textContent = finalStars + ' ⭐';
+      if(mf) mf.textContent = finalStars + ' ★';
       const gb = document.getElementById('gp-balance');
-      if(gb) gb.textContent = gp + ' ⭐';
+      if(gb) gb.textContent = gp + ' ★';
       // профиль
       const tsArch = document.getElementById('ts-arch');
       if(tsArch) tsArch.textContent = state.user.archetype || 'Куратор Вайба';
@@ -941,14 +941,14 @@
       if(pl){
         if(dc === 0){ pl.textContent = 'Начать урок 1'; }
         else if(dc >= tc){ pl.textContent = 'Курс пройден'; }
-        else if(!state.isPaid){ pl.textContent = 'Открыть доступ · 500 ⭐'; }   // BC: CTA покупки
+        else if(!state.isPaid){ pl.textContent = 'Открыть доступ · 500 ★'; }   // BC: CTA покупки
         else { pl.textContent = 'Продолжить · урок ' + Math.min(dc+1, tc); }
       }
       // ---- Бесплатная скидка: прогресс по теории и рефералке (вкладка «Развитие») ----
       const tp = document.getElementById('theory-progress');
       if(tp){ const b = state.user.bonusLessons || 0; tp.textContent = `${b} / 4 пройдено`; }
       const rm = document.getElementById('ref-progress-mini');
-      if(rm){ rm.textContent = `${(state.user.referralFriends||0)} друзей • ${(state.user.referralGpEarned||0)} ⭐`; }
+      if(rm){ rm.textContent = `${(state.user.referralFriends||0)} друзей • ${(state.user.referralGpEarned||0)} ★`; }
     }
     updateUI();
     function applyAvatar(){
@@ -1005,7 +1005,7 @@
           state.paidFull = !!(j.paid_full);
           state.freeLessons = (j.course && j.course.free_lessons) || 1;
           updateUI();
-          // (обучающий онбординг «зачем ⭐» теперь микро-подсказкой на дашборде — см. .micro-hint)
+          // (обучающий онбординг «зачем ★» теперь микро-подсказкой на дашборде — см. .micro-hint)
           // Снять skeleton (данные пришли)
           ['gp','done-n','lesson-n','next-lesson','bar-wrap'].forEach(id=>{
             const el = document.getElementById(id); if(el) el.classList.remove('skel');
@@ -1063,7 +1063,7 @@
     function showToast(icon, msg){
       const t = document.getElementById('toast');
       if(!t) return;
-      document.getElementById('toast-ic').textContent = icon || ICON('spark');
+      document.getElementById('toast-ic').innerHTML = icon || ICON('spark');
       document.getElementById('toast-msg').innerHTML = msg;
       t.classList.add('show');
       setTimeout(()=> t.classList.remove('show'), 4000);
@@ -1077,21 +1077,21 @@
     }
     function shareInvite(){
       const code = state.user.referralCode;
-      if(!code){ showToast('⚠️', 'Код приглашения пока не загружен'); return; }
+      if(!code){ showToast(ICON('warn'), 'Код приглашения пока не загружен'); return; }
       const deepLink = 'https://t.me/OpenDeck_bot/app?startapp=ref_' + code;
       haptic('notificationOccurred');
       navigator.clipboard.writeText(deepLink).catch(()=>{});
-      showToast('✅', 'Ссылка скопирована!<br>Вставь в чат – появится кнопка «Открыть»');
+      showToast(ICON('check'), 'Ссылка скопирована!<br>Вставь в чат – появится кнопка «Открыть»');
     }
     // E2: Share-your-archetype Team Loop — флагман гэймификации (Octalysis: identity > points)
     // Пользователь шерит карточку СВОЕГО архетипа (DJ-персоны) с зашитой рефералкой.
-    // Это White-Hat: шерится личность, не «+20⭐ за друга» → выше конверсия, не спам.
+    // Это White-Hat: шерится личность, не «+20★ за друга» → выше конверсия, не спам.
     function shareArchetype(){
       const arch = state.user.archetype || 'Куратор Вайба';
       const gp = state.user.groovePoints || 0;
       const done = state.courseProgress.completedLessons.length;
       const code = state.user.referralCode;
-      if(!code){ showToast('⚠️', 'Реф-код не загружен'); return; }
+      if(!code){ showToast(ICON('warn'), 'Реф-код не загружен'); return; }
       haptic('notificationOccurred');
       // карточка (canvas) — рисуем клиентски, сервер не грузим
       const cv = document.createElement('canvas');
@@ -1105,7 +1105,7 @@
       x.fillStyle = '#ffffff'; x.font = 'bold 96px sans-serif';
       x.fillText(arch, 540, 500);
       x.fillStyle = '#c0a0a8'; x.font = '40px sans-serif';
-      x.fillText(done + ' уроков · ' + gp + ' ⭐', 540, 600);
+      x.fillText(done + ' уроков · ' + gp + ' ★', 540, 600);
       x.fillStyle = '#f5926e'; x.font = 'bold 44px sans-serif';
       x.fillText('Собери свою команду DJ →', 540, 720);
       const link = 'https://t.me/OpenDeck_bot/app?startapp=ref_' + code;
@@ -1123,7 +1123,7 @@
           try { await navigator.share({ text: link }); } catch(_){}
         } else {
           navigator.clipboard.writeText(link).catch(()=>{});
-          showToast('✅', 'Ссылка скопирована!<br>Поделись – появится кнопка «Открыть»');
+          showToast(ICON('check'), 'Ссылка скопирована!<br>Поделись – появится кнопка «Открыть»');
         }
         // СЕРВЕР — единственный авторитет по GP: фронт НЕ начисляет сам
         fetch(API_BASE + '/api/archetype/share', {
@@ -1133,12 +1133,12 @@
           if(j && typeof j.groove_points === 'number'){
             state.user.groovePoints = j.groove_points;
             updateUI();
-            if(j.amount > 0) showToast('🎉', 'Команда растёт! +' + j.amount + ' ⭐');
-            else showToast('✅', 'Карточка уже в деле – команда ждёт!');
+            if(j.amount > 0) showToast(ICON('party'), 'Команда растёт! +' + j.amount + ' ★');
+            else showToast(ICON('check'), 'Карточка уже в деле – команда ждёт!');
           } else {
-            showToast('✅', 'Карточка отправлена!');
+            showToast(ICON('check'), 'Карточка отправлена!');
           }
-        }).catch(()=> showToast('⚠️', 'Не удалось начислить ⭐, но шер прошёл'));
+        }).catch(()=> showToast(ICON('warn'), 'Не удалось начислить ★, но шер прошёл'));
       }, 'image/png');
     }
     // E: Геймификация — weekly streak + achievements (фронтенд-only)
@@ -1192,7 +1192,7 @@
         if(s.count >= 3 && gp >= 75 && !s.frozen){
           freezeWrap.style.display = '';
           freezeWrap.innerHTML = '<button class="btn ghost" style="width:100%;padding:8px;font-size:12px" onclick="buyStreakFreeze()">'+
-            ICON('ice') + ' Заморозить серию (75 ⭐) – защити прогресс</button>';
+            ICON('ice') + ' Заморозить серию (75 ★) – защити прогресс</button>';
         } else {
           freezeWrap.style.display = 'none';
         }
@@ -1202,7 +1202,7 @@
       const s = loadStreak();
       if(s.frozen){ showToast(ICON('ice'),'Серия уже заморожена'); return; }
       const gp = state.user.groovePoints || 0;
-      if(gp < 75){ showToast('⭐','Нужно 75 ⭐ для заморозки'); return; }
+      if(gp < 75){ showToast('★','Нужно 75 ★ для заморозки'); return; }
       // списать GP через бэкенд (идемпотентно не критично — фронт-маркер)
       fetch(API_BASE + '/api/gp/spend', {
         method:'POST', headers:{'Content-Type':'application/json','X-Init-Data': tg.initData || ''},
@@ -1237,7 +1237,7 @@
       }).then(r=>r.ok?r.json():r.json().then(j=>({_err:j.error}))).then(j=>{
         if(j._err){
           if(j._err === 'cooldown') showToast(ICON('refresh'), 'Доступно через 24ч');
-          else showToast('❌', 'Ошибка начисления');
+          else showToast(ICON('x'), 'Ошибка начисления');
           return;
         }
         state.user.groovePoints = j.groove_points;
@@ -1248,10 +1248,10 @@
           tg.DeviceStorage.set('earn_cd', JSON.stringify(cd));
         } catch(_){}
         const labels = {share:'Поделиться', daily:'Ежедневный бонус', review:'Отзыв'};
-        showToast('✅', `${labels[action]||'Действие'}: +${j.amount} ⭐`);
+        showToast(ICON('check'), `${labels[action]||'Действие'}: +${j.amount} ★`);
         updateUI();
       }).catch(()=>{
-        showToast('❌', 'Ошибка сети');
+        showToast(ICON('x'), 'Ошибка сети');
       });
     }
     function renderAchievements(){
@@ -1309,9 +1309,9 @@
         // +200 GP инвайтеру когда друг купит курс. Milestone-выплат сверх этого бэкенд НЕ платит.
         let hint = '';
         if(n === 0){
-          hint = ' • следующий друг → +100 ⭐ вам обоим';
+          hint = ' • следующий друг → +100 ★ вам обоим';
         }
-        fc.textContent = ICON('users') + ' ' + n + ' друг' + (n===1?'':'ей') + ' • ' + gp + ' ⭐ заработано' + hint;
+        fc.textContent = ICON('users') + ' ' + n + ' друг' + (n===1?'':'ей') + ' • ' + gp + ' ★ заработано' + hint;
         const milestones = [1,3,5,10];
         const next = milestones.find(m => m > n) || milestones[milestones.length-1];
         const pct = Math.min(100, (n / next) * 100);
@@ -1320,8 +1320,8 @@
         // Празднуем достижение порога друзей (без выдуманных сумм — бонус уже начислен бэкендом)
         if(n !== 0 && n % 1 === 0 && [1,3,5,10].includes(n) && !seenTip('ms_'+n)){
           markTip('ms_'+n);
-          const labels = {1:'Первый друг! +100 ⭐ вам обоим', 3:'Ты – наставник', 5:'Реф-лидер', 10:'Легенда школы'};
-          setTimeout(()=> showToast('🎉', `${labels[n]}`), 400);
+          const labels = {1:'Первый друг! +100 ★ вам обоим', 3:'Ты – наставник', 5:'Реф-лидер', 10:'Легенда школы'};
+          setTimeout(()=> showToast(ICON('party'), `${labels[n]}`), 400);
         }
       }
     }
@@ -1338,7 +1338,7 @@
       if(tab==='course') renderCourse();
       if(tab==='upgrade'){
         updateUI();
-        // (пояснение «часть ⭐ бесплатно» теперь микро-подсказкой в блоке «Бесплатная скидка»)
+        // (пояснение «часть ★ бесплатно» теперь микро-подсказкой в блоке «Бесплатная скидка»)
       }
       if(tab==='profile'){ updateUIRefLink(); updateGamification(); }
       if(tab==='bonus') renderBonus();
@@ -1359,8 +1359,8 @@
     function renderBonus(){
       const box = document.getElementById('tab-bonus');
       box.innerHTML = '<h2 style="font-size:20px;margin-bottom:6px">'+ICON('gift')+' Бонусные уроки</h2>'
-        + '<p style="color:var(--text-secondary);font-size:13px;margin:0 0 14px">Теория курса – смотри в свободное время. <b>За каждый бонус-урок +200 ⭐</b> (жирнее, чем основной).</p>'
-        + '<div class="micro-hint">Бонус-уроки – это теория. Досмотришь все 4 → ачивка «Теоретик» и <b>+800 ⭐</b> на скидку курса.</div>';
+        + '<p style="color:var(--text-secondary);font-size:13px;margin:0 0 14px">Теория курса – смотри в свободное время. <b>За каждый бонус-урок +200 ★</b> (жирнее, чем основной).</p>'
+        + '<div class="micro-hint">Бонус-уроки – это теория. Досмотришь все 4 → ачивка «Теоретик» и <b>+800 ★</b> на скидку курса.</div>';
       // (одноразовый тултип bonus_theory заменён на микро-подсказку выше)
       // Рисуем уроки СРАЗУ из локального state (без задержки на сеть),
       // затем, если API ответил, перерисовываем с реальным прогрессом.
@@ -1429,7 +1429,7 @@
           <h2 style="font-size:20px;margin-bottom:14px">${esc(lesson.title)}</h2>
           ${playerHTML}
           <ul class="summary">${bullets}</ul>
-          <button class="btn" id="finishBtn-${pid}" style="opacity:0.4;pointer-events:none" onclick="completeBonusLesson(${id})">Завершить урок (+200 ⭐)</button>
+          <button class="btn" id="finishBtn-${pid}" style="opacity:0.4;pointer-events:none" onclick="completeBonusLesson(${id})">Завершить урок (+200 ★)</button>
           <p class="hint" id="finishHint-${pid}" style="text-align:center;color:var(--text-secondary);font-size:12px;margin-top:10px">Досмотри видео до конца – и кнопка станет активной</p>`;
         if(src && !isYT) setupVideo(src, pid);
         else if(src && isYT) enableYTControls(src, pid);
@@ -1453,7 +1453,7 @@
           body: JSON.stringify({course_id:'dj-bonus', lesson_id:id, bonus:true})
           }).then(r=>{
             if(r.ok) return r.json();
-            tg.showPopup && tg.showPopup({title:'Ошибка', message:'Прогресс не сохранён ☁️'});
+            tg.showPopup && tg.showPopup({title:'Ошибка', message:'Прогресс не сохранён'});
             return null;
           }).then(j=>{
             if(j){
@@ -1461,7 +1461,7 @@
               renderBonus();
             }
           }).catch(()=>{
-            tg.showPopup && tg.showPopup({title:'Сеть', message:'Проверь подключение к интернету ☁️'});
+            tg.showPopup && tg.showPopup({title:'Сеть', message:'Проверь подключение к интернету'});
           });
         }
         renderBonus();
@@ -1509,10 +1509,10 @@
         const cta = document.createElement('div');
         cta.className = 'cta-inline';
         cta.innerHTML =
-          '<div class="t">Понравилось? Позови напарника в дуэт – дарим по <b>100 ⭐</b> вам обоим при регистрации. А когда друг купит курс – ещё <b>+200 ⭐</b> тебе.</div>' +
+          '<div class="t">Понравилось? Позови напарника в дуэт – дарим по <b>100 ★</b> вам обоим при регистрации. А когда друг купит курс – ещё <b>+200 ★</b> тебе.</div>' +
           '<div class="row">' +
             '<button class="btn" style="background:var(--accent-coral)" onclick="shareInvite()">Пригласить друга</button>' +
-            (state.isPaid ? '' : '<button class="btn mint" style="color:#10201b" onclick="showPaywall(\'tripwire\')">Открыть доступ · 500 ⭐</button>') +
+            (state.isPaid ? '' : '<button class="btn mint" style="color:#10201b" onclick="showPaywall(\'tripwire\')">Открыть доступ · 500 ★</button>') +
           '</div>';
         box.appendChild(cta);
       }
@@ -1559,7 +1559,7 @@
         <h2 style="font-size:20px;margin-bottom:14px">${esc(l.t)}</h2>
         ${playerHTML}
         <ul class="summary">${bullets}</ul>
-        <button class="btn" id="finishBtn-${pid}" style="opacity:0.4;pointer-events:none" onclick="completeLesson(${id})">Завершить урок (+50 ⭐)</button>
+        <button class="btn" id="finishBtn-${pid}" style="opacity:0.4;pointer-events:none" onclick="completeLesson(${id})">Завершить урок (+50 ★)</button>
         <p class="hint" id="finishHint-${pid}" style="text-align:center;color:var(--text-secondary);font-size:12px;margin-top:10px">Досмотри видео до конца – и кнопка станет активной</p>`;
       if(src && !isYT) setupVideo(src, pid);
       else if(src && isYT) enableYTControls(src, pid);
@@ -1683,7 +1683,7 @@
               return null;
             }
             if(r.ok) return r.json();
-            tg.showPopup && tg.showPopup({title:'Ошибка', message:'Прогресс не сохранён ☁️'});
+            tg.showPopup && tg.showPopup({title:'Ошибка', message:'Прогресс не сохранён'});
             return null;
           }).then(j=>{
             if(j){
@@ -1704,7 +1704,7 @@
               // CTA «пригласи друга / открой доступ» теперь inline-блоком на экране курса (renderCourse), не попапом
             }
           }).catch(()=>{
-            tg.showPopup && tg.showPopup({title:'Сеть', message:'Проверь подключение к интернету ☁️'});
+            tg.showPopup && tg.showPopup({title:'Сеть', message:'Проверь подключение к интернету'});
           });
         }catch(e){}
       }
@@ -1731,8 +1731,8 @@
     // используется кнопками pw-stars / pw-card. Цены берём из COURSE_PRICES.
     let currentPaywallCourse = 'dj-basics';
     const COURSE_PRICES = {
-      'tripwire': { stars: '500 ⭐', rub: '≈ 850 ₽' },
-      'dj-basics': { stars: '2100 ⭐', rub: '≈ 3570 ₽' },
+      'tripwire': { stars: '500 ★', rub: '≈ 850 ₽' },
+      'dj-basics': { stars: '2100 ★', rub: '≈ 3570 ₽' },
     };
     function showPaywall(courseId){
       currentPaywallCourse = courseId || 'dj-basics';
@@ -1762,7 +1762,7 @@
       const discAmt = Math.min(gp, 4600);
       const finalStars = Math.max(23400, 28000 - discAmt);
       const msp = document.getElementById('mp-stars-price');
-      if(msp) msp.textContent = finalStars.toLocaleString('ru-RU') + ' ⭐' + (discAmt ? ' (−' + discAmt + ')' : '');
+      if(msp) msp.textContent = finalStars.toLocaleString('ru-RU') + ' ★' + (discAmt ? ' (−' + discAmt + ')' : '');
       const mp = document.getElementById('mentor-pay');
       if(mp) mp.classList.remove('hidden');
       haptic('impactOccurred');
@@ -1789,9 +1789,9 @@
         if(!data || !data.pay_url){
           const detail = data && data.error ? data.error : '';
           if(detail === 'prodamus_not_configured'){
-            showToast('⚠️', 'Prodamus не настроен. Попробуй Stars.');
+            showToast(ICON('warn'), 'Prodamus не настроен. Попробуй Stars.');
           } else {
-            showToast('❌', 'Не удалось создать платёж. Попробуй позже.');
+            showToast(ICON('x'), 'Не удалось создать платёж. Попробуй позже.');
           }
           return;
         }
@@ -1807,7 +1807,7 @@
         pollHasPaid(courseId);
       }).catch(()=>{
         if(btn) btn.disabled = false;
-        showToast('❌', 'Ошибка сети. Проверь подключение.');
+        showToast(ICON('x'), 'Ошибка сети. Проверь подключение.');
       });
     }
 
@@ -1830,7 +1830,7 @@
             try { closeLesson(); } catch(_){}
             renderCourse();
             updateUI();
-            showToast('✅', 'Доступ открыт! Смотри все уроки');
+            showToast(ICON('check'), 'Доступ открыт! Смотри все уроки');
           }
         } catch(_){}
       }, 2000);
@@ -1850,7 +1850,7 @@
       }).then(r=>r.ok ? r.json() : r.json().then(()=>null)).then(data=>{
         if(btn) btn.disabled = false;
         if(!data || !data.invoice_link){
-          showToast('❌', 'Не удалось создать счёт. Попробуй позже.');
+          showToast(ICON('x'), 'Не удалось создать счёт. Попробуй позже.');
           return;
         }
         tg.openInvoice(data.invoice_link, (status) => {
@@ -1861,23 +1861,23 @@
             try { closeLesson(); } catch(_){}
             renderCourse();
             updateUI();
-            showToast('✅', 'Доступ открыт! Смотри все уроки');
+            showToast(ICON('check'), 'Доступ открыт! Смотри все уроки');
           } else if(status === 'cancelled'){
-            showToast('👋', 'Платёж отменён');
+            showToast(ICON('x'), 'Платёж отменён');
           } else {
-            showToast('❌', 'Ошибка оплаты');
+            showToast(ICON('x'), 'Ошибка оплаты');
           }
         });
       }).catch(()=>{
         if(btn) btn.disabled = false;
-        showToast('❌', 'Ошибка сети. Проверь подключение.');
+        showToast(ICON('x'), 'Ошибка сети. Проверь подключение.');
       });
     }
 
     function bookMentor(){
       // Opening outside Telegram (прямая ссылка) — tg недоступен.
       if(typeof tg === 'undefined' || !tg.openInvoice){
-        showToast('ℹ️', 'Оплата работает внутри Telegram. Открой Mini App через бота @OpenDeck_bot.');
+        showToast(ICON('info'), 'Оплата работает внутри Telegram. Открой Mini App через бота @OpenDeck_bot.');
         return;
       }
       const gp = state.user.groovePoints || 0;
@@ -1893,28 +1893,28 @@
       }).then(r=>r.ok ? r.json() : r.json().then(()=>null)).then(data=>{
         if(btn) btn.disabled = false;
         if(!data || !data.invoice_link){
-          showToast('❌', 'Не удалось создать счёт. Попробуй позже.');
+          showToast(ICON('x'), 'Не удалось создать счёт. Попробуй позже.');
           return;
         }
         tg.openInvoice(data.invoice_link, (status) => {
           if(status === 'paid'){
             // ⚠️ НЕ зовём /api/gp/apply и /api/referral/purchase отсюда!
             // Цена инвойса уже снижена на сервере (1 GP = 1 Star, max 4600,
-            // floor 23400⭐ = net $200 Фриды после 40% комиссии Stars).
-            // Списание GP и реф-бонус инвайтеру (+200 ⭐) фиксирует БОТ
+            // floor 23400★ = net $200 Фриды после 40% комиссии Stars).
+            // Списание GP и реф-бонус инвайтеру (+200 ★) фиксирует БОТ
             // по successful_payment (идемпотентно по charge_id). Повторный
             // вызов от фронта привёл бы к двойному списанию GP / накрутке.
-            showToast('✅', 'Оплачено! Персональное менторство – твоё');
+            showToast(ICON('check'), 'Оплачено! Персональное менторство – твоё');
             setTimeout(()=> initApp(), 500);
           } else if(status === 'cancelled'){
-            showToast('👋', 'Платёж отменён');
+            showToast(ICON('x'), 'Платёж отменён');
           } else {
-            showToast('❌', 'Ошибка оплаты');
+            showToast(ICON('x'), 'Ошибка оплаты');
           }
         });
       }).catch(()=>{
         if(btn) btn.disabled = false;
-        showToast('❌', 'Ошибка сети. Проверь подключение.');
+        showToast(ICON('x'), 'Ошибка сети. Проверь подключение.');
       });
     }
 
@@ -1929,14 +1929,14 @@
         body: JSON.stringify({ course_id:'mentoring', provider:'tribute' })
       }).then(r=>r.ok ? r.json() : r.json().then(()=>null)).then(data=>{
         if(!data || !data.pay_url){
-          if(data && data.detail){ showToast('❌', data.detail); }
-          else { showToast('❌', 'Tribute не настроен. Попробуй оплату через Stars.'); }
+          if(data && data.detail){ showToast(ICON('x'), data.detail); }
+          else { showToast(ICON('x'), 'Tribute не настроен. Попробуй оплату через Stars.'); }
           return;
         }
         if(tg.openLink){ tg.openLink(data.pay_url); }
         else { location.href = data.pay_url; }
       }).catch(()=>{
-        showToast('❌', 'Ошибка сети. Проверь подключение.');
+        showToast(ICON('x'), 'Ошибка сети. Проверь подключение.');
       });
     }
 
@@ -1960,8 +1960,8 @@
 
     function openRules(){
       const msg = 'Open Deck – бесплатная часть курса + бонусы за прогресс.\n\n'
-        + '⭐ Stars (GP) начисляются за пройденные уроки и приглашённых друзей, '
-        + 'дают скидку на менторство (макс. 7000 ⭐, итог не ниже 14000 ⭐).\n\n'
+        + '★ Stars (GP) начисляются за пройденные уроки и приглашённых друзей, '
+        + 'дают скидку на менторство (макс. 7000 ★, итог не ниже 14000 ★).\n\n'
         + 'Оплата – через Telegram Stars. Возврат по запросу в поддержке.';
       if(tg.showPopup){
         tg.showPopup({title:'Правила и офферта', message:msg, buttons:[{type:'ok'}]});

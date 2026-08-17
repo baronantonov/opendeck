@@ -1,21 +1,41 @@
 @import 'tailwindcss';
 
-/* ---- Open Deck design tokens ----
-   Base palette per APP_SPEC (anti-neural-slop: warm, analog, not the default
-   violet/blue gradient slop). Telegram theme params override at runtime via
-   CSS custom props set in lib/theme.ts, falling back to these brand values. */
+/* ---- Open Deck brand tokens ----
+   Official palette (APP_SPEC.md / legacy index.html):
+     bg #2b302e · accent(mauve) #c0a0a8 · mint #8ce2c8 · coral #f5926e
+     text #f4f7f5 / #c7cccc / #9aa3a0 · line #3f4744 · gold #f3c969
+   Telegram theme params override at runtime via CSS custom props set in
+   lib/theme.ts, falling back to these brand values. */
 
 @theme inline {
-  --color-bg: var(--tg-bg, #2b302e);
-  --color-surface: var(--tg-surface, #333a37);
-  --color-surface-2: var(--tg-surface-2, #3a423f);
-  --color-text: var(--tg-text, #f2efe9);
-  --color-text-dim: var(--tg-hint, #9aa39e);
+  /* brand-named tokens (use these for on-brand emphasis) */
+  --brand-bg: var(--tg-bg, #2b302e);
+  --brand-mauve: #c0a0a8;
+  --brand-mint: #8ce2c8;
+  --brand-coral: #f5926e;
+  --brand-gold: #f3c969;
+  --brand-line: #3f4744;
 
-  --color-accent: #c0a0a8;        /* dusty rose */
-  --color-mint: #8ce2c8;          /* mint */
-  --color-coral: #f5926e;         /* coral */
-  --color-gold: #f3c969;          /* star gold */
+  /* semantic tokens (what components consume) */
+  --color-bg: var(--brand-bg);
+  --color-surface: var(--tg-surface, #2e3432);
+  --color-surface-2: var(--tg-surface-2, #38403d);
+  --color-line: var(--brand-line);
+  --color-text: var(--tg-text, #f4f7f5);
+  --color-text-2: #c7cccc;
+  --color-text-dim: var(--tg-hint, #9aa3a0);
+
+  --color-accent: var(--brand-mauve);
+  --color-mint: var(--brand-mint);
+  --color-coral: var(--brand-coral);
+  --color-gold: var(--brand-gold);
+
+  --brand-gradient: linear-gradient(135deg, #c0a0a8 0%, #8ce2c8 100%);
+  --brand-gradient-soft: linear-gradient(
+    135deg,
+    color-mix(in srgb, #c0a0a8 22%, var(--color-surface)) 0%,
+    var(--color-surface) 70%
+  );
 
   --font-display: 'Unbounded', system-ui, sans-serif;
   --font-body: 'Inter', system-ui, -apple-system, sans-serif;
@@ -72,6 +92,32 @@ button {
 }
 .scroll-y::-webkit-scrollbar {
   display: none;
+}
+
+/* ---- Brand surface helpers ---- */
+.brand-card {
+  background: var(--color-surface);
+  border: 1px solid color-mix(in srgb, var(--brand-mauve) 14%, transparent);
+  box-shadow:
+    0 1px 0 color-mix(in srgb, var(--color-text) 6%, transparent),
+    0 8px 24px -12px color-mix(in srgb, var(--brand-mauve) 40%, transparent);
+}
+
+/* Brand gradient hairline (top accent strip) */
+.brand-strip::before {
+  content: '';
+  display: block;
+  height: 3px;
+  border-radius: 99px;
+  margin-bottom: 12px;
+  background: var(--brand-gradient);
+}
+
+.brand-text {
+  background: var(--brand-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 /* Skeleton shimmer */

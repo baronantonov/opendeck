@@ -132,7 +132,7 @@ export function Profile() {
         ))}
       </Card>
 
-      <Card>
+      <Card strip>
         <div style={{ fontWeight: 700, marginBottom: 8 }}>Пригласи друга</div>
         <div style={{ fontSize: 12.5, color: 'var(--color-text-dim)', marginBottom: 8 }}>
           {referralFriends} друзей · {referralGpEarned} ★ заработано
@@ -156,7 +156,7 @@ export function Profile() {
         </Button>
       </Card>
 
-      <Card>
+      <Card strip>
         <div style={{ fontWeight: 700, marginBottom: 10 }}>Достижения</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {achs.map((a) => (

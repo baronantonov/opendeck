@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Open Deck — MOCK (design preview)</title>
+    <style>
+      html, body { margin: 0; background: #2b302e; }
+      /* emulate a phone frame so the layout looks like Telegram Mini App */
+      #frame {
+        max-width: 414px; margin: 0 auto; min-height: 100vh;
+        box-shadow: 0 0 0 9999px rgba(0,0,0,0.6);
+      }
+    </style>
+    <!-- telegram-web-app.js is loaded by the real bundle; we pre-seed the
+         Telegram global so sdk-react init() doesn't throw outside Telegram. -->
+    <script>
+      window.Telegram = window.Telegram || {};
+      window.Telegram.WebApp = {
+        initData: '',
+        initDataUnsafe: { user: { id: 285754501, first_name: 'Аня', username: 'dj_anya' }, start_param: null },
+        colorScheme: 'dark',
+        themeParams: {
+          bg_color: '#2b302e',
+          secondary_bg_color: '#333a37',
+          text_color: '#f2efe9',
+          hint_color: '#9aa39e',
+          button_color: '#c0a0a8',
+          button_text_color: '#1d1f1e',
+        },
+        viewportHeight: 760,
+        viewportStableHeight: 760,
+        isExpanded: true,
+        expand() {},
+        ready() {},
+        HapticFeedback: { impactOccurred() {}, notificationOccurred() {} },
+        openInvoice(link, cb) { window.alert('openInvoice: ' + link); cb && cb('paid'); },
+        openLink(u) { window.open(u, '_blank'); },
+        openTelegramLink(u) { window.open(u, '_blank'); },
+        showPopup() {},
+        MainButton: { setText() {}, show() {}, hide() {}, onClick() {} },
+        BackButton: { show() {}, hide() {}, onClick() {} },
+        onEvent() {}, offEvent() {},
+        sendData() {},
+      };
+    </script>
+  </head>
+  <body>
+    <div id="frame">
+      <div id="root"></div>
+    </div>
+    <!-- load the real single-file bundle (it expects #root) -->
+    <script type="module">
+      // The built index.html inlines its own bundle; we fetch it and eval the
+      // module script so the design renders against our mocked Telegram global.
+      fetch('/index.html')
+        .then((r) => r.text())
+        .then((html) => {
+          const m = html.match(/<script type="module"[^>]*>([\s\S]*?)<\/script>/);
+          if (!m) { document.body.innerHTML += '<pre>no module found</pre>'; return; }
+          const code = m[1].replace(/import\s+[^;]+?from\s+["'][^"']+["']/g, '');
+          // strip bare imports (already bundled), keep the IIFE/exec code
+          const blob = new Blob([code], { type: 'text/javascript' });
+          import(URL.createObjectURL(blob)).catch((e) => {
+            document.body.innerHTML += '<pre style="color:#f5926e">eval error: ' + e.message + '</pre>';
+          });
+        });
+    </script>
+  </body>
+</html>

@@ -20,9 +20,10 @@ export function Course() {
 
       {!isPaid && !adminMode && (
         <Card
+          strip
           style={{
             marginBottom: 16,
-            borderColor: 'color-mix(in srgb, var(--color-coral) 40%, transparent)',
+            borderColor: 'color-mix(in srgb, var(--brand-coral) 40%, transparent)',
           }}
         >
           <div style={{ fontWeight: 700, fontSize: 14 }}>

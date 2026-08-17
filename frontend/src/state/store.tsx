@@ -91,6 +91,26 @@ export function AppProvider({ children }: { children: ReactNode }) {
     );
 
   const reload = async () => {
+    // Design preview (window.__PREVIEW__): skip network, render immediately
+    // with local fallback data so the UI is fully visible outside Telegram.
+    if ((window as any).__PREVIEW__) {
+      const tu = (window as any).Telegram?.WebApp?.initDataUnsafe?.user;
+      if (tu) {
+        setUser({
+          name: tu.first_name || 'Аня',
+          archetype: 'Куратор Вайба',
+          groovePoints: 120,
+          referralCode: 'ABC123',
+          referralFriends: 2,
+          referralGpEarned: 40,
+          bonusLessons: 0,
+          photoUrl: '',
+        });
+      }
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     try {
       const sp =

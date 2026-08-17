@@ -52,19 +52,22 @@ export function Home() {
       </header>
 
       <Card
+        strip
         style={{
           background:
-            'linear-gradient(135deg, color-mix(in srgb, var(--color-accent) 30%, var(--color-surface)), var(--color-surface))',
+            'linear-gradient(135deg, color-mix(in srgb, var(--brand-mauve) 26%, var(--color-surface)), var(--color-surface))',
         }}
       >
         <div style={{ fontSize: 12, color: 'var(--color-text-dim)', marginBottom: 4 }}>
           {user.archetype}
         </div>
-        <h1 style={{ fontSize: 24, margin: '0 0 6px' }}>Open Deck</h1>
+        <h1 className="brand-text" style={{ fontSize: 28, margin: '0 0 6px' }}>
+          Open Deck
+        </h1>
         <p style={{ margin: 0, fontSize: 13.5, opacity: 0.85 }}>{archLine}</p>
         <div style={{ marginTop: 16, display: 'flex', gap: 10 }}>
           <Button
-            variant="mint"
+            variant="gradient"
             block
             onClick={() => {
               haptic('medium');
@@ -116,7 +119,10 @@ export function Home() {
       </div>
 
       {!isPaid && (
-        <Card style={{ borderColor: 'color-mix(in srgb, var(--color-coral) 40%, transparent)' }}>
+        <Card
+          strip
+          style={{ borderColor: 'color-mix(in srgb, var(--brand-coral) 40%, transparent)' }}
+        >
           <div style={{ fontWeight: 700, marginBottom: 4 }}>Открой полный курс</div>
           <div style={{ fontSize: 13, color: 'var(--color-text-dim)', marginBottom: 10 }}>
             Урок 1 бесплатно. Дальше — доступ за 500 ★.

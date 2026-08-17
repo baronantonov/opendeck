@@ -64,7 +64,7 @@ export function Mentor() {
           </div>
           <span style={{ fontSize: 12, color: 'var(--color-text-dim)' }}>$230 · Tribute</span>
         </div>
-        <Button variant="primary" block style={{ marginTop: 12 }} onClick={() => setOpen(true)}>
+        <Button variant="gradient" block style={{ marginTop: 12 }} onClick={() => setOpen(true)}>
           Записаться
         </Button>
       </Card>

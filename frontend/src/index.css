@@ -1,0 +1,125 @@
+@import 'tailwindcss';
+
+/* ---- Open Deck design tokens ----
+   Base palette per APP_SPEC (anti-neural-slop: warm, analog, not the default
+   violet/blue gradient slop). Telegram theme params override at runtime via
+   CSS custom props set in lib/theme.ts, falling back to these brand values. */
+
+@theme inline {
+  --color-bg: var(--tg-bg, #2b302e);
+  --color-surface: var(--tg-surface, #333a37);
+  --color-surface-2: var(--tg-surface-2, #3a423f);
+  --color-text: var(--tg-text, #f2efe9);
+  --color-text-dim: var(--tg-hint, #9aa39e);
+
+  --color-accent: #c0a0a8;        /* dusty rose */
+  --color-mint: #8ce2c8;          /* mint */
+  --color-coral: #f5926e;         /* coral */
+  --color-gold: #f3c969;          /* star gold */
+
+  --font-display: 'Unbounded', system-ui, sans-serif;
+  --font-body: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+:root {
+  color-scheme: light dark;
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-top: env(safe-area-inset-top, 0px);
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-body);
+  overscroll-behavior: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+h1,
+h2,
+h3,
+.display {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+/* Native-feeling scroll; hide scrollbars */
+.scroll-y {
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+.scroll-y::-webkit-scrollbar {
+  display: none;
+}
+
+/* Skeleton shimmer */
+.skel {
+  position: relative;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--color-text) 8%, transparent);
+  border-radius: 8px;
+}
+.skel::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, var(--color-text) 12%, transparent),
+    transparent
+  );
+  animation: shimmer 1.2s infinite;
+}
+@keyframes shimmer {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animate-pop {
+  animation: pop-in 0.28s ease both;
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

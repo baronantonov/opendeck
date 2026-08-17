@@ -28,3 +28,5 @@ tunnel.log
 .vscode/
 .mcp.json
 tunnel-keys/id_ed25519.pub
+backups/
+frontend/dist/

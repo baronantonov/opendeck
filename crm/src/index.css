@@ -1,0 +1,53 @@
+@import 'tailwindcss';
+
+@theme inline {
+  --color-bg: #0b0b12;
+  --color-surface: rgba(255, 255, 255, 0.04);
+  --color-surface-2: rgba(255, 255, 255, 0.07);
+  --color-border: rgba(255, 255, 255, 0.09);
+  --color-border-strong: rgba(255, 255, 255, 0.16);
+  --color-text: #ecedf5;
+  --color-muted: #9aa0b4;
+  --color-faint: #646a82;
+  --color-accent: #c0a0a8;
+  --color-accent-2: #8ce2c8;
+  --color-coral: #f5926e;
+  --color-good: #34d399;
+  --color-warn: #fbbf24;
+  --color-bad: #fb7185;
+  --color-vip: #f0abfc;
+  --font-display: 'Unbounded', system-ui, sans-serif;
+}
+
+:root[data-theme='light'] {
+  --color-bg: #f5f6fb;
+  --color-surface: rgba(15, 18, 40, 0.025);
+  --color-surface-2: rgba(15, 18, 40, 0.05);
+  --color-border: rgba(15, 18, 40, 0.08);
+  --color-border-strong: rgba(15, 18, 40, 0.16);
+  --color-text: #14162a;
+  --color-muted: #5b6076;
+  --color-faint: #9aa0b4;
+}
+
+body {
+  margin: 0;
+  font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background:
+    radial-gradient(1200px 700px at 88% -10%, color-mix(in srgb, var(--color-accent) 20%, transparent), transparent 60%),
+    radial-gradient(900px 600px at -5% 110%, color-mix(in srgb, var(--color-accent-2) 14%, transparent), transparent 55%),
+    var(--color-bg);
+  color: var(--color-text);
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+}
+
+.brand-gradient-bg {
+  background: linear-gradient(135deg, var(--color-accent), var(--color-accent-2));
+}
+.brand-text {
+  background: linear-gradient(135deg, var(--color-accent), var(--color-accent-2));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}

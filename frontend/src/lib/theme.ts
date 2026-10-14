@@ -43,12 +43,14 @@ export function useTelegramTheme() {
 
 // Haptic helper — safe no-op outside Telegram.
 export function haptic(
-  kind: 'light' | 'medium' | 'heavy' | 'success' | 'warning' | 'error' = 'light',
+  kind: 'light' | 'medium' | 'heavy' | 'success' | 'warning' | 'error' | 'selection' = 'light',
 ) {
   try {
     const tw = (window as any).Telegram?.WebApp;
     if (!tw) return;
-    if (kind === 'success' || kind === 'warning' || kind === 'error') {
+    if (kind === 'selection') {
+      tw.HapticFeedback?.selectionChanged?.();
+    } else if (kind === 'success' || kind === 'warning' || kind === 'error') {
       tw.HapticFeedback?.notificationOccurred?.(kind);
     } else {
       tw.HapticFeedback?.impactOccurred?.(kind);

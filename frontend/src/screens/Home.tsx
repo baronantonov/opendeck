@@ -1,12 +1,15 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp, COURSE_LESSONS } from '../state/store';
 import { Button, Card, ProgressBar, Star } from '../components/ui';
 import { ARCHETYPES } from '../lib/constants';
 import { haptic } from '../lib/theme';
+import { HorizontalDeckModal } from '../components/deck/HorizontalDeckModal';
 
 export function Home() {
   const nav = useNavigate();
   const { user, course, isPaid } = useApp();
+  const [deckOpen, setDeckOpen] = useState(false);
   const dc = course.completedLessons.length;
   const tc = COURSE_LESSONS.length;
   const pct = Math.round((dc / tc) * 100);
@@ -78,6 +81,44 @@ export function Home() {
           </Button>
         </div>
       </Card>
+
+      <Card
+        strip
+        style={{
+          background: 'linear-gradient(135deg, rgba(24, 27, 26, 0.95), rgba(15, 17, 16, 0.95))',
+          borderColor: 'rgba(140, 226, 200, 0.35)',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+          <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--brand-mint)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+            Rekordbox Simulator
+          </span>
+          <span style={{ fontSize: 11, color: 'var(--color-text-dim)', background: 'rgba(255,255,255,0.06)', padding: '2px 8px', borderRadius: 6, fontWeight: 600 }}>
+            Dual Deck A/B
+          </span>
+        </div>
+        <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 4 }}>
+          Виртуальная DJ-консоль
+        </div>
+        <p style={{ margin: '0 0 14px', fontSize: 12.5, color: 'var(--color-text-dim)', lineHeight: 1.45 }}>
+          Горизонтальный пульт Pioneer/Rekordbox: виниловые джоги, RGB волновые формы, фазометр тактов и треки Berlin Vault & Dark Matter.
+        </p>
+        <Button
+          variant="primary"
+          block
+          onClick={() => {
+            haptic('heavy');
+            setDeckOpen(true);
+          }}
+        >
+          🎧 Встать за пульт Rekordbox
+        </Button>
+      </Card>
+
+      <HorizontalDeckModal
+        isOpen={deckOpen}
+        onClose={() => setDeckOpen(false)}
+      />
 
       <div>
         <div

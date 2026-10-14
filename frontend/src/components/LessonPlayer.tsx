@@ -5,6 +5,7 @@ import { Button } from './ui';
 import { haptic } from '../lib/theme';
 import { useApp } from '../state/store';
 import type { Lesson } from '../types';
+import { HorizontalDeckModal } from './deck/HorizontalDeckModal';
 
 export function LessonPlayer({
   lesson,
@@ -21,6 +22,7 @@ export function LessonPlayer({
 }) {
   const [open, setOpen] = useState(false);
   const [done, setDone] = useState(false);
+  const [deckOpen, setDeckOpen] = useState(false);
   const { toast } = useToast();
   const { completeLesson, course } = useApp();
 
@@ -130,31 +132,51 @@ export function LessonPlayer({
         </ul>
       )}
 
-      <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-        {locked ? (
-          <Button variant="coral" block onClick={onUnlock}>
-            Открыть доступ
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 12 }}>
+        {!locked && index === 0 && (
+          <Button
+            variant="gradient"
+            block
+            onClick={() => {
+              haptic('heavy');
+              setDeckOpen(true);
+            }}
+          >
+            🎧 Встать за пульт Rekordbox
           </Button>
-        ) : (
-          <>
-            <Button
-              variant="secondary"
-              block
-              onClick={() => {
-                haptic('light');
-                setOpen((o) => !o);
-              }}
-            >
-              {open ? 'Скрыть' : 'Смотреть'}
-            </Button>
-            {open && !isCompleted && (
-              <Button variant="mint" block onClick={markDone}>
-                Готово
-              </Button>
-            )}
-          </>
         )}
+        <div style={{ display: 'flex', gap: 8 }}>
+          {locked ? (
+            <Button variant="coral" block onClick={onUnlock}>
+              Открыть доступ
+            </Button>
+          ) : (
+            <>
+              <Button
+                variant="secondary"
+                block
+                onClick={() => {
+                  haptic('light');
+                  setOpen((o) => !o);
+                }}
+              >
+                {open ? 'Скрыть' : 'Смотреть'}
+              </Button>
+              {open && !isCompleted && (
+                <Button variant="mint" block onClick={markDone}>
+                  Готово
+                </Button>
+              )}
+            </>
+          )}
+        </div>
       </div>
+
+      <HorizontalDeckModal
+        isOpen={deckOpen}
+        onClose={() => setDeckOpen(false)}
+        lesson={lesson}
+      />
     </div>
   );
 }

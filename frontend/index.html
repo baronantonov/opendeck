@@ -6,6 +6,25 @@
       name="viewport"
       content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1"
     />
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+    <script>
+      (function(){
+        try {
+          const m = document.documentElement.outerHTML.match(/opendeck-version:([0-9a-f]+)/);
+          if(!m) return;
+          const v = m[1];
+          const key = 'opendeck_app_version';
+          if(localStorage.getItem(key) && localStorage.getItem(key) !== v){
+            localStorage.setItem(key, v);
+            location.reload(true);
+            return;
+          }
+          localStorage.setItem(key, v);
+        } catch(e){}
+      })();
+    </script>
     <!-- Telegram bridge MUST load before the app bundle (per tma-scaffold) -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <title>Open Deck — DJ School</title>

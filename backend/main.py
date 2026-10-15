@@ -354,8 +354,9 @@ async def lessons(
     if uid is None:
         return JSONResponse({"error": "bad_init_data", "paid": False}, status_code=401)
     completed = [OLD_TO_NEW[x] for x in db.get_completed(uid, course_id) if x in MAIN_OLD_IDS]
+    paid = db.has_paid(uid, course_id) or (course_id == COURSE_ID and db.has_paid(uid, "tripwire"))
     return {
-        "paid": db.has_paid(uid, course_id),
+        "paid": paid,
         "course_id": course_id,
         "lessons": COURSE_MAIN,
         "completed": completed,
@@ -896,6 +897,7 @@ async def prodamus_webhook(req: Request, sign: str = Header(None, alias="Sign"))
                 db.spend_gp(user_id, gp_spent, reason=f"{cid}_discount")
             db.add_payment(user_id, cid, "prodamus", status="paid",
                            raw=json.dumps(form_dict, ensure_ascii=False)[:4000])
+            db.apply_referral_purchase(user_id)
             db.mark_webhook_processed(order_id)
         except Exception:
             # невалидный order_id — логируем, но отвечаем 200, чтобы Prodamus
@@ -906,23 +908,21 @@ async def prodamus_webhook(req: Request, sign: str = Header(None, alias="Sign"))
 
 # ---- POST /webhooks/tribute ----
 # Tribute шлёт webhook new_digital_product при успешной оплате digital-продукта
-# (менторство FREEDA DJ). Подтверждение оплаты = только этот webhook.
-# Подпись: Tribute передаёт header (точный алгоритм не документирован в open-docs) —
-# если приходит заголовок подписи, проверяем HMAC-SHA256(тело, TRIBUTE_API_KEY);
-# если нет — принимаем при наличии purchase_id (логируем отсутствие подписи).
+# (менторство FREEDA DJ). Подтверждение оплаты = только этот webhook со строгой HMAC-SHA256 подписью.
 @app.post("/webhooks/tribute")
 async def tribute_webhook(req: Request, x_signature: str = Header(None, alias="X-Signature")):
     api_key = os.getenv("TRIBUTE_API_KEY", "")
     if not api_key:
         return JSONResponse({"error": "webhook_not_configured"}, status_code=500)
 
+    if not x_signature:
+        return JSONResponse({"error": "missing_signature"}, status_code=400)
+
     import hashlib
     raw = await req.body()
-    # опциональная проверка подписи (если Tribute шлёт X-Signature)
-    if x_signature:
-        computed = hmac.new(api_key.encode(), raw, hashlib.sha256).hexdigest()
-        if not hmac.compare_digest(computed, x_signature):
-            return JSONResponse({"error": "bad_signature"}, status_code=400)
+    computed = hmac.new(api_key.encode(), raw, hashlib.sha256).hexdigest()
+    if not hmac.compare_digest(computed, x_signature):
+        return JSONResponse({"error": "bad_signature"}, status_code=400)
 
     try:
         body = json.loads(raw.decode("utf-8", "ignore"))
@@ -946,8 +946,10 @@ async def tribute_webhook(req: Request, x_signature: str = Header(None, alias="X
     course_id = "mentoring"
     try:
         if user_id:
-            db.add_payment(int(user_id), course_id, "tribute", status="paid",
+            uid = int(user_id)
+            db.add_payment(uid, course_id, "tribute", status="paid",
                            raw=json.dumps(body, ensure_ascii=False)[:4000])
+            db.apply_referral_purchase(uid)
         db.mark_webhook_processed(purchase_id)
     except Exception:
         pass

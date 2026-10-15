@@ -48,8 +48,8 @@
 {
   "bonus": {
     "type": "referral_signup",
-    "amount": 50,
-    "message": "🎁 Подарок от друга! Тебе начислено 50 GP"
+    "amount": 100,
+    "message": "🎁 Подарок от друга! Тебе начислено 100 GP"
   }
 }
 ```
@@ -60,7 +60,7 @@
 3. Если НЕ найден → создать: `referral_code = sha256(id)[:8]`, `groove_points = 0`
 4. Если найден и `start_param` есть → проверить, не привязан ли уже `referred_by`
    - Если `referred_by IS NULL` → найти Inviter'а по `ref_XXXX`, записать `referred_by`
-   - Начислить Invitee +50 GP, Inviter +30 GP (если Inviter существует)
+   - Начислить Invitee +100 GP, Inviter +100 GP (если Inviter существует)
    - Создать записи в `transactions`
    - Вернуть `bonus` в ответе
 5. Если пользователь существует и `referred_by` уже есть → bonus = null (не показывать повторно)
@@ -113,7 +113,7 @@ Backend начисляет +50 GP за урок, создаёт `transaction`.
 **Response:**
 ```json
 {
-  "inviter_bonus": 200,
+  "inviter_bonus": 500,
   "inviter_code": "a1b2c3d4",
   "gp": 200
 }
@@ -122,7 +122,7 @@ Backend начисляет +50 GP за урок, создаёт `transaction`.
 **Backend-логика:**
 1. Найти пользователя
 2. Проверить `referred_by` — если null, вернуть `{ "inviter_bonus": 0 }`
-3. Начислить Inviter +200 GP (Action: `referral_purchase`)
+3. Начислить Inviter +500 GP (Action: `referral_purchase`) + проверить милестоуны (3/5/10 друзей -> +300/+1000/+2500 GP)
 4. Создать `transaction`
 5. Вернуть результат
 
@@ -200,13 +200,15 @@ CREATE TABLE IF NOT EXISTS transactions (
 
 | Событие | Кому | GP | action_type |
 |---|---|---|---|
-| Регистрация по рефссылке | Invitee | +50 | `referral_signup` |
-| Регистрация по рефссылке | Inviter | +30 | `referral_signup_bonus` |
-| Invitee покупает курс/менторство | Inviter | +200 | `referral_purchase` (**1 раз на invitee**) |
-| Урок пройден | User | +50 | `lesson_complete` |
-| Списание на скидку MENTOR | User | −N | `gp_spend` (идемпотентно по charge_id) |
+| Регистрация по рефссылке | Invitee | +100 | `referral_signup` |
+| Регистрация по рефссылке | Inviter | +100 | `referral_signup_bonus` |
+| Invitee покупает курс/менторство | Inviter | +500 | `referral_purchase` (**1 раз на invitee**) |
+| Милестоуны друзей (3 / 5 / 10) | Inviter | +300 / +1000 / +2500 | `referral_milestone` |
+| Урок пройден (основной) | User | +50 | `lesson_complete` |
+| Урок пройден (бонусный) | User | +30 | `lesson_complete` |
+| Списание на скидку MENTOR | User | −N | `gp_spend` (макс 500 GP, идемпотентно) |
 
-> **Защита от фрода:** `referral_purchase` начисляет +200 инвайтеру только
+> **Защита от фрода:** `referral_purchase` начисляет +500 инвайтеру только
 > один раз на invitee (повторный вызов возвращает inviter_id, но GP не
 > накручивает). `gp_spend` идемпотентен по `charge_id` — двойной вызов
 > ботом + фронтом не списывает GP повторно.

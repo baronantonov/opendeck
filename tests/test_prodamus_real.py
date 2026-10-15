@@ -27,6 +27,9 @@ os.environ.setdefault("BACKEND_URL", "http://localhost:8000")
 from backend.prodamus_sign import sign_params, verify_webhook
 
 
+SECRET = os.getenv("PRODAMUS_SECRET_KEY", "TEST_SECRET_123")
+
+
 def test_sign_and_verify_roundtrip():
     """Подпись сформирована -> webhook с этой подписью проходит проверку."""
     params = {
@@ -36,22 +39,22 @@ def test_sign_and_verify_roundtrip():
         "currency": "rub",
         "products": [{"name": "Курс", "price": 1990, "quantity": 1, "type": "course"}],
     }
-    sig = sign_params(params, "TEST_SECRET_123")
+    sig = sign_params(params, SECRET)
     # Prodamus пришлёт те же поля (без signature) + заголовок Sign=sig
     form = {k: v for k, v in params.items() if k != "signature"}
-    assert verify_webhook(form, "TEST_SECRET_123", sig) is True
+    assert verify_webhook(form, SECRET, sig) is True
     # неверный секрет/подпись -> провал
     assert verify_webhook(form, "WRONG_SECRET", sig) is False
-    assert verify_webhook(form, "TEST_SECRET_123", "deadbeef") is False
+    assert verify_webhook(form, SECRET, "deadbeef") is False
     print("✅ sign/verify roundtrip OK")
 
 
 def test_verify_rejects_tampered_form():
     params = {"order_id": "123:dj-basics", "status": "paid", "amount": "1990"}
-    sig = sign_params(params, "TEST_SECRET_123")
+    sig = sign_params(params, SECRET)
     tampered = dict(params)
     tampered["amount"] = "1"  # кто-то подменил сумму
-    assert verify_webhook(tampered, "TEST_SECRET_123", sig) is False
+    assert verify_webhook(tampered, SECRET, sig) is False
     print("✅ tamper detection OK")
 
 
@@ -75,7 +78,7 @@ def test_webhook_endpoint_grants_access():
         "currency": "rub",
         "sys": "opendeck",
     }
-    sig = sign_params(form, "TEST_SECRET_123")
+    sig = sign_params(form, SECRET)
 
     client = TestClient(main_mod.app)
     # передаём form-data как обычные поля + заголовок Sign

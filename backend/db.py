@@ -99,7 +99,7 @@ def _generate_referral_code(user_id: int) -> str:
 
 @contextmanager
 def _conn():
-    c = sqlite3.connect(str(DB_PATH))
+    c = sqlite3.connect(str(DB_PATH), timeout=30.0)
     c.row_factory = sqlite3.Row
     try:
         yield c
@@ -139,19 +139,42 @@ def init():
         if not _column_exists(c, "transactions", "ab_variant"):
             c.execute("ALTER TABLE transactions ADD COLUMN ab_variant TEXT")
 
-        # — таблица A/B-назначений (эксперименты по ценам/локализации)
+        # — таблица A/B-назначений (составной PRIMARY KEY: user_id + experiment)
         c.execute("""
             CREATE TABLE IF NOT EXISTS ab_assignments (
-                user_id INTEGER PRIMARY KEY,
+                user_id INTEGER NOT NULL,
                 experiment TEXT NOT NULL,
                 variant TEXT NOT NULL,
-                assigned_at TEXT DEFAULT (datetime('now'))
+                assigned_at TEXT DEFAULT (datetime('now')),
+                PRIMARY KEY (user_id, experiment)
             )
         """)
+        # миграция ab_assignments: если старая таблица имела PRIMARY KEY только по user_id
+        cols = c.execute("PRAGMA table_info(ab_assignments)").fetchall()
+        if cols:
+            exp_pk = next((col["pk"] for col in cols if col["name"] == "experiment"), 0)
+            if exp_pk == 0:
+                c.execute("""
+                    CREATE TABLE ab_assignments_new (
+                        user_id INTEGER NOT NULL,
+                        experiment TEXT NOT NULL,
+                        variant TEXT NOT NULL,
+                        assigned_at TEXT DEFAULT (datetime('now')),
+                        PRIMARY KEY (user_id, experiment)
+                    )
+                """)
+                c.execute("INSERT OR IGNORE INTO ab_assignments_new SELECT user_id, experiment, variant, assigned_at FROM ab_assignments")
+                c.execute("DROP TABLE ab_assignments")
+                c.execute("ALTER TABLE ab_assignments_new RENAME TO ab_assignments")
 
         # — уникальный индекс на referral_code (вместо UNIQUE в колонке)
         c.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_refcode "
                   "ON users(referral_code)")
+        # — индексы для ускорения выборок и защиты от блокировок
+        c.execute("CREATE INDEX IF NOT EXISTS idx_users_referred_by ON users(referred_by)")
+        c.execute("CREATE INDEX IF NOT EXISTS idx_payments_lookup ON payments(user_id, course_id, status)")
+        c.execute("CREATE INDEX IF NOT EXISTS idx_transactions_user_action ON transactions(user_id, action_type)")
+        c.execute("CREATE INDEX IF NOT EXISTS idx_transactions_charge ON transactions(charge_id)")
 
         # — referral_code для существующих юзеров (если NULL)
         rows = c.execute(
@@ -343,6 +366,14 @@ def apply_referral_signup(invitee_id: int, inviter_id: int):
         if not inviter:
             return None
 
+        # защита от дубликатов начисления (TOCTOU race condition)
+        dup = c.execute(
+            "SELECT 1 FROM transactions WHERE user_id=? AND action_type='referral_signup' LIMIT 1",
+            (invitee_id,)
+        ).fetchone()
+        if dup:
+            return inviter["referral_code"]
+
         # +100 invitee
         c.execute("UPDATE users SET groove_points = groove_points + ? WHERE user_id=?",
                   (SIGNUP_INVITEE, invitee_id,))
@@ -524,10 +555,11 @@ def spend_gp(user_id: int, amount: int, reason: str = "spend") -> Optional[dict]
             "UPDATE users SET groove_points = groove_points - ? WHERE user_id=?",
             (actual, user_id),
         )
+        action_name = f"gp_spend_{reason}" if reason and reason != "spend" else "gp_spend"
         c.execute(
             "INSERT INTO transactions (user_id, amount, action_type) "
-            "VALUES (?, ?, 'gp_spend')",
-            (user_id, -actual),
+            "VALUES (?, ?, ?)",
+            (user_id, -actual, action_name),
         )
         new_gp = c.execute(
             "SELECT groove_points FROM users WHERE user_id=?", (user_id,)

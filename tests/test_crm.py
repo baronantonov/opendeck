@@ -56,6 +56,9 @@ def test_crm():
     session.cookies.set("crm_session", r.cookies["crm_session"])
 
     print("== CRM: статистика на пустой БД ==")
+    with db._conn() as _c:
+        for _t in ["users", "payments", "progress", "transactions", "badges", "ab_assignments", "webhook_processed"]:
+            _c.execute(f"DELETE FROM {_t}")
     r = session.get("/api/crm/stats")
     check("stats -> ok", r.status_code == 200)
     j = r.json()
@@ -166,10 +169,9 @@ def test_crm():
     r = client.post("/crm/logout")
     check("logout -> ok", r.status_code == 200)
 
-    os.unlink(_tmp.name)
     print(f"\nИтог CRM: {passed} PASS / {failed} FAIL")
-    return passed, failed
+    assert failed == 0, f"CRM tests failed: {failed} checks failed"
+
 
 if __name__ == "__main__":
-    _p, _f = test_crm()
-    sys.exit(1 if _f else 0)
+    test_crm()

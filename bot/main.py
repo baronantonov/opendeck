@@ -89,7 +89,7 @@ async def on_paid(msg: Message):
             # не удалось выдать доступ — логируем, но продолжаем (реф/скидка не зависят)
             print(f"⚠️ /api/grant failed: {r.status_code} {r.text}")
 
-        # 2) реферальный бонус инвайтеру (+200 ⭐, идемпотентно на 1 покупку)
+        # 2) реферальный бонус инвайтеру (+500 ⭐, идемпотентно на 1 покупку)
         #    + уведомление инвайтера, что друг купил (закрываем петлю рефералки).
         try:
             rp = await c.post(f"{config.BACKEND_URL}/api/referral/purchase", json={
@@ -104,7 +104,7 @@ async def on_paid(msg: Message):
                             f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendMessage",
                             json={
                                 "chat_id": inv_id,
-                                "text": "🎉 Твой друг купил курс Open Deck!\nНа твой баланс начислено +200 ⭐.",
+                                "text": "🎉 Твой друг купил курс Open Deck!\nНа твой баланс начислено +500 ⭐.",
                                 "disable_notification": False,
                             },
                         )
@@ -113,16 +113,9 @@ async def on_paid(msg: Message):
         except Exception:
             pass  # не критично
 
-        # 3) если куплен курс (tripwire/full) — зафиксировать платёж,
-        #    чтобы фронт-пейвол открыл доступ (has_paid). Менторство тоже фиксируем.
+        # 3) LTV по A/B-варианту (для аналитики цен)
         if course_id in ("tripwire", "dj-basics", "mentoring"):
             try:
-                await c.post(f"{config.BACKEND_URL}/api/grant", json={
-                    "user_id": msg.from_user.id,
-                    "course_id": course_id,
-                    "provider": "stars",
-                }, headers=headers)
-                # LTV по A/B-варианту (для аналитики цен)
                 await c.post(f"{config.BACKEND_URL}/api/ab/track", json={
                     "user_id": msg.from_user.id,
                     "course_id": course_id,

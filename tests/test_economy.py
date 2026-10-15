@@ -176,8 +176,8 @@ def test_test_economy():
 
     print()
     print(f"ИТОГО: {passed} PASS / {failed} FAIL")
-    return passed, failed
+    assert failed == 0, f"Economy tests failed: {failed} checks failed"
+
 
 if __name__ == "__main__":
-    _p, _f = test_test_economy()
-    sys.exit(1 if _f else 0)
+    test_test_economy()

@@ -59,8 +59,8 @@ def test_test_bot():
     check("без init_data доступ не светится (защита)", r2.json().get("error") == "bad_init_data")
 
     print(f"\nИтог бота: {passed} PASS / {failed} FAIL")
-    return passed, failed
+    assert failed == 0, f"Bot tests failed: {failed} checks failed"
+
 
 if __name__ == "__main__":
-    _p, _f = test_test_bot()
-    sys.exit(1 if _f else 0)
+    test_test_bot()

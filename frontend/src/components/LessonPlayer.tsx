@@ -27,58 +27,72 @@ export function LessonPlayer({
   const { completeLesson, course } = useApp();
 
   const isCompleted = course.completedLessons.includes(index + 1) || done;
+  const trackNum = String(index + 1).padStart(2, '0');
 
   const markDone = async () => {
     try {
-      const j = await apiProgress(courseId, index + 1);
-      if (j?.gp !== undefined) {
-        // server returns updated gp; refresh via reload if needed
-      }
+      await apiProgress(courseId, index + 1);
     } catch {
       /* offline ok */
     }
     completeLesson(index + 1);
     setDone(true);
     haptic('success');
-    toast('✓', 'Урок отмечен — +50 ★');
+    toast('✓', 'Урок освоен — +50 GP');
   };
 
   return (
     <div
+      className="animate-pop"
       style={{
-        background: 'var(--color-surface)',
+        background: '#14171d',
+        border: isCompleted
+          ? '1px solid rgba(0, 240, 118, 0.3)'
+          : locked
+            ? '1px solid rgba(255, 255, 255, 0.05)'
+            : '1px solid rgba(255, 255, 255, 0.08)',
         borderRadius: 16,
         padding: 14,
         marginBottom: 12,
-        opacity: locked ? 0.55 : 1,
+        opacity: locked ? 0.6 : 1,
+        boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 4px 16px rgba(0, 0, 0, 0.35)',
       }}
     >
       <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
         <div
+          className="font-mono"
           style={{
             width: 38,
             height: 38,
-            borderRadius: 12,
+            borderRadius: 10,
             flexShrink: 0,
             display: 'grid',
             placeItems: 'center',
             background: isCompleted
-              ? 'var(--color-mint)'
-              : 'color-mix(in srgb, var(--color-text) 10%, transparent)',
-            color: isCompleted ? '#11322a' : 'var(--color-text-dim)',
-            fontWeight: 700,
-            fontSize: 14,
+              ? 'rgba(0, 240, 118, 0.15)'
+              : locked
+                ? 'rgba(255, 255, 255, 0.04)'
+                : 'rgba(0, 229, 255, 0.1)',
+            border: isCompleted
+              ? '1px solid #00f076'
+              : locked
+                ? '1px solid rgba(255, 255, 255, 0.08)'
+                : '1px solid rgba(0, 229, 255, 0.35)',
+            color: isCompleted ? '#00f076' : locked ? '#5d6776' : '#00e5ff',
+            fontWeight: 800,
+            fontSize: 13.5,
+            boxShadow: isCompleted ? '0 0 8px rgba(0, 240, 118, 0.3)' : 'none',
           }}
         >
-          {isCompleted ? '✓' : index + 1}
+          {isCompleted ? '✓' : locked ? '🔒' : trackNum}
         </div>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontWeight: 600, fontSize: 14 }}>{lesson.t}</div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontWeight: 700, fontSize: 14.5, color: '#f0f3f6' }}>{lesson.t}</div>
           {!open && (
             <div
               style={{
                 fontSize: 12,
-                color: 'var(--color-text-dim)',
+                color: '#828e9e',
                 marginTop: 2,
                 display: '-webkit-box',
                 WebkitLineClamp: 1,
@@ -100,6 +114,7 @@ export function LessonPlayer({
             borderRadius: 12,
             overflow: 'hidden',
             background: '#000',
+            border: '1px solid rgba(255, 255, 255, 0.08)',
           }}
         >
           <iframe
@@ -120,7 +135,7 @@ export function LessonPlayer({
             margin: '12px 0 0',
             paddingLeft: 18,
             fontSize: 13,
-            color: 'var(--color-text)',
+            color: '#b0b8c4',
             lineHeight: 1.5,
           }}
         >
@@ -135,7 +150,7 @@ export function LessonPlayer({
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 12 }}>
         {!locked && index === 0 && (
           <Button
-            variant="gradient"
+            variant="primary"
             block
             onClick={() => {
               haptic('heavy');
@@ -148,7 +163,7 @@ export function LessonPlayer({
         <div style={{ display: 'flex', gap: 8 }}>
           {locked ? (
             <Button variant="coral" block onClick={onUnlock}>
-              Открыть доступ
+              Открыть доступ · 500 ★
             </Button>
           ) : (
             <>
@@ -160,11 +175,11 @@ export function LessonPlayer({
                   setOpen((o) => !o);
                 }}
               >
-                {open ? 'Скрыть' : 'Смотреть'}
+                {open ? 'Скрыть урок' : 'Смотреть урок'}
               </Button>
               {open && !isCompleted && (
                 <Button variant="mint" block onClick={markDone}>
-                  Готово
+                  ✓ Освоено · +50 GP
                 </Button>
               )}
             </>

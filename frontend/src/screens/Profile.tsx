@@ -27,8 +27,7 @@ export function Profile() {
       } else if (j?._err) {
         toast('✕', 'Ошибка начисления');
       } else {
-        // update gp optimistically; reload will confirm
-        toast('✓', `${label}: +${j.amount} ★`);
+        toast('✓', `${label}: +${j.amount} GP`);
       }
     } catch {
       toast('✕', 'Ошибка сети');
@@ -62,47 +61,82 @@ export function Profile() {
 
   return (
     <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 14 }}>
+      {/* DJ Profile Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
         <div
-          className="user-avatar"
           style={{
-            width: 52,
-            height: 52,
-            borderRadius: 16,
-            background: 'var(--color-accent)',
-            color: '#1d1f1e',
+            width: 48,
+            height: 48,
+            borderRadius: 14,
+            background: 'linear-gradient(135deg, #1f2530 0%, #12151a 100%)',
+            border: '1.5px solid #00e5ff',
+            color: '#00e5ff',
             display: 'grid',
             placeItems: 'center',
             fontWeight: 800,
-            fontSize: 20,
+            fontSize: 18,
+            boxShadow: '0 0 10px rgba(0, 229, 255, 0.25)',
+            flexShrink: 0,
           }}
         >
-          {user.name[0] || 'Д'}
+          {user.name[0] || 'D'}
         </div>
         <div>
-          <div style={{ fontWeight: 700, fontSize: 16 }}>{user.name}</div>
-          <div style={{ fontSize: 12, color: 'var(--color-mint)' }}>{user.archetype}</div>
+          <div
+            className="font-mono"
+            style={{
+              fontSize: 10,
+              fontWeight: 600,
+              color: '#657283',
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+            }}
+          >
+            DJ PROFILE · {user.archetype || 'ROOKIE'}
+          </div>
+          <div style={{ fontWeight: 800, fontSize: 16, color: '#f0f3f6' }}>{user.name}</div>
         </div>
         <div
           style={{
             marginLeft: 'auto',
             display: 'flex',
             alignItems: 'center',
-            gap: 5,
-            background: 'color-mix(in srgb, var(--color-gold) 14%, transparent)',
+            gap: 6,
+            background: '#101318',
+            border: '1px solid rgba(255, 214, 0, 0.25)',
             padding: '6px 12px',
-            borderRadius: 99,
-            fontWeight: 700,
+            borderRadius: 10,
+            boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.5)',
           }}
         >
-          <Star />
-          {user.groovePoints}
+          <Star size={13} />
+          <span
+            className="font-mono"
+            style={{
+              fontSize: 13,
+              fontWeight: 700,
+              color: '#ffd600',
+            }}
+          >
+            {user.groovePoints.toLocaleString()} GP
+          </span>
         </div>
       </div>
 
+      {/* Free GP Earn */}
       <Card>
-        <div style={{ fontSize: 13, color: 'var(--color-text-dim)', marginBottom: 10 }}>
-          Бесплатные ★
+        <div
+          className="font-mono"
+          style={{
+            fontSize: 10.5,
+            fontWeight: 700,
+            color: '#00e5ff',
+            letterSpacing: '0.08em',
+            textTransform: 'uppercase',
+            marginBottom: 8,
+          }}
+        >
+          BONUS GROOVE POINTS
         </div>
         {EARN_ACTIONS.map((a) => (
           <button
@@ -116,48 +150,72 @@ export function Profile() {
               gap: 10,
               background: 'transparent',
               border: 'none',
-              borderTop:
-                '1px solid color-mix(in srgb, var(--color-text) 7%, transparent)',
+              borderTop: '1px solid rgba(255, 255, 255, 0.06)',
               padding: '12px 0',
-              color: 'var(--color-text)',
-              fontSize: 14,
+              color: '#f0f3f6',
+              fontSize: 13.5,
               fontWeight: 600,
               opacity: busy === a.action ? 0.5 : 1,
+              cursor: 'pointer',
             }}
           >
             <span style={{ fontSize: 18 }}>{a.icon}</span>
             <span style={{ flex: 1, textAlign: 'left' }}>{a.label}</span>
-            <b style={{ color: 'var(--color-gold)' }}>+{a.reward} ★</b>
+            <b className="font-mono" style={{ color: '#ffd600', fontSize: 13 }}>
+              +{a.reward} GP
+            </b>
           </button>
         ))}
       </Card>
 
-      <Card strip>
-        <div style={{ fontWeight: 700, marginBottom: 8 }}>Пригласи друга</div>
-        <div style={{ fontSize: 12.5, color: 'var(--color-text-dim)', marginBottom: 8 }}>
-          {referralFriends} друзей · {referralGpEarned} ★ заработано
+      {/* Referral */}
+      <Card>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+          <div style={{ fontWeight: 800, fontSize: 14.5, color: '#f0f3f6' }}>Пригласи друга в Open Deck</div>
+          <span className="font-mono" style={{ fontSize: 11, fontWeight: 700, color: '#ff5a00' }}>
+            +100 / +200 GP
+          </span>
+        </div>
+        <div style={{ fontSize: 12.5, color: '#8e98a5', marginBottom: 10 }}>
+          {referralFriends} друзей приглашено · {referralGpEarned} GP заработано
         </div>
         {user.referralCode && (
-          <code
+          <div
+            className="font-mono"
             style={{
-              display: 'block',
-              background: 'color-mix(in srgb, var(--color-text) 8%, transparent)',
-              padding: '8px 10px',
+              background: '#090b0e',
+              border: '1px solid rgba(255, 255, 255, 0.08)',
+              padding: '8px 12px',
               borderRadius: 8,
-              fontSize: 13,
+              fontSize: 12,
+              color: '#00e5ff',
               marginBottom: 10,
+              wordBreak: 'break-all',
             }}
           >
             ref_{user.referralCode}
-          </code>
+          </div>
         )}
-        <Button variant="mint" block onClick={shareArchetype}>
-          Пригласить друга
+        <Button variant="primary" block onClick={shareArchetype}>
+          Пригласить друга в Telegram
         </Button>
       </Card>
 
-      <Card strip>
-        <div style={{ fontWeight: 700, marginBottom: 10 }}>Достижения</div>
+      {/* Achievements */}
+      <Card>
+        <div
+          className="font-mono"
+          style={{
+            fontSize: 10.5,
+            fontWeight: 700,
+            color: '#00e5ff',
+            letterSpacing: '0.08em',
+            textTransform: 'uppercase',
+            marginBottom: 10,
+          }}
+        >
+          DJ ACHIEVEMENTS
+        </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {achs.map((a) => (
             <div
@@ -167,28 +225,26 @@ export function Profile() {
                 alignItems: 'center',
                 gap: 10,
                 padding: '10px 12px',
-                borderRadius: 12,
-                background: a.got
-                  ? 'color-mix(in srgb, var(--color-mint) 10%, transparent)'
-                  : 'color-mix(in srgb, var(--color-text) 3%, transparent)',
-                border: a.got
-                  ? '1px solid color-mix(in srgb, var(--color-mint) 25%, transparent)'
-                  : 'none',
-                opacity: a.got ? 1 : 0.55,
+                borderRadius: 10,
+                background: a.got ? 'rgba(0, 240, 118, 0.08)' : '#0d1014',
+                border: a.got ? '1px solid rgba(0, 240, 118, 0.3)' : '1px solid rgba(255, 255, 255, 0.05)',
+                opacity: a.got ? 1 : 0.6,
               }}
             >
               <span style={{ fontSize: 18 }}>{a.got ? '🏆' : '🔒'}</span>
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 13, fontWeight: 600 }}>{a.name}</div>
-                <div style={{ fontSize: 11, color: 'var(--color-text-dim)' }}>{a.desc}</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: a.got ? '#00f076' : '#f0f3f6' }}>
+                  {a.name}
+                </div>
+                <div style={{ fontSize: 11.5, color: '#828e9e' }}>{a.desc}</div>
               </div>
             </div>
           ))}
         </div>
       </Card>
 
-      <p style={{ fontSize: 11, color: 'var(--color-text-dim)', textAlign: 'center' }}>
-        Open Deck DJ School · архетип: {ARCHETYPES[user.archetype] || ''}
+      <p style={{ fontSize: 11, color: '#657283', textAlign: 'center', margin: '4px 0 0' }}>
+        Open Deck DJ School · {ARCHETYPES[user.archetype] || ''}
       </p>
     </div>
   );

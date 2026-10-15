@@ -1,17 +1,13 @@
 import { useState } from 'react';
 import { useApp } from '../state/store';
-import { Button, Card, Star } from '../components/ui';
+import { Button, Card } from '../components/ui';
 import { MentorPay } from '../payment/Paywall';
-import { PRICES } from '../lib/constants';
+import { mentorPrices } from '../lib/constants';
 
 export function Mentor() {
   const { user, isPaid } = useApp();
   const [open, setOpen] = useState(false);
-  const discount = Math.min(user.groovePoints, PRICES.mentor.gpCap);
-  const finalStars = Math.max(
-    PRICES.mentor.floor,
-    PRICES.mentor.gross - discount,
-  );
+  const { discountUsd, finalUsd, finalRub } = mentorPrices(user.groovePoints);
 
   return (
     <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -54,17 +50,16 @@ export function Mentor() {
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <Star />
-            <b>{finalStars.toLocaleString('ru-RU')} ★</b>
-            {discount > 0 && (
+            <b>${finalUsd} ({finalRub.toLocaleString('ru-RU')} ₽)</b>
+            {discountUsd > 0 && (
               <span style={{ fontSize: 12, color: 'var(--color-mint)' }}>
-                скидка −{discount}
+                скидка −${discountUsd}
               </span>
             )}
           </div>
-          <span style={{ fontSize: 12, color: 'var(--color-text-dim)' }}>$230 · Tribute</span>
+          <span style={{ fontSize: 12, color: 'var(--color-text-dim)' }}>Prodamus / Tribute</span>
         </div>
-        <Button variant="gradient" block style={{ marginTop: 12 }} onClick={() => setOpen(true)}>
+        <Button variant="primary" block style={{ marginTop: 12 }} onClick={() => setOpen(true)}>
           Записаться
         </Button>
       </Card>

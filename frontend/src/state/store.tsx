@@ -93,8 +93,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   const completeBonusLesson = (bonusId: number) => {
-    setBonusDone((prev) => Math.max(prev, bonusId));
-    setUserState((u) => ({ ...u, groovePoints: u.groovePoints + 30 }));
+    setBonusDone((prev) => {
+      if (prev >= bonusId) return prev;
+      setUserState((u) => ({ ...u, groovePoints: u.groovePoints + 30 }));
+      return bonusId;
+    });
   };
 
   const reload = async () => {

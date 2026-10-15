@@ -537,9 +537,11 @@ async def gp_spend(
 
 # ---- POST /api/gp/earn ----
 REWARD_ACTIONS = {
-    "share": 25,        # поделился курсом — +25 GP (шер = дешёвая вирусность)
-    "daily": 25,        # ежедневный бонус — +25 GP (пинг удержания, выше порог входа)
-    "review": 50,       # оставил отзыв/звёзды — +50 GP
+    "share": 25,              # поделился курсом — +25 GP
+    "share_achievement": 25,  # поделился достижением — +25 GP
+    "invite_team": 50,        # пригласил друга в команду — +50 GP
+    "daily": 25,              # ежедневный бонус — +25 GP
+    "review": 50,             # отзыв — +50 GP
 }
 @app.post("/api/gp/earn")
 async def gp_earn(
@@ -605,11 +607,11 @@ async def archetype_share(
 # 1 Star ≈ $0.0143 для покупателя ($300 = 21000 Stars, см. MENTOR_PRICE).
 # Комиссия Stars: 30% платёж + 10% вывод = 40% → Creator нет 60% (≈$0.0086/Star).
 # Цель: net Фриды за менторство ≥ $200 → gross ≥ $333 ≈ 23333⭐ → FLOOR 23400.
-TRIPWIRE_PRICE = 500      # $7   → 500 Stars
-FULL_COURSE_PRICE = 2100  # $30  → 2100 Stars
-MENTOR_PRICE = 28000      # $400 → 28000 Stars (gross; floor защищает net $200)
-MENTOR_FLOOR = 23400      # минимальный gross менторства (net $200 после 40% комиссии)
-MENTOR_GP_CAP = 4600      # макс GP-скидка (28000 - 4600 = 23400 = floor)
+TRIPWIRE_PRICE = 2500     # 2500 Stars (единый пейвол после 1 урока + 1 бонуса)
+FULL_COURSE_PRICE = 2500  # 2500 Stars
+MENTOR_PRICE = 28000      # $250 эквивалент
+MENTOR_FLOOR = 23400      # floor защищает net $190
+MENTOR_GP_CAP = 500       # макс 500 GP скидка ($50 / 4100 руб)
 
 # ---- A/B эксперименты (Adapty: локализация +62% LTV, структура trial +59%) ----
 # Варианты цен для tripwire/full. Если эксперимент ВЫКЛЮЧЕН (active=False) —
@@ -680,6 +682,7 @@ async def create_invoice(
     # Клиентский body.price ИГНОРИРУЕТСЯ — иначе юзер мог передать price:1
     # и купить менторство за 1 Star.
     variant = "control"
+    price_usd = 30
     if course_id == "tripwire":
         price, variant = _ab_price("tripwire", uid)
         label = "Pocket DJ: уроки 1-4"
@@ -687,12 +690,20 @@ async def create_invoice(
         price, variant = _ab_price(COURSE_ID, uid)
         label = "Pocket DJ: полный курс"
     elif course_id == "mentoring":
-        # автоскидка 1 GP = 1 Star, макс MENTOR_GP_CAP, итог не ниже MENTOR_FLOOR
-        # (floor гарантирует net Фриды ≥ $200 после 40% комиссии Stars)
+        if body.provider == "stars":
+            return JSONResponse(
+                {"error": "stars_not_allowed_for_mentoring",
+                 "detail": "Оплата менторства доступна только через Prodamus или Tribute (без 40% комиссии Stars)"},
+                status_code=400,
+            )
         gp = db.get_gp(uid)
-        disc = min(gp, MENTOR_GP_CAP)
-        price = max(MENTOR_FLOOR, MENTOR_PRICE - disc)
-        label = "Персональное менторство FREEDA DJ"
+        capped_gp = min(max(gp, 0), MENTOR_GP_CAP)
+        # База: 23 900 руб ($250), скидка до 4 100 руб ($50), пол: 19 800 руб ($200) -> чистыми $190
+        discount_rub = round(capped_gp * 8.2)
+        price_rub = max(19800, 23900 - discount_rub)
+        price_usd = max(200, 250 - round(capped_gp * 0.1))
+        price = price_rub
+        label = f"Персональное менторство FREEDA DJ (${price_usd})"
     else:
         return JSONResponse({"error": "unknown_course"}, status_code=400)
 
@@ -700,9 +711,7 @@ async def create_invoice(
     if body.provider == "prodamus":
         from bot.payments.prodamus import ProdamusProvider
         prov = ProdamusProvider()
-        # цена в рублях: берём эквивалент Stars*0.0213 (курс ~ $0.0213/Star,
-        # 1 Star ≈ 1.7₽), округляем до целых; для полного курса 2100 Stars ≈ 3570₽
-        rub = max(1, round(price * 1.7))
+        rub = price if course_id == "mentoring" else max(1, round(price * 1.7))
         inv = await prov.create_invoice(uid, course_id, f"{rub} RUB")
         if inv.meta.get("not_configured"):
             return JSONResponse(
@@ -726,7 +735,8 @@ async def create_invoice(
     elif body.provider == "tribute":
         from bot.payments.tribute import TributeProvider
         prov = TributeProvider()
-        inv = await prov.create_invoice(uid, course_id, f"{price} XTR")
+        amount_str = f"{price_usd} USD" if course_id == "mentoring" else f"{price} XTR"
+        inv = await prov.create_invoice(uid, course_id, amount_str)
         if inv.meta.get("not_configured"):
             return JSONResponse(
                 {"error": "tribute_not_configured",

@@ -3,7 +3,7 @@ import { apiCreateInvoice } from '../api/client';
 import { useToast } from '../components/Toast';
 import { BottomSheet } from '../components/BottomSheet';
 import { Button } from '../components/ui';
-import { PRICES } from '../lib/constants';
+import { PRICES, mentorPrices } from '../lib/constants';
 import { useApp } from '../state/store';
 
 function openInvoiceOrLink(link?: string, url?: string, external = false) {
@@ -82,7 +82,7 @@ export function Paywall({
         return;
       }
       openInvoiceOrLink(undefined, data.pay_url, true);
-      toast('💳', 'Оплата открылась в браузере. Вернись сюда после оплаты.');
+      toast('✓', 'Оплата открылась в браузере. Вернись сюда после оплаты.');
       // Poll backend for access confirmation (webhook-driven).
       pollPaid(courseId, reload);
       onClose();
@@ -97,9 +97,9 @@ export function Paywall({
     <BottomSheet open={open} onClose={onClose} title="Открыть доступ">
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         <Button variant="primary" block disabled={busy === 'stars'} onClick={bookStars}>
-          🌟 Оплатить Stars
-          <span style={{ opacity: 0.85, fontWeight: 600 }}>
-            {coursePrice.stars} ★
+          Telegram Stars
+          <span style={{ opacity: 0.9, fontWeight: 700 }}>
+            2 500 Stars
           </span>
         </Button>
         <Button
@@ -108,9 +108,9 @@ export function Paywall({
           disabled={busy === 'prodamus'}
           onClick={bookProdamus}
         >
-          💳 Картой / СБП
-          <span style={{ opacity: 0.85, fontWeight: 600 }}>
-            {coursePrice.rub} · МИР · Visa · СБП
+          Карта РФ / СБП (Prodamus)
+          <span style={{ opacity: 0.9, fontWeight: 700 }}>
+            {coursePrice.rub}
           </span>
         </Button>
         <p
@@ -139,35 +139,25 @@ export function MentorPay({
   const { user, reload } = useApp();
   const [busy, setBusy] = useState<string | null>(null);
 
-  const finalStars = Math.max(
-    PRICES.mentor.floor,
-    PRICES.mentor.gross - Math.min(user.groovePoints, PRICES.mentor.gpCap),
-  );
-  const discount = Math.min(user.groovePoints, PRICES.mentor.gpCap);
+  const { discountUsd, discountRub, finalUsd, finalRub, cappedGp } = mentorPrices(user.groovePoints);
 
-  const bookStars = async () => {
-    if (typeof (window as any).Telegram?.WebApp?.openInvoice === 'undefined') {
-      toast('ℹ', 'Оплата работает внутри Telegram. Открой через @OpenDeck_bot.');
-      return;
-    }
-    setBusy('stars');
+  const bookProdamus = async () => {
+    setBusy('prodamus');
     try {
       const data = await apiCreateInvoice({
         course_id: 'mentoring',
-        price: finalStars,
+        provider: 'prodamus',
       });
-      if (!data?.invoice_link) {
-        toast('✕', 'Не удалось создать счёт.');
+      if (!data?.pay_url) {
+        if (data?.error === 'prodamus_not_configured')
+          toast('!', 'Prodamus не настроен.');
+        else toast('✕', 'Не удалось создать платёж.');
         return;
       }
-      // CRITICAL: do not call /api/gp/apply here. The bot applies the GP
-      // discount idempotently on successful_payment (charge_id). Frontend
-      // calling it would double-spend GP.
-      openInvoiceOrLink(data.invoice_link);
-      setTimeout(() => {
-        void reload();
-        onClose();
-      }, 600);
+      openInvoiceOrLink(undefined, data.pay_url, true);
+      toast('✓', 'Оплата открылась в браузере. Вернись сюда после оплаты.');
+      pollPaid('mentoring', reload);
+      onClose();
     } catch {
       toast('✕', 'Ошибка сети.');
     } finally {
@@ -183,7 +173,7 @@ export function MentorPay({
         provider: 'tribute',
       });
       if (!data?.pay_url) {
-        toast('✕', 'Tribute не настроен. Попробуй Stars.');
+        toast('✕', 'Tribute не настроен.');
         return;
       }
       openInvoiceOrLink(undefined, data.pay_url, true);
@@ -195,7 +185,7 @@ export function MentorPay({
   };
 
   return (
-    <BottomSheet open={open} onClose={onClose} title="Менторство 1-на-1">
+    <BottomSheet open={open} onClose={onClose} title="Менторство 1-на-1 с FREEDA DJ">
       <div
         style={{
           fontSize: 13,
@@ -204,31 +194,44 @@ export function MentorPay({
           lineHeight: 1.5,
         }}
       >
-        4 сессии по 1.5 часа, персональная дорожная карта, разбор твоих миксов и
-        поддержка между сессиями.
+        4 персональные сессии по 1.5 часа, разбор твоих треков, сведение сета и поддержка между звонками. Оплата напрямую (чистыми $190 мастеру).
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        <Button variant="primary" block disabled={busy === 'stars'} onClick={bookStars}>
-          🌟 Stars
+        <Button variant="primary" block disabled={busy === 'prodamus'} onClick={bookProdamus}>
+          Карта РФ / СБП (Prodamus)
           <span style={{ fontWeight: 600 }}>
-            {finalStars.toLocaleString('ru-RU')} ★
-            {discount ? ` (−${discount})` : ''}
+            {finalRub.toLocaleString('ru-RU')} ₽
+            {discountRub > 0 && <span style={{ opacity: 0.85, fontSize: 11.5, marginLeft: 4 }}>(−{discountRub} ₽)</span>}
           </span>
         </Button>
         <Button variant="secondary" block disabled={busy === 'tribute'} onClick={bookTribute}>
-          💎 Tribute (USDT / карта)
-          <span style={{ opacity: 0.85, fontWeight: 600 }}>$230</span>
+          Tribute (USDT / Международные карты)
+          <span style={{ fontWeight: 600 }}>
+            ${finalUsd}
+            {discountUsd > 0 && <span style={{ opacity: 0.85, fontSize: 11.5, marginLeft: 4 }}>(−${discountUsd})</span>}
+          </span>
         </Button>
-        {discount > 0 && (
+        {cappedGp > 0 ? (
           <p
             style={{
               fontSize: 11.5,
               color: 'var(--color-mint)',
               textAlign: 'center',
-              margin: 0,
+              margin: '2px 0 0',
             }}
           >
-            Твоя скидка −{discount} ★ применена вStars-канале
+            Применена скидка за {cappedGp} GP: −${discountUsd} (−{discountRub} ₽)
+          </p>
+        ) : (
+          <p
+            style={{
+              fontSize: 11.5,
+              color: 'var(--color-text-dim)',
+              textAlign: 'center',
+              margin: '2px 0 0',
+            }}
+          >
+            Проходи уроки и получай ачивки, чтобы заработать до $50 скидки!
           </p>
         )}
       </div>

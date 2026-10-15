@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useApp, COURSE_LESSONS } from '../state/store';
-import { BONUS_LESSONS, PRICES, mentorStarsPrice } from '../lib/constants';
+import { BONUS_LESSONS, mentorPrices } from '../lib/constants';
 import { Button, Card, Star } from '../components/ui';
 import { Paywall, MentorPay } from '../payment/Paywall';
 import { LessonPlayer } from '../components/LessonPlayer';
@@ -11,7 +11,7 @@ interface TrackItem {
   index: number;
   lesson: (typeof COURSE_LESSONS)[0];
   rewardGp: number;
-  icon: string;
+  tag: string;
   unit: 1 | 2;
 }
 
@@ -20,96 +20,101 @@ export function Learn() {
   const [payOpen, setPayOpen] = useState(false);
   const [mentorOpen, setMentorOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'all' | 'course' | 'bonus'>('all');
-  const [selectedLesson, setSelectedLesson] = useState<{ type: 'course' | 'bonus'; index: number } | null>(null);
+  const [selectedLesson, setSelectedLesson] = useState<{
+    type: 'course' | 'bonus';
+    index: number;
+  } | null>(null);
 
-  const discount = Math.min(Math.max(user.groovePoints, 0), PRICES.mentor.gpCap);
-  const finalStars = mentorStarsPrice(user.groovePoints);
+  const { discountUsd, discountRub, finalUsd, finalRub, cappedGp } = mentorPrices(user.groovePoints);
 
   // Combined Duolingo-style unified path
-  const trackItems: TrackItem[] = useMemo(() => [
-    // UNIT 1: Базовый трек: от интерфейса к первым миксам
-    {
-      type: 'course',
-      index: 0,
-      lesson: COURSE_LESSONS[0],
-      rewardGp: 50,
-      icon: '🎚️',
-      unit: 1,
-    },
-    {
-      type: 'bonus',
-      index: 0,
-      lesson: BONUS_LESSONS[0],
-      rewardGp: 30,
-      icon: '🎧',
-      unit: 1,
-    },
-    {
-      type: 'course',
-      index: 1,
-      lesson: COURSE_LESSONS[1],
-      rewardGp: 50,
-      icon: '⏱️',
-      unit: 1,
-    },
-    {
-      type: 'course',
-      index: 2,
-      lesson: COURSE_LESSONS[2],
-      rewardGp: 50,
-      icon: '🎛️',
-      unit: 1,
-    },
-    // UNIT 2: Мастерство, эффекты и личный стиль
-    {
-      type: 'bonus',
-      index: 1,
-      lesson: BONUS_LESSONS[1],
-      rewardGp: 30,
-      icon: '📜',
-      unit: 2,
-    },
-    {
-      type: 'course',
-      index: 3,
-      lesson: COURSE_LESSONS[3],
-      rewardGp: 50,
-      icon: '🔁',
-      unit: 2,
-    },
-    {
-      type: 'bonus',
-      index: 2,
-      lesson: BONUS_LESSONS[2],
-      rewardGp: 30,
-      icon: '🧭',
-      unit: 2,
-    },
-    {
-      type: 'course',
-      index: 4,
-      lesson: COURSE_LESSONS[4],
-      rewardGp: 50,
-      icon: '🎨',
-      unit: 2,
-    },
-    {
-      type: 'bonus',
-      index: 3,
-      lesson: BONUS_LESSONS[3],
-      rewardGp: 30,
-      icon: '🎵',
-      unit: 2,
-    },
-    {
-      type: 'course',
-      index: 5,
-      lesson: COURSE_LESSONS[5],
-      rewardGp: 50,
-      icon: '🏆',
-      unit: 2,
-    },
-  ], []);
+  const trackItems: TrackItem[] = useMemo(
+    () => [
+      // UNIT 1: Базовый трек
+      {
+        type: 'course',
+        index: 0,
+        lesson: COURSE_LESSONS[0],
+        rewardGp: 50,
+        tag: '01',
+        unit: 1,
+      },
+      {
+        type: 'bonus',
+        index: 0,
+        lesson: BONUS_LESSONS[0],
+        rewardGp: 30,
+        tag: 'B1',
+        unit: 1,
+      },
+      {
+        type: 'course',
+        index: 1,
+        lesson: COURSE_LESSONS[1],
+        rewardGp: 50,
+        tag: '02',
+        unit: 1,
+      },
+      {
+        type: 'course',
+        index: 2,
+        lesson: COURSE_LESSONS[2],
+        rewardGp: 50,
+        tag: '03',
+        unit: 1,
+      },
+      // UNIT 2: Мастерство и сведение
+      {
+        type: 'bonus',
+        index: 1,
+        lesson: BONUS_LESSONS[1],
+        rewardGp: 30,
+        tag: 'B2',
+        unit: 2,
+      },
+      {
+        type: 'course',
+        index: 3,
+        lesson: COURSE_LESSONS[3],
+        rewardGp: 50,
+        tag: '04',
+        unit: 2,
+      },
+      {
+        type: 'bonus',
+        index: 2,
+        lesson: BONUS_LESSONS[2],
+        rewardGp: 30,
+        tag: 'B3',
+        unit: 2,
+      },
+      {
+        type: 'course',
+        index: 4,
+        lesson: COURSE_LESSONS[4],
+        rewardGp: 50,
+        tag: '05',
+        unit: 2,
+      },
+      {
+        type: 'bonus',
+        index: 3,
+        lesson: BONUS_LESSONS[3],
+        rewardGp: 30,
+        tag: 'B4',
+        unit: 2,
+      },
+      {
+        type: 'course',
+        index: 5,
+        lesson: COURSE_LESSONS[5],
+        rewardGp: 50,
+        tag: '06',
+        unit: 2,
+      },
+    ],
+    [],
+  );
 
   const isItemCompleted = (item: TrackItem) => {
     if (item.type === 'course') {
@@ -118,12 +123,20 @@ export function Learn() {
     return bonusDone >= item.index + 1;
   };
 
+  const isLesson1Done = course.completedLessons.includes(1);
+
   const isItemUnlocked = (item: TrackItem) => {
-    if (adminMode || isPaid) return true;
+    if (adminMode) return true;
     if (item.type === 'course') {
-      return item.index < course.freeLessons;
+      if (item.index === 0) return true; // Урок 1 всегда открыт бесплатно
+      return isPaid; // Уроки 2-6 открыты после покупки всего курса
     }
-    return false; // bonus lessons unlocked with full course
+    if (item.type === 'bonus') {
+      if (item.index === 0) return true; // Бонус 1 (Знакомство) открыт бесплатно
+      // Все остальные бонусы открыты сразу после покупки курса и прохождения урока 1:
+      return isPaid && isLesson1Done;
+    }
+    return false;
   };
 
   const completedCount = trackItems.filter(isItemCompleted).length;
@@ -140,15 +153,14 @@ export function Learn() {
       {/* Sticky Header with GP & Mentor Discount Info */}
       <div
         style={{
-          background: 'linear-gradient(135deg, color-mix(in srgb, var(--brand-mauve) 35%, var(--color-surface)), var(--color-surface))',
-          borderRadius: 20,
+          background: 'var(--color-surface)',
+          borderRadius: 18,
           padding: 16,
-          border: '1px solid color-mix(in srgb, var(--brand-mauve) 25%, transparent)',
-          boxShadow: '0 8px 24px -10px color-mix(in srgb, var(--brand-mauve) 40%, transparent)',
+          border: '1px solid rgba(255, 255, 255, 0.08)',
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-          <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--brand-mint)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+          <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--brand-mint)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
             Duolingo DJ Path · {completedCount}/{totalCount}
           </span>
           <div
@@ -156,23 +168,23 @@ export function Learn() {
               display: 'flex',
               alignItems: 'center',
               gap: 5,
-              background: 'rgba(0,0,0,0.35)',
+              background: 'rgba(0,0,0,0.3)',
               padding: '4px 10px',
               borderRadius: 99,
-              fontSize: 13,
+              fontSize: 12.5,
               fontWeight: 700,
             }}
           >
             <Star size={13} />
-            <span>{user.groovePoints} GP</span>
+            <span style={{ color: 'var(--brand-gold)' }}>{user.groovePoints} GP</span>
           </div>
         </div>
 
-        <h2 style={{ fontSize: 22, margin: '0 0 6px', fontWeight: 800 }}>
+        <h2 style={{ fontSize: 21, margin: '4px 0 6px', fontWeight: 800 }}>
           Обучение и Бонусы
         </h2>
         <p style={{ margin: 0, fontSize: 13, color: 'var(--color-text-dim)', lineHeight: 1.45 }}>
-          Проходи уроки, получай GP-баллы и копи скидку на личные созвоны с Фридой DJ.
+          Проходи уроки, получай GP-баллы и копи скидку на личные созвоны с FREEDA DJ.
         </p>
 
         {/* Mentor Discount Pill */}
@@ -180,20 +192,21 @@ export function Learn() {
           style={{
             marginTop: 12,
             padding: '10px 12px',
-            borderRadius: 14,
-            background: 'color-mix(in srgb, var(--brand-mint) 12%, transparent)',
-            border: '1px solid color-mix(in srgb, var(--brand-mint) 25%, transparent)',
+            borderRadius: 12,
+            background: 'color-mix(in srgb, var(--brand-mint) 10%, var(--color-surface))',
+            border: '1px solid color-mix(in srgb, var(--brand-mint) 20%, transparent)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
+            gap: 8,
           }}
         >
           <div>
-            <div style={{ fontSize: 11.5, color: 'var(--brand-mint)', fontWeight: 700 }}>
-              Твоя скидка на созвон с Фридой DJ:
+            <div style={{ fontSize: 11, color: 'var(--brand-mint)', fontWeight: 700 }}>
+              Скидка на созвоны с FREEDA DJ:
             </div>
-            <div style={{ fontSize: 15, fontWeight: 800, marginTop: 1 }}>
-              −{discount.toLocaleString('ru-RU')} ★ ({user.groovePoints} GP)
+            <div style={{ fontSize: 14, fontWeight: 800, marginTop: 1 }}>
+              −${discountUsd} (−{discountRub.toLocaleString('ru-RU')} ₽) · {user.groovePoints} GP
             </div>
           </div>
           <button
@@ -205,19 +218,20 @@ export function Learn() {
               border: 'none',
               background: 'var(--brand-mint)',
               color: '#11322a',
-              borderRadius: 10,
+              borderRadius: 8,
               padding: '6px 12px',
               fontSize: 12,
               fontWeight: 700,
               cursor: 'pointer',
+              flexShrink: 0,
             }}
           >
-            Созвон 🎧
+            Созвон
           </button>
         </div>
       </div>
 
-      {/* Category Pills */}
+      {/* Category Tabs */}
       <div style={{ display: 'flex', gap: 8 }}>
         {[
           { id: 'all', label: `Все этапы (${totalCount})` },
@@ -232,14 +246,16 @@ export function Learn() {
             }}
             style={{
               flex: 1,
-              border: 'none',
-              borderRadius: 12,
-              padding: '8px 10px',
-              fontSize: 12,
+              border: '1px solid',
+              borderColor: activeTab === tab.id ? 'var(--brand-mauve)' : 'rgba(255,255,255,0.06)',
+              borderRadius: 10,
+              padding: '8px 6px',
+              fontSize: 11.5,
               fontWeight: activeTab === tab.id ? 700 : 500,
               background: activeTab === tab.id ? 'var(--brand-mauve)' : 'var(--color-surface)',
               color: activeTab === tab.id ? '#1d1f1e' : 'var(--color-text-dim)',
-              transition: 'all 0.2s',
+              cursor: 'pointer',
+              transition: 'all 0.15s',
             }}
           >
             {tab.label}
@@ -252,17 +268,23 @@ export function Learn() {
         <Card
           strip
           style={{
-            borderColor: 'color-mix(in srgb, var(--brand-coral) 40%, transparent)',
+            borderColor: 'color-mix(in srgb, var(--brand-coral) 35%, transparent)',
+            background: 'var(--color-surface)',
           }}
         >
-          <div style={{ fontWeight: 700, fontSize: 14 }}>
-            Бесплатно доступен Урок 1
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+            <span style={{ fontWeight: 800, fontSize: 13.5, color: 'var(--brand-coral)' }}>
+              Доступ за пейволом
+            </span>
+            <span style={{ fontWeight: 800, fontSize: 13.5, color: 'var(--brand-gold)' }}>
+              2 500 Stars
+            </span>
           </div>
-          <div style={{ fontSize: 12.5, color: 'var(--color-text-dim)', marginTop: 4, marginBottom: 10 }}>
-            Открой полный курс, чтобы разблокировать все 6 уроков и 4 бонус-урока от Фриды DJ.
+          <div style={{ fontSize: 12.5, color: 'var(--color-text-dim)', marginBottom: 12, lineHeight: 1.45 }}>
+            Урок 1 и первый бонус открыты бесплатно. Разблокируй все остальные уроки сведения и 3 бонусных урока от FREEDA DJ за 2 500 Stars, чтобы собрать сет и накопить скидку на личный созвон.
           </div>
           <Button variant="coral" block onClick={() => setPayOpen(true)}>
-            Открыть полный курс · 500 ★
+            Открыть полный курс · 2 500 Stars
           </Button>
         </Card>
       )}
@@ -276,10 +298,9 @@ export function Learn() {
             left: '50%',
             top: 24,
             bottom: 40,
-            width: 4,
+            width: 3,
             transform: 'translateX(-50%)',
-            background: 'linear-gradient(to bottom, var(--brand-mint) 0%, var(--brand-mauve) 50%, var(--brand-coral) 100%)',
-            opacity: 0.35,
+            background: 'rgba(255, 255, 255, 0.1)',
             borderRadius: 99,
             zIndex: 0,
           }}
@@ -289,8 +310,8 @@ export function Learn() {
           const completed = isItemCompleted(item);
           const unlocked = isItemUnlocked(item);
           const isBonus = item.type === 'bonus';
-          
-          // Zig-zag offset for Duolingo feel (0 = center, -36 = left, 36 = right)
+
+          // Zig-zag offset for Duolingo feel
           const offsets = [0, -32, 0, 32, -32, 0, 32, -32, 0, 32];
           const offset = activeTab === 'all' ? offsets[idx % offsets.length] : 0;
 
@@ -318,34 +339,43 @@ export function Learn() {
                   });
                 }}
                 style={{
-                  width: 64,
-                  height: 64,
+                  width: 60,
+                  height: 60,
                   borderRadius: '50%',
                   border: completed
-                    ? '3px solid var(--brand-mint)'
+                    ? '2px solid var(--brand-mint)'
                     : unlocked
-                      ? '3px solid var(--brand-mauve)'
-                      : '3px solid color-mix(in srgb, var(--color-text) 18%, transparent)',
+                      ? isBonus
+                        ? '2px solid var(--brand-coral)'
+                        : '2px solid var(--brand-mauve)'
+                      : '2px solid rgba(255, 255, 255, 0.12)',
                   background: completed
-                    ? 'color-mix(in srgb, var(--brand-mint) 22%, var(--color-surface))'
+                    ? 'color-mix(in srgb, var(--brand-mint) 15%, var(--color-surface))'
                     : unlocked
-                      ? 'color-mix(in srgb, var(--brand-mauve) 22%, var(--color-surface))'
-                      : 'var(--color-surface)',
-                  boxShadow: unlocked
-                    ? completed
-                      ? '0 0 16px color-mix(in srgb, var(--brand-mint) 35%, transparent)'
-                      : '0 0 16px color-mix(in srgb, var(--brand-mauve) 40%, transparent)'
-                    : 'none',
+                      ? 'var(--color-surface)'
+                      : 'rgba(255, 255, 255, 0.02)',
                   display: 'flex',
                   flexDirection: 'column',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  fontSize: 24,
                   cursor: 'pointer',
                   position: 'relative',
                 }}
               >
-                {completed ? '✓' : unlocked ? item.icon : '🔒'}
+                {completed ? (
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--brand-mint)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                ) : unlocked ? (
+                  <span style={{ fontSize: 15, fontWeight: 800, color: isBonus ? 'var(--brand-coral)' : 'var(--brand-mauve)' }}>
+                    {item.tag}
+                  </span>
+                ) : (
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-dim)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                  </svg>
+                )}
 
                 {/* Top Mini Pill Badge */}
                 <span
@@ -354,7 +384,7 @@ export function Learn() {
                     top: -8,
                     background: isBonus ? 'var(--brand-coral)' : completed ? 'var(--brand-mint)' : 'var(--brand-mauve)',
                     color: isBonus ? '#fff' : '#1d1f1e',
-                    fontSize: 9.5,
+                    fontSize: 9,
                     fontWeight: 800,
                     padding: '2px 6px',
                     borderRadius: 99,
@@ -398,14 +428,24 @@ export function Learn() {
                     padding: '2px 8px',
                     borderRadius: 99,
                     background: completed
-                      ? 'color-mix(in srgb, var(--brand-mint) 15%, transparent)'
-                      : 'color-mix(in srgb, var(--brand-mauve) 12%, transparent)',
+                      ? 'color-mix(in srgb, var(--brand-mint) 12%, transparent)'
+                      : 'rgba(255, 255, 255, 0.05)',
                     fontSize: 11,
                     fontWeight: 700,
-                    color: completed ? 'var(--brand-mint)' : 'var(--brand-gold)',
+                    color: completed
+                      ? 'var(--brand-mint)'
+                      : unlocked
+                        ? 'var(--brand-gold)'
+                        : 'var(--color-text-dim)',
                   }}
                 >
-                  {completed ? 'Пройдено' : `+${item.rewardGp} GP к скидке`}
+                  {completed
+                    ? 'Пройдено'
+                    : unlocked
+                      ? `+${item.rewardGp} GP к скидке`
+                      : isBonus && isPaid && !isLesson1Done
+                        ? 'Пройди Урок 1 для открытия'
+                        : 'За пейволом'}
                 </div>
               </div>
             </div>
@@ -417,70 +457,59 @@ export function Learn() {
       <div
         style={{
           marginTop: 12,
-          borderRadius: 22,
-          padding: 20,
-          background: 'linear-gradient(135deg, rgba(30, 26, 20, 0.95), rgba(18, 16, 24, 0.95))',
-          border: '2px solid color-mix(in srgb, var(--brand-gold) 45%, transparent)',
-          boxShadow: '0 12px 36px -12px color-mix(in srgb, var(--brand-gold) 35%, transparent)',
+          borderRadius: 18,
+          padding: 18,
+          background: 'var(--color-surface)',
+          border: '1px solid color-mix(in srgb, var(--brand-gold) 30%, transparent)',
           position: 'relative',
-          overflow: 'hidden',
         }}
       >
-        <div
-          style={{
-            position: 'absolute',
-            top: -20,
-            right: -20,
-            width: 100,
-            height: 100,
-            borderRadius: '50%',
-            background: 'color-mix(in srgb, var(--brand-gold) 15%, transparent)',
-            filter: 'blur(20px)',
-          }}
-        />
-
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
           <div
             style={{
-              width: 52,
-              height: 52,
-              borderRadius: 16,
-              background: 'linear-gradient(135deg, var(--brand-gold), var(--brand-coral))',
+              width: 44,
+              height: 44,
+              borderRadius: 12,
+              background: 'color-mix(in srgb, var(--brand-gold) 15%, var(--color-surface))',
+              border: '1px solid color-mix(in srgb, var(--brand-gold) 30%, transparent)',
               display: 'grid',
               placeItems: 'center',
-              fontSize: 26,
+              fontWeight: 800,
+              fontSize: 11,
+              color: 'var(--brand-gold)',
+              letterSpacing: '0.06em',
               flexShrink: 0,
             }}
           >
-            👑
+            MENTOR
           </div>
           <div>
             <span
               style={{
-                fontSize: 10.5,
+                fontSize: 10,
                 fontWeight: 800,
                 color: 'var(--brand-gold)',
                 textTransform: 'uppercase',
                 letterSpacing: '0.06em',
               }}
             >
-              ФИНАЛ ТРЕКА · ЛИЧНОЕ НАСТАВНИЧЕСТВО
+              ФИНАЛ ТРЕКА · НАСТАВНИЧЕСТВО
             </span>
-            <h3 style={{ margin: '2px 0 0', fontSize: 18, fontWeight: 800 }}>
-              Личные созвоны с Фридой DJ
+            <h3 style={{ margin: '2px 0 0', fontSize: 17, fontWeight: 800 }}>
+              Личные созвоны с FREEDA DJ
             </h3>
           </div>
         </div>
 
         <p style={{ margin: '0 0 14px', fontSize: 13, color: 'var(--color-text-dim)', lineHeight: 1.5 }}>
-          4 персональные онлайн-сессии по 1.5ч с FREEDA DJ: разбор твоих миксов, постановка техники, ответы на любые вопросы и дорожная карта выступлений.
+          4 персональные онлайн-сессии по 1.5ч с FREEDA DJ: разбор твоих миксов, постановка техники, сведение и дорожная карта выступлений. Оплата через Prodamus и Tribute (чистыми $190 мастеру).
         </p>
 
         {/* Pricing & GP Discount Breakdown */}
         <div
           style={{
-            background: 'rgba(0,0,0,0.4)',
-            borderRadius: 14,
+            background: 'rgba(0,0,0,0.3)',
+            borderRadius: 12,
             padding: '12px 14px',
             marginBottom: 14,
             display: 'flex',
@@ -490,14 +519,14 @@ export function Learn() {
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12.5, color: 'var(--color-text-dim)' }}>
             <span>Базовая цена созвонов:</span>
-            <span style={{ textDecoration: discount > 0 ? 'line-through' : 'none' }}>
-              28 000 ★ ($230)
+            <span style={{ textDecoration: discountUsd > 0 ? 'line-through' : 'none' }}>
+              $250 (23 900 ₽)
             </span>
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12.5, color: 'var(--brand-mint)' }}>
-            <span>Твоя скидка за {user.groovePoints} GP:</span>
-            <b>−{discount.toLocaleString('ru-RU')} ★</b>
+            <span>Твоя скидка за {cappedGp} GP:</span>
+            <b>−${discountUsd} (−{discountRub.toLocaleString('ru-RU')} ₽)</b>
           </div>
 
           <div
@@ -509,25 +538,24 @@ export function Learn() {
               borderTop: '1px solid rgba(255,255,255,0.08)',
             }}
           >
-            <span style={{ fontWeight: 700, fontSize: 14 }}>Итого со скидкой:</span>
+            <span style={{ fontWeight: 700, fontSize: 13.5 }}>Итого со скидкой:</span>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <Star size={16} />
-              <span style={{ fontSize: 18, fontWeight: 800, color: 'var(--brand-gold)' }}>
-                {finalStars.toLocaleString('ru-RU')} ★
+              <span style={{ fontSize: 16, fontWeight: 800, color: 'var(--brand-gold)' }}>
+                ${finalUsd} · {finalRub.toLocaleString('ru-RU')} ₽
               </span>
             </div>
           </div>
         </div>
 
         <Button
-          variant="gradient"
+          variant="primary"
           block
           onClick={() => {
             haptic('heavy');
             setMentorOpen(true);
           }}
         >
-          🎧 Записаться на созвоны с Фридой
+          Записаться на созвоны со скидкой
         </Button>
       </div>
 
@@ -560,8 +588,8 @@ export function Learn() {
             onClick={(e) => e.stopPropagation()}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-              <div style={{ fontWeight: 800, fontSize: 17 }}>
-                {selectedLesson.type === 'bonus' ? '🎁 Бонус-урок от Фриды' : `🎚️ Урок ${selectedLesson.index + 1}`}
+              <div style={{ fontWeight: 800, fontSize: 16 }}>
+                {selectedLesson.type === 'bonus' ? 'Бонус-урок от FREEDA DJ' : `Урок ${selectedLesson.index + 1}`}
               </div>
               <button
                 onClick={() => setSelectedLesson(null)}
@@ -593,7 +621,7 @@ export function Learn() {
                 index: selectedLesson.index,
                 lesson: selectedLesson.type === 'course' ? COURSE_LESSONS[selectedLesson.index] : BONUS_LESSONS[selectedLesson.index],
                 rewardGp: selectedLesson.type === 'course' ? 50 : 30,
-                icon: '🎵',
+                tag: selectedLesson.type === 'course' ? `0${selectedLesson.index + 1}` : `B${selectedLesson.index + 1}`,
                 unit: 1,
               })}
               onUnlock={() => {

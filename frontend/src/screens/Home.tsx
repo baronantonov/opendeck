@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp, COURSE_LESSONS } from '../state/store';
-import { PRICES, ARCHETYPES, mentorStarsPrice } from '../lib/constants';
+import { ARCHETYPES, mentorPrices } from '../lib/constants';
 import { Button, Card, ProgressBar, Star } from '../components/ui';
 import { haptic } from '../lib/theme';
 import { HorizontalDeckModal } from '../components/deck/HorizontalDeckModal';
@@ -20,8 +20,7 @@ export function Home() {
   const nextLesson = COURSE_LESSONS[nextLessonIndex];
   const nextId = nextLessonIndex + 1;
 
-  const discount = Math.min(Math.max(user.groovePoints, 0), PRICES.mentor.gpCap);
-  const finalMentorPrice = mentorStarsPrice(user.groovePoints);
+  const { discountUsd, finalUsd, finalRub } = mentorPrices(user.groovePoints);
   const archLine = ARCHETYPES[user.archetype] || 'Твой путь DJ начинается здесь';
 
   return (
@@ -56,14 +55,14 @@ export function Home() {
             display: 'flex',
             alignItems: 'center',
             gap: 5,
-            background: 'color-mix(in srgb, var(--brand-gold) 15%, transparent)',
-            border: '1px solid color-mix(in srgb, var(--brand-gold) 25%, transparent)',
+            background: 'color-mix(in srgb, var(--brand-gold) 12%, var(--color-surface))',
+            border: '1px solid color-mix(in srgb, var(--brand-gold) 24%, transparent)',
             padding: '6px 12px',
             borderRadius: 99,
           }}
         >
           <Star size={14} />
-          <b style={{ fontSize: 14, color: 'var(--brand-gold)' }}>{user.groovePoints} ★</b>
+          <b style={{ fontSize: 13, color: 'var(--brand-gold)' }}>{user.groovePoints} GP</b>
         </div>
       </header>
 
@@ -71,12 +70,12 @@ export function Home() {
       <Card
         strip
         style={{
-          background:
-            'linear-gradient(135deg, color-mix(in srgb, var(--brand-mauve) 30%, var(--color-surface)), var(--color-surface))',
+          background: 'var(--color-surface)',
+          borderColor: 'rgba(255, 255, 255, 0.08)',
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-          <span style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--brand-mint)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+          <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--brand-mint)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
             {user.archetype}
           </span>
           <span style={{ fontSize: 11, color: 'var(--color-text-dim)', background: 'rgba(255,255,255,0.06)', padding: '2px 8px', borderRadius: 6 }}>
@@ -84,7 +83,7 @@ export function Home() {
           </span>
         </div>
 
-        <h1 className="brand-text" style={{ fontSize: 26, margin: '2px 0 6px' }}>
+        <h1 className="brand-text" style={{ fontSize: 24, margin: '4px 0 6px' }}>
           Open Deck DJ School
         </h1>
         <p style={{ margin: '0 0 14px', fontSize: 13, opacity: 0.88, lineHeight: 1.45 }}>
@@ -95,7 +94,7 @@ export function Home() {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 14 }}>
           <div
             style={{
-              background: 'rgba(0,0,0,0.35)',
+              background: 'rgba(0,0,0,0.3)',
               borderRadius: 12,
               padding: '8px 10px',
               textAlign: 'center',
@@ -109,7 +108,7 @@ export function Home() {
 
           <div
             style={{
-              background: 'rgba(0,0,0,0.35)',
+              background: 'rgba(0,0,0,0.3)',
               borderRadius: 12,
               padding: '8px 10px',
               textAlign: 'center',
@@ -123,7 +122,7 @@ export function Home() {
 
           <div
             style={{
-              background: 'rgba(0,0,0,0.35)',
+              background: 'rgba(0,0,0,0.3)',
               borderRadius: 12,
               padding: '8px 10px',
               textAlign: 'center',
@@ -131,20 +130,20 @@ export function Home() {
           >
             <div style={{ fontSize: 11, color: 'var(--color-text-dim)' }}>Скидка созвон</div>
             <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--brand-mint)', marginTop: 2 }}>
-              −{discount} ★
+              −${discountUsd}
             </div>
           </div>
         </div>
 
         <Button
-          variant="gradient"
+          variant="mint"
           block
           onClick={() => {
             haptic('medium');
             nav('/learn');
           }}
         >
-          🚀 Перейти к обучению
+          Перейти к обучению
         </Button>
       </Card>
 
@@ -176,9 +175,8 @@ export function Home() {
       <Card
         strip
         style={{
-          background: 'linear-gradient(135deg, rgba(22, 28, 26, 0.95), rgba(15, 18, 17, 0.95))',
-          borderColor: 'color-mix(in srgb, var(--brand-mint) 35%, transparent)',
-          boxShadow: '0 8px 24px -10px color-mix(in srgb, var(--brand-mint) 25%, transparent)',
+          background: 'var(--color-surface)',
+          borderColor: 'color-mix(in srgb, var(--brand-mint) 25%, transparent)',
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
@@ -187,14 +185,14 @@ export function Home() {
               fontSize: 10.5,
               fontWeight: 800,
               color: 'var(--brand-mint)',
-              background: 'color-mix(in srgb, var(--brand-mint) 15%, transparent)',
+              background: 'color-mix(in srgb, var(--brand-mint) 12%, transparent)',
               padding: '3px 8px',
               borderRadius: 6,
               textTransform: 'uppercase',
               letterSpacing: '0.05em',
             }}
           >
-            {dc >= tc ? '🎉 Курс завершён' : `🎯 Следующий урок · Урок ${nextId}`}
+            {dc >= tc ? 'Курс завершён' : `Следующий урок · Урок ${nextId}`}
           </span>
           <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--brand-gold)' }}>
             +50 GP к скидке
@@ -202,12 +200,12 @@ export function Home() {
         </div>
 
         <h3 style={{ fontSize: 17, fontWeight: 800, margin: '0 0 6px' }}>
-          {dc >= tc ? 'Все 6 основных уроков пройдены!' : nextLesson.t}
+          {dc >= tc ? 'Все 6 основных уроков пройдены' : nextLesson.t}
         </h3>
 
         <p style={{ margin: '0 0 14px', fontSize: 13, color: 'var(--color-text-dim)', lineHeight: 1.45 }}>
           {dc >= tc
-            ? 'Ты собрал базу! Переходи в раздел Обучение для просмотра бонусов от FREEDA DJ или записи на персональный созвон.'
+            ? 'Ты освоил базовую траекторию. Переходи в раздел Обучение для просмотра бонусов от FREEDA DJ или записи на персональный созвон.'
             : nextLesson.d[0]}
         </p>
 
@@ -219,7 +217,7 @@ export function Home() {
             nav('/learn');
           }}
         >
-          {dc >= tc ? 'Смотреть бонусы и созвоны ▶' : `Продолжить: Урок ${nextId} ▶`}
+          {dc >= tc ? 'Смотреть бонусы и созвоны' : `Продолжить: Урок ${nextId}`}
         </Button>
       </Card>
 
@@ -227,8 +225,8 @@ export function Home() {
       <Card
         strip
         style={{
-          background: 'linear-gradient(135deg, rgba(24, 27, 26, 0.95), rgba(15, 17, 16, 0.95))',
-          borderColor: 'rgba(140, 226, 200, 0.35)',
+          background: 'var(--color-surface)',
+          borderColor: 'rgba(255, 255, 255, 0.08)',
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
@@ -246,14 +244,14 @@ export function Home() {
           Горизонтальный пульт Pioneer/Rekordbox: виниловые джоги, RGB волновые формы, фазометр тактов и треки Berlin Vault & Dark Matter.
         </p>
         <Button
-          variant="primary"
+          variant="secondary"
           block
           onClick={() => {
             haptic('heavy');
             setDeckOpen(true);
           }}
         >
-          🎧 Встать за пульт Rekordbox
+          Встать за пульт Rekordbox
         </Button>
       </Card>
 
@@ -261,31 +259,44 @@ export function Home() {
       <Card
         strip
         style={{
-          background: 'linear-gradient(135deg, rgba(28, 24, 18, 0.95), rgba(18, 16, 22, 0.95))',
-          borderColor: 'color-mix(in srgb, var(--brand-gold) 35%, transparent)',
+          background: 'var(--color-surface)',
+          borderColor: 'color-mix(in srgb, var(--brand-gold) 25%, transparent)',
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-          <span style={{ fontSize: 24 }}>👑</span>
+          <span
+            style={{
+              background: 'color-mix(in srgb, var(--brand-gold) 15%, transparent)',
+              color: 'var(--brand-gold)',
+              fontSize: 11,
+              fontWeight: 800,
+              padding: '4px 8px',
+              borderRadius: 6,
+              letterSpacing: '0.06em',
+              textTransform: 'uppercase',
+            }}
+          >
+            MENTOR
+          </span>
           <div>
-            <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--brand-gold)', textTransform: 'uppercase' }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--brand-gold)', textTransform: 'uppercase' }}>
               Личное наставничество
             </div>
-            <div style={{ fontWeight: 800, fontSize: 15 }}>Созвоны с Фридой DJ</div>
+            <div style={{ fontWeight: 800, fontSize: 15 }}>Созвоны с FREEDA DJ</div>
           </div>
         </div>
         <p style={{ margin: '0 0 12px', fontSize: 12.5, color: 'var(--color-text-dim)', lineHeight: 1.45 }}>
-          Копи GP за уроки: каждые 100 GP дают 100 ★ скидки на 4 персональные сессии с FREEDA DJ (до −{PRICES.mentor.gpCap} ★).
+          Копи GP за уроки: каждые 100 GP дают $10 скидки на 4 персональные сессии с FREEDA DJ (до −$50 скидки). Оплата через Prodamus и Tribute.
         </p>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, fontSize: 13 }}>
           <span style={{ color: 'var(--color-text-dim)' }}>Твоя текущая цена:</span>
           <span style={{ fontWeight: 800, color: 'var(--brand-gold)' }}>
-            {finalMentorPrice.toLocaleString('ru-RU')} ★
-            {discount > 0 && <span style={{ color: 'var(--brand-mint)', fontSize: 12, marginLeft: 6 }}>(-{discount} ★)</span>}
+            ${finalUsd} · {finalRub.toLocaleString('ru-RU')} ₽
+            {discountUsd > 0 && <span style={{ color: 'var(--brand-mint)', fontSize: 12, marginLeft: 6 }}>(-${discountUsd})</span>}
           </span>
         </div>
         <Button
-          variant="gradient"
+          variant="primary"
           block
           onClick={() => {
             haptic('medium');

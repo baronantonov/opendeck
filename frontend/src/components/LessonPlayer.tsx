@@ -47,7 +47,7 @@ export function LessonPlayer({
     }
     setDone(true);
     haptic('success');
-    toast('✓', `Урок отмечен — +${courseId === 'dj-bonus' ? 30 : 50} ★`);
+    toast('✓', `Урок пройден: +${courseId === 'dj-bonus' ? 30 : 50} GP`);
   };
 
   return (
@@ -142,14 +142,14 @@ export function LessonPlayer({
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 12 }}>
         {!locked && index === 0 && (
           <Button
-            variant="gradient"
+            variant="mint"
             block
             onClick={() => {
               haptic('heavy');
               setDeckOpen(true);
             }}
           >
-            🎧 Встать за пульт Rekordbox
+            Встать за пульт Rekordbox
           </Button>
         )}
         <div style={{ display: 'flex', gap: 8 }}>

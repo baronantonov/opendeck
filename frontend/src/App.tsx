@@ -1,13 +1,11 @@
-import { Routes, Route, useLocation } from 'react-router-dom';
+import { Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import { useEffect } from 'react';
 import { AppProvider, useApp } from './state/store';
 import { ToastProvider } from './components/Toast';
 import { BottomNav } from './components/BottomNav';
 import { useTelegramTheme } from './lib/theme';
 import { Home } from './screens/Home';
-import { Course } from './screens/Course';
-import { Bonus } from './screens/Bonus';
-import { Mentor } from './screens/Mentor';
+import { Learn } from './screens/Learn';
 import { Profile } from './screens/Profile';
 
 function Shell() {
@@ -37,10 +35,13 @@ function Shell() {
       <main className="scroll-y" style={{ flex: 1, paddingBottom: 12 }}>
         <Routes>
           <Route path="/" element={<Home />} />
-          <Route path="/course" element={<Course />} />
-          <Route path="/bonus" element={<Bonus />} />
-          <Route path="/mentor" element={<Mentor />} />
+          <Route path="/home" element={<Home />} />
+          <Route path="/learn" element={<Learn />} />
+          <Route path="/course" element={<Navigate to="/learn" replace />} />
+          <Route path="/bonus" element={<Navigate to="/learn" replace />} />
+          <Route path="/mentor" element={<Navigate to="/learn" replace />} />
           <Route path="/profile" element={<Profile />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
       <BottomNav />

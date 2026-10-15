@@ -1,87 +1,229 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp, COURSE_LESSONS } from '../state/store';
+import { PRICES, ARCHETYPES, mentorStarsPrice } from '../lib/constants';
 import { Button, Card, ProgressBar, Star } from '../components/ui';
-import { ARCHETYPES } from '../lib/constants';
 import { haptic } from '../lib/theme';
 import { HorizontalDeckModal } from '../components/deck/HorizontalDeckModal';
+import { MentorPay } from '../payment/Paywall';
 
 export function Home() {
   const nav = useNavigate();
-  const { user, course, isPaid } = useApp();
+  const { user, course, bonusDone } = useApp();
   const [deckOpen, setDeckOpen] = useState(false);
+  const [mentorOpen, setMentorOpen] = useState(false);
+
   const dc = course.completedLessons.length;
   const tc = COURSE_LESSONS.length;
   const pct = Math.round((dc / tc) * 100);
-  const nextId = Math.min(dc + 1, tc);
+  const nextLessonIndex = Math.min(dc, tc - 1);
+  const nextLesson = COURSE_LESSONS[nextLessonIndex];
+  const nextId = nextLessonIndex + 1;
+
+  const discount = Math.min(Math.max(user.groovePoints, 0), PRICES.mentor.gpCap);
+  const finalMentorPrice = mentorStarsPrice(user.groovePoints);
   const archLine = ARCHETYPES[user.archetype] || 'Твой путь DJ начинается здесь';
 
-  const playLabel =
-    dc === 0
-      ? 'Начать урок 1'
-      : dc >= tc
-        ? 'Курс пройден'
-        : !isPaid
-          ? 'Открыть доступ · 500 ★'
-          : `Продолжить · урок ${nextId}`;
-
   return (
-    <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <div style={{ padding: '16px 16px 24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {/* User Header */}
       <header style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
         <div
           className="user-avatar"
           style={{
-            width: 46,
-            height: 46,
-            borderRadius: 14,
-            background: 'var(--color-accent)',
+            width: 48,
+            height: 48,
+            borderRadius: 15,
+            background: 'var(--brand-mauve)',
             color: '#1d1f1e',
             display: 'grid',
             placeItems: 'center',
             fontWeight: 800,
-            fontSize: 18,
+            fontSize: 19,
+            flexShrink: 0,
           }}
         >
-          {user.name[0] || 'Д'}
+          {user.name[0] || 'D'}
         </div>
-        <div>
+        <div style={{ flex: 1, overflow: 'hidden' }}>
           <div style={{ fontSize: 12, color: 'var(--color-text-dim)' }}>Привет,</div>
-          <div style={{ fontWeight: 700, fontSize: 15 }}>{user.name}</div>
+          <div style={{ fontWeight: 800, fontSize: 16, whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+            {user.name}
+          </div>
         </div>
-        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4 }}>
-          <Star />
-          <b style={{ fontSize: 15 }}>{user.groovePoints}</b>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 5,
+            background: 'color-mix(in srgb, var(--brand-gold) 15%, transparent)',
+            border: '1px solid color-mix(in srgb, var(--brand-gold) 25%, transparent)',
+            padding: '6px 12px',
+            borderRadius: 99,
+          }}
+        >
+          <Star size={14} />
+          <b style={{ fontSize: 14, color: 'var(--brand-gold)' }}>{user.groovePoints} ★</b>
         </div>
       </header>
 
+      {/* Dashboard Hero Banner */}
       <Card
         strip
         style={{
           background:
-            'linear-gradient(135deg, color-mix(in srgb, var(--brand-mauve) 26%, var(--color-surface)), var(--color-surface))',
+            'linear-gradient(135deg, color-mix(in srgb, var(--brand-mauve) 30%, var(--color-surface)), var(--color-surface))',
         }}
       >
-        <div style={{ fontSize: 12, color: 'var(--color-text-dim)', marginBottom: 4 }}>
-          {user.archetype}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+          <span style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--brand-mint)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            {user.archetype}
+          </span>
+          <span style={{ fontSize: 11, color: 'var(--color-text-dim)', background: 'rgba(255,255,255,0.06)', padding: '2px 8px', borderRadius: 6 }}>
+            Дашборд
+          </span>
         </div>
-        <h1 className="brand-text" style={{ fontSize: 28, margin: '0 0 6px' }}>
-          Open Deck
+
+        <h1 className="brand-text" style={{ fontSize: 26, margin: '2px 0 6px' }}>
+          Open Deck DJ School
         </h1>
-        <p style={{ margin: 0, fontSize: 13.5, opacity: 0.85 }}>{archLine}</p>
-        <div style={{ marginTop: 16, display: 'flex', gap: 10 }}>
-          <Button
-            variant="gradient"
-            block
-            onClick={() => {
-              haptic('medium');
-              nav('/course');
+        <p style={{ margin: '0 0 14px', fontSize: 13, opacity: 0.88, lineHeight: 1.45 }}>
+          {archLine}
+        </p>
+
+        {/* Mini Stats Grid */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 14 }}>
+          <div
+            style={{
+              background: 'rgba(0,0,0,0.35)',
+              borderRadius: 12,
+              padding: '8px 10px',
+              textAlign: 'center',
             }}
           >
-            {playLabel}
-          </Button>
+            <div style={{ fontSize: 11, color: 'var(--color-text-dim)' }}>Пройдено</div>
+            <div style={{ fontSize: 14, fontWeight: 800, marginTop: 2 }}>
+              {dc}/{tc} ур.
+            </div>
+          </div>
+
+          <div
+            style={{
+              background: 'rgba(0,0,0,0.35)',
+              borderRadius: 12,
+              padding: '8px 10px',
+              textAlign: 'center',
+            }}
+          >
+            <div style={{ fontSize: 11, color: 'var(--color-text-dim)' }}>Бонусы</div>
+            <div style={{ fontSize: 14, fontWeight: 800, marginTop: 2 }}>
+              {bonusDone}/4
+            </div>
+          </div>
+
+          <div
+            style={{
+              background: 'rgba(0,0,0,0.35)',
+              borderRadius: 12,
+              padding: '8px 10px',
+              textAlign: 'center',
+            }}
+          >
+            <div style={{ fontSize: 11, color: 'var(--color-text-dim)' }}>Скидка созвон</div>
+            <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--brand-mint)', marginTop: 2 }}>
+              −{discount} ★
+            </div>
+          </div>
+        </div>
+
+        <Button
+          variant="gradient"
+          block
+          onClick={() => {
+            haptic('medium');
+            nav('/learn');
+          }}
+        >
+          🚀 Перейти к обучению
+        </Button>
+      </Card>
+
+      {/* Progress Bar Section (Прогрессбар) */}
+      <Card strip>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+          <div>
+            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--brand-mauve)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              Прогресс курса
+            </span>
+            <div style={{ fontWeight: 800, fontSize: 16 }}>
+              {pct}% завершено
+            </div>
+          </div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-text-dim)' }}>
+            {dc} из {tc} уроков
+          </div>
+        </div>
+
+        <ProgressBar value={pct} />
+
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11.5, color: 'var(--color-text-dim)', marginTop: 8 }}>
+          <span>Шаг 1: Интерфейс</span>
+          <span>Шаг 6: Финальный сет</span>
         </div>
       </Card>
 
+      {/* Next Lesson Section (Следующий урок) */}
+      <Card
+        strip
+        style={{
+          background: 'linear-gradient(135deg, rgba(22, 28, 26, 0.95), rgba(15, 18, 17, 0.95))',
+          borderColor: 'color-mix(in srgb, var(--brand-mint) 35%, transparent)',
+          boxShadow: '0 8px 24px -10px color-mix(in srgb, var(--brand-mint) 25%, transparent)',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+          <span
+            style={{
+              fontSize: 10.5,
+              fontWeight: 800,
+              color: 'var(--brand-mint)',
+              background: 'color-mix(in srgb, var(--brand-mint) 15%, transparent)',
+              padding: '3px 8px',
+              borderRadius: 6,
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em',
+            }}
+          >
+            {dc >= tc ? '🎉 Курс завершён' : `🎯 Следующий урок · Урок ${nextId}`}
+          </span>
+          <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--brand-gold)' }}>
+            +50 GP к скидке
+          </span>
+        </div>
+
+        <h3 style={{ fontSize: 17, fontWeight: 800, margin: '0 0 6px' }}>
+          {dc >= tc ? 'Все 6 основных уроков пройдены!' : nextLesson.t}
+        </h3>
+
+        <p style={{ margin: '0 0 14px', fontSize: 13, color: 'var(--color-text-dim)', lineHeight: 1.45 }}>
+          {dc >= tc
+            ? 'Ты собрал базу! Переходи в раздел Обучение для просмотра бонусов от FREEDA DJ или записи на персональный созвон.'
+            : nextLesson.d[0]}
+        </p>
+
+        <Button
+          variant="mint"
+          block
+          onClick={() => {
+            haptic('medium');
+            nav('/learn');
+          }}
+        >
+          {dc >= tc ? 'Смотреть бонусы и созвоны ▶' : `Продолжить: Урок ${nextId} ▶`}
+        </Button>
+      </Card>
+
+      {/* Virtual Rekordbox Console Pioneer DJ */}
       <Card
         strip
         style={{
@@ -115,64 +257,47 @@ export function Home() {
         </Button>
       </Card>
 
-      <HorizontalDeckModal
-        isOpen={deckOpen}
-        onClose={() => setDeckOpen(false)}
-      />
-
-      <div>
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            fontSize: 12,
-            color: 'var(--color-text-dim)',
-            marginBottom: 6,
-          }}
-        >
-          <span>Прогресс курса</span>
-          <span>
-            {dc} / {tc}
+      {/* Frida DJ Mentorship Callout */}
+      <Card
+        strip
+        style={{
+          background: 'linear-gradient(135deg, rgba(28, 24, 18, 0.95), rgba(18, 16, 22, 0.95))',
+          borderColor: 'color-mix(in srgb, var(--brand-gold) 35%, transparent)',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+          <span style={{ fontSize: 24 }}>👑</span>
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--brand-gold)', textTransform: 'uppercase' }}>
+              Личное наставничество
+            </div>
+            <div style={{ fontWeight: 800, fontSize: 15 }}>Созвоны с Фридой DJ</div>
+          </div>
+        </div>
+        <p style={{ margin: '0 0 12px', fontSize: 12.5, color: 'var(--color-text-dim)', lineHeight: 1.45 }}>
+          Копи GP за уроки: каждые 100 GP дают 100 ★ скидки на 4 персональные сессии с FREEDA DJ (до −{PRICES.mentor.gpCap} ★).
+        </p>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, fontSize: 13 }}>
+          <span style={{ color: 'var(--color-text-dim)' }}>Твоя текущая цена:</span>
+          <span style={{ fontWeight: 800, color: 'var(--brand-gold)' }}>
+            {finalMentorPrice.toLocaleString('ru-RU')} ★
+            {discount > 0 && <span style={{ color: 'var(--brand-mint)', fontSize: 12, marginLeft: 6 }}>(-{discount} ★)</span>}
           </span>
         </div>
-        <ProgressBar value={pct} />
-      </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
-        {[
-          { ic: '🎚️', t: 'С нуля', d: '6 уроков до сета' },
-          { ic: '🎁', t: 'Бонусы', d: '★ за просмотры' },
-          { ic: '🎧', t: 'Свой вайб', d: 'играй по-своему' },
-        ].map((v) => (
-          <div
-            key={v.t}
-            style={{
-              background: 'var(--color-surface)',
-              borderRadius: 14,
-              padding: 12,
-            }}
-          >
-            <div style={{ fontSize: 20 }}>{v.ic}</div>
-            <div style={{ fontWeight: 700, fontSize: 13, marginTop: 6 }}>{v.t}</div>
-            <div style={{ fontSize: 11, color: 'var(--color-text-dim)' }}>{v.d}</div>
-          </div>
-        ))}
-      </div>
-
-      {!isPaid && (
-        <Card
-          strip
-          style={{ borderColor: 'color-mix(in srgb, var(--brand-coral) 40%, transparent)' }}
+        <Button
+          variant="gradient"
+          block
+          onClick={() => {
+            haptic('medium');
+            setMentorOpen(true);
+          }}
         >
-          <div style={{ fontWeight: 700, marginBottom: 4 }}>Открой полный курс</div>
-          <div style={{ fontSize: 13, color: 'var(--color-text-dim)', marginBottom: 10 }}>
-            Урок 1 бесплатно. Дальше — доступ за 500 ★.
-          </div>
-          <Button variant="coral" block onClick={() => nav('/course')}>
-            Выбрать план
-          </Button>
-        </Card>
-      )}
+          Записаться на созвон со скидкой
+        </Button>
+      </Card>
+
+      <HorizontalDeckModal isOpen={deckOpen} onClose={() => setDeckOpen(false)} />
+      <MentorPay open={mentorOpen} onClose={() => setMentorOpen(false)} />
     </div>
   );
 }

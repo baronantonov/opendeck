@@ -1,46 +1,48 @@
 @import 'tailwindcss';
 
-/* ---- Open Deck: Pioneer DJ / Rekordbox Dark Aesthetic ----
-   Engineered dark theme for Telegram Mini App:
-   Chassis #0b0d10 · Surface #14171d · Accent (Pioneer Orange) #ff5a00
-   Waveform Cyan #00e5ff · Play Green #00f076 · Hot Cue Red #ff3b30
-   High-contrast clean typography with JetBrains Mono tabular figures. */
+/* ---- Open Deck brand tokens ----
+   Official palette (APP_SPEC.md / legacy index.html):
+     bg #2b302e · accent(mauve) #c0a0a8 · mint #8ce2c8 · coral #f5926e
+     text #f4f7f5 / #c7cccc / #9aa3a0 · line #3f4744 · gold #f3c969
+   Telegram theme params override at runtime via CSS custom props set in
+   lib/theme.ts, falling back to these brand values. */
 
 @theme inline {
-  --brand-bg: #0b0d10;
-  --brand-surface: #14171d;
-  --brand-surface-2: #1b1f26;
-  --brand-line: rgba(255, 255, 255, 0.08);
+  /* brand-named tokens (use these for on-brand emphasis) */
+  --brand-bg: var(--tg-bg, #2b302e);
+  --brand-mauve: #c0a0a8;
+  --brand-mint: #8ce2c8;
+  --brand-coral: #f5926e;
+  --brand-gold: #f3c969;
+  --brand-line: #3f4744;
 
+  /* semantic tokens (what components consume) */
   --color-bg: var(--brand-bg);
-  --color-surface: var(--brand-surface);
-  --color-surface-2: var(--brand-surface-2);
+  --color-surface: var(--tg-surface, #2e3432);
+  --color-surface-2: var(--tg-surface-2, #38403d);
   --color-line: var(--brand-line);
-  --color-text: #f0f3f6;
-  --color-text-2: #9da6b4;
-  --color-text-dim: #606b7a;
+  --color-text: var(--tg-text, #f4f7f5);
+  --color-text-2: #c7cccc;
+  --color-text-dim: var(--tg-hint, #9aa3a0);
 
-  --color-accent: #ff5a00;
-  --color-cyan: #00e5ff;
-  --color-mint: #00f076;
-  --color-coral: #ff3b30;
-  --color-gold: #ffd600;
+  --color-accent: var(--brand-mauve);
+  --color-mint: var(--brand-mint);
+  --color-coral: var(--brand-coral);
+  --color-gold: var(--brand-gold);
 
-  --brand-gradient: linear-gradient(135deg, #ff5a00 0%, #ff3b30 100%);
-  --brand-gradient-cyan: linear-gradient(135deg, #00e5ff 0%, #0077ff 100%);
+  --brand-gradient: linear-gradient(135deg, #c0a0a8 0%, #8ce2c8 100%);
   --brand-gradient-soft: linear-gradient(
-    180deg,
-    rgba(255, 90, 0, 0.08) 0%,
-    rgba(20, 23, 29, 0) 100%
+    135deg,
+    color-mix(in srgb, #c0a0a8 22%, var(--color-surface)) 0%,
+    var(--color-surface) 70%
   );
 
-  --font-display: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-display: 'Unbounded', system-ui, sans-serif;
   --font-body: 'Inter', system-ui, -apple-system, sans-serif;
-  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
 :root {
-  color-scheme: dark;
+  color-scheme: light dark;
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --safe-top: env(safe-area-inset-top, 0px);
 }
@@ -55,9 +57,9 @@ body {
   margin: 0;
   padding: 0;
   height: 100%;
-  background: #0b0d10;
-  color: #f0f3f6;
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-body);
   overscroll-behavior: none;
   -webkit-font-smoothing: antialiased;
 }
@@ -66,29 +68,21 @@ body {
   min-height: 100%;
   display: flex;
   flex-direction: column;
-  background: #0b0d10;
 }
 
 h1,
 h2,
 h3,
 .display {
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  font-weight: 800;
-  letter-spacing: -0.025em;
-  line-height: 1.15;
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
 }
 
 button {
   font-family: inherit;
   cursor: pointer;
-  user-select: none;
-}
-
-.font-mono {
-  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-feature-settings: 'tnum';
-  font-variant-numeric: tabular-nums;
 }
 
 /* Native-feeling scroll; hide scrollbars */
@@ -100,29 +94,27 @@ button {
   display: none;
 }
 
-/* ---- Hardware chassis surfaces ---- */
+/* ---- Brand surface helpers ---- */
 .brand-card {
-  background: #14171d;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--color-surface);
+  border: 1px solid color-mix(in srgb, var(--brand-mauve) 14%, transparent);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.06),
-    0 8px 24px rgba(0, 0, 0, 0.45);
-  border-radius: 16px;
+    0 1px 0 color-mix(in srgb, var(--color-text) 6%, transparent),
+    0 8px 24px -12px color-mix(in srgb, var(--brand-mauve) 40%, transparent);
 }
 
-/* Precision indicator hairline */
+/* Brand gradient hairline (top accent strip) */
 .brand-strip::before {
   content: '';
   display: block;
-  height: 2px;
-  border-radius: 2px;
+  height: 3px;
+  border-radius: 99px;
   margin-bottom: 12px;
-  background: linear-gradient(90deg, #ff5a00 0%, #00e5ff 100%);
-  box-shadow: 0 0 8px rgba(255, 90, 0, 0.35);
+  background: var(--brand-gradient);
 }
 
 .brand-text {
-  background: linear-gradient(135deg, #ffffff 40%, #9da6b4 100%);
+  background: var(--brand-gradient);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -132,7 +124,7 @@ button {
 .skel {
   position: relative;
   overflow: hidden;
-  background: rgba(255, 255, 255, 0.05);
+  background: color-mix(in srgb, var(--color-text) 8%, transparent);
   border-radius: 8px;
 }
 .skel::after {
@@ -142,7 +134,7 @@ button {
   background: linear-gradient(
     90deg,
     transparent,
-    rgba(255, 255, 255, 0.08),
+    color-mix(in srgb, var(--color-text) 12%, transparent),
     transparent
   );
   animation: shimmer 1.2s infinite;
@@ -156,7 +148,7 @@ button {
 @keyframes pop-in {
   from {
     opacity: 0;
-    transform: translateY(6px);
+    transform: translateY(8px);
   }
   to {
     opacity: 1;
@@ -164,13 +156,13 @@ button {
   }
 }
 .animate-pop {
-  animation: pop-in 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: pop-in 0.28s ease both;
 }
 
 @keyframes toast-in {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(12px);
   }
   to {
     opacity: 1;

@@ -46,20 +46,20 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         {items.map((t) => (
           <div
             key={t.id}
-            className="animate-pop font-mono"
+            className="animate-pop"
             style={{
-              background: '#161a22',
-              color: '#f0f3f6',
-              border: '1px solid rgba(0, 229, 255, 0.35)',
-              borderRadius: 12,
+              background: 'color-mix(in srgb, var(--color-surface) 96%, #000)',
+              color: 'var(--color-text)',
+              border: '1px solid color-mix(in srgb, var(--color-text) 12%, transparent)',
+              borderRadius: 14,
               padding: '10px 16px',
-              fontSize: 12.5,
+              fontSize: 13,
               fontWeight: 600,
               display: 'flex',
               alignItems: 'center',
               gap: 8,
               maxWidth: '100%',
-              boxShadow: '0 8px 24px rgba(0, 0, 0, 0.6), 0 0 12px rgba(0, 229, 255, 0.2)',
+              boxShadow: '0 8px 24px rgba(0,0,0,0.35)',
             }}
           >
             <span style={{ fontSize: 16 }}>{t.icon}</span>

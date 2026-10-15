@@ -117,8 +117,10 @@ export function Profile() {
 
     try {
       (window as any).Telegram?.WebApp?.openTelegramLink?.(link) || window.open(link, '_blank');
-      await apiArchetypeShare();
-      await earn('share_achievement', 'Поделился профилем');
+      const res = await apiArchetypeShare();
+      if (res?.amount > 0) {
+        toast('✓', `Поделился профилем: +${res.amount} GP`);
+      }
     } catch {
       /* ignore */
     }
@@ -347,7 +349,7 @@ export function Profile() {
           </Button>
           <Button variant="secondary" block onClick={shareProfile}>
             <IconShare size={16} />
-            Поделиться профилем (+25 GP)
+            Поделиться профилем (+20 GP)
           </Button>
         </div>
       </Card>

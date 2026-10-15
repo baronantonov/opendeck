@@ -21,7 +21,7 @@ DB_PATH = Path(__file__).resolve().parent.parent / "dj_school.db"
 COURSE_ID = "dj-basics"
 BONUS_COURSE_ID = "dj-bonus"
 GP_PER_LESSON = 50
-GP_PER_BONUS = 200  # бонусные (теоретич.) уроки — жирный стимул досмотреть (рост вовлечённости)
+GP_PER_BONUS = 30  # бонусные уроки от FREEDA DJ: +30 GP (синхронизировано с фронтендом)
 
 _OLD_SCHEMA = (
     "CREATE TABLE IF NOT EXISTS users ("

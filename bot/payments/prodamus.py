@@ -70,7 +70,14 @@ class ProdamusProvider(PaymentProvider):
     def name(self) -> str:
         return "prodamus"
 
-    async def create_invoice(self, user_id: int, course_id: str, amount_label: str) -> PaymentInvoice:
+    async def create_invoice(
+        self,
+        user_id: int,
+        course_id: str,
+        amount_label: str,
+        order_id: str | None = None,
+        product_name: str | None = None,
+    ) -> PaymentInvoice:
         # Если ключи Prodamus не заданы — не лезем в сеть, возвращаем заглушку.
         if not (config.PRODAMUS_PAYFORM_URL and config.PRODAMUS_SECRET_KEY and config.PRODAMUS_SYS_CODE):
             return PaymentInvoice(
@@ -79,7 +86,8 @@ class ProdamusProvider(PaymentProvider):
                 meta={"not_configured": True},
             )
 
-        order_id = f"{user_id}:{course_id}"
+        final_order_id = order_id or f"{user_id}:{course_id}"
+        final_name = product_name or "Курс DJ School — Open Deck"
         # Цена в рублях: берём из amount_label вида "1990 RUB" либо дефолт 1990.
         amount_rub = 1990
         try:
@@ -90,16 +98,12 @@ class ProdamusProvider(PaymentProvider):
         # Плоские поля (как в мануале Prodamus): products[0][name] и т.д.
         # httpx сериализует dict с такими ключами в корректный
         # application/x-www-form-urlencoded (НЕ как JSON-массив).
-        # ВНИМАНИЕ: твоя платёжная форма (baronantonov.payform.ru) в текущем
-        # режиме НЕ требует и НЕ проверяет поле signature при создании ссылки —
-        # передача signature вызывает 400. Поэтому шлём параметры БЕЗ подписи;
-        # подпись проверяется только на входящем webhook (см. backend/main.py).
         params: dict = {
             "do": "link",
             "sys": config.PRODAMUS_SYS_CODE,
-            "order_id": order_id,
+            "order_id": final_order_id,
             "currency": "rub",
-            "products[0][name]": "Курс DJ School — Open Deck",
+            "products[0][name]": final_name,
             "products[0][price]": amount_rub,
             "products[0][quantity]": 1,
             "products[0][type]": "course",

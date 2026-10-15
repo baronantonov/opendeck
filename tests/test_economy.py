@@ -82,14 +82,14 @@ def test_test_economy():
     check("inviter +100 GP (за друга)", gp(inviter_id) == 100, f"gp={gp(inviter_id)}")
     check("friend.bonus сообщение 100", (r.json().get("bonus") or {}).get("amount") == 100)
 
-    print("== Бонусный урок = +200, основной = +50 ==")
+    print("== Бонусный урок = +30, основной = +50 ==")
     # основной урок 1 (бесплатный) -> +50
     r = client.post("/api/progress", json={"course_id": "dj-basics", "lesson_id": 1}, headers=ua(friend_id))
     check("основной урок +50", r.json().get("gp") == gp(friend_id), f"gp={gp(friend_id)}")
     before = gp(friend_id)
     # бонусный урок (dj-bonus)
     r = client.post("/api/progress", json={"course_id": "dj-bonus", "lesson_id": 1, "bonus": True}, headers=ua(friend_id))
-    check("бонусный урок +200", gp(friend_id) - before == 200, f"delta={gp(friend_id)-before}")
+    check("бонусный урок +30", gp(friend_id) - before == 30, f"delta={gp(friend_id)-before}")
     check("бонус помечен", r.json().get("bonus") is True)
 
     print("== Rewarded: daily/share = +25 ==")

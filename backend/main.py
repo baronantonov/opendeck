@@ -684,12 +684,17 @@ async def create_invoice(
     # и купить менторство за 1 Star.
     variant = "control"
     price_usd = 30
-    if course_id == "tripwire":
-        price, variant = _ab_price("tripwire", uid)
-        label = "Pocket DJ: уроки 1-4"
-    elif course_id == COURSE_ID:
-        price, variant = _ab_price(COURSE_ID, uid)
-        label = "Pocket DJ: полный курс"
+    custom_order_id = None
+    if course_id in ("tripwire", COURSE_ID):
+        # ⚠️ Курс-трипваер продаётся ТОЛЬКО за Telegram Stars!
+        if body.provider != "stars":
+            return JSONResponse(
+                {"error": "course_only_stars",
+                 "detail": "Курс доступен для оплаты только через Telegram Stars (XTR)"},
+                status_code=400,
+            )
+        price, variant = _ab_price(course_id, uid)
+        label = "Pocket DJ: полный курс (2 500 ⭐)"
     elif course_id == "mentoring":
         if body.provider == "stars":
             return JSONResponse(
@@ -709,6 +714,7 @@ async def create_invoice(
         price_usd = max(200, 250 - round(capped_gp * 0.1))
         price = price_rub
         label = f"Персональное менторство FREEDA DJ (${price_usd})"
+        custom_order_id = f"{uid}:mentoring:{capped_gp}:{int(time.time())}"
     else:
         return JSONResponse({"error": "unknown_course"}, status_code=400)
 
@@ -717,7 +723,13 @@ async def create_invoice(
         from bot.payments.prodamus import ProdamusProvider
         prov = ProdamusProvider()
         rub = price if course_id == "mentoring" else max(1, round(price * 1.7))
-        inv = await prov.create_invoice(uid, course_id, f"{rub} RUB")
+        inv = await prov.create_invoice(
+            uid,
+            course_id,
+            f"{rub} RUB",
+            order_id=custom_order_id,
+            product_name=label,
+        )
         if inv.meta.get("not_configured"):
             return JSONResponse(
                 {"error": "prodamus_not_configured",
@@ -765,7 +777,7 @@ async def create_invoice(
             f"https://api.telegram.org/bot{BOT_TOKEN}/createInvoiceLink",
             json={
                 "title": label,
-                "description": "Open Deck DJ School",
+                "description": "Полный доступ к курсу Open Deck DJ School: уроки 2-6 + все бонусы от FREEDA DJ",
                 "payload": course_id,
                 "provider_token": "",
                 "currency": "XTR",
@@ -876,8 +888,13 @@ async def prodamus_webhook(req: Request, sign: str = Header(None, alias="Sign"))
         if db.is_webhook_processed(order_id):
             return {"ok": True, "duplicate": True}
         try:
-            user_id, course_id = order_id.split(":", 1)
-            db.add_payment(int(user_id), course_id, "prodamus", status="paid",
+            parts = order_id.split(":")
+            user_id = int(parts[0])
+            cid = parts[1]
+            gp_spent = int(parts[2]) if len(parts) > 2 and parts[2].isdigit() else 0
+            if gp_spent > 0:
+                db.spend_gp(user_id, gp_spent, reason=f"{cid}_discount")
+            db.add_payment(user_id, cid, "prodamus", status="paid",
                            raw=json.dumps(form_dict, ensure_ascii=False)[:4000])
             db.mark_webhook_processed(order_id)
         except Exception:

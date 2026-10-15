@@ -48,6 +48,8 @@ def test_test_bot():
     os.environ["PRODAMUS_WEBHOOK_SECRET"] = "TEST_PRODAMUS_SECRET"
     os.environ["INTERNAL_API_KEY"] = "TEST_INTERNAL_KEY"
     from backend.main import app as backend_app
+    import backend.db as db
+    db.init()
     client = TestClient(backend_app)
     r = client.post("/api/grant", json={"user_id": 777, "course_id": "dj-basics", "provider": "stars"},
                     headers={"Authorization": "Bearer TEST_INTERNAL_KEY"})

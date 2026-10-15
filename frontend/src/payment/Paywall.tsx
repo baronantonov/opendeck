@@ -7,16 +7,29 @@ import { PRICES, mentorPrices } from '../lib/constants';
 import { useApp } from '../state/store';
 import { haptic } from '../lib/theme';
 
-function openInvoiceOrLink(link?: string, url?: string, external = false) {
+function openInvoiceOrLink(
+  link?: string,
+  url?: string,
+  external = false,
+  onStatus?: (status: string) => void,
+) {
   const tw = (window as any).Telegram?.WebApp;
   if (link) {
     try {
-      tw?.openInvoice?.(link, (status: string) => {
-        if (status === 'paid') window.location.reload();
-      });
+      if (tw?.openInvoice) {
+        tw.openInvoice(link, (status: string) => {
+          if (onStatus) {
+            onStatus(status);
+          } else if (status === 'paid') {
+            window.location.reload();
+          }
+        });
+        return;
+      }
     } catch {
-      window.location.reload();
+      /* fallback */
     }
+    window.location.reload();
     return;
   }
   if (url) {
@@ -27,6 +40,26 @@ function openInvoiceOrLink(link?: string, url?: string, external = false) {
     } catch {
       window.open(url, '_blank');
     }
+  }
+}
+
+function openTgLink(url: string) {
+  const tw = (window as any).Telegram?.WebApp;
+  try {
+    if (tw?.openTelegramLink) tw.openTelegramLink(url);
+    else window.open(url, '_blank');
+  } catch {
+    window.open(url, '_blank');
+  }
+}
+
+function openExternalWeb(url: string) {
+  const tw = (window as any).Telegram?.WebApp;
+  try {
+    if (tw?.openLink) tw.openLink(url);
+    else window.open(url, '_blank');
+  } catch {
+    window.open(url, '_blank');
   }
 }
 
@@ -43,25 +76,26 @@ export function Paywall({
   const { reload } = useApp();
   const [busy, setBusy] = useState<string | null>(null);
 
-  const coursePrice =
-    PRICES[courseId as 'tripwire' | 'dj-basics'] || PRICES['dj-basics'];
-
   const bookStars = async () => {
     setBusy('stars');
+    haptic('medium');
     try {
-      const data = await apiCreateInvoice({ course_id: courseId });
+      const data = await apiCreateInvoice({ course_id: courseId, provider: 'stars' });
       if (!data?.invoice_link) {
-        toast('✕', 'Не удалось создать счёт. Попробуй позже.');
+        toast('✕', 'Не удалось создать счёт в Telegram. Попробуй позже.');
         return;
       }
-      // On paid, backend (bot) grants access via successful_payment -> /api/grant.
-      // We reload to reflect new access; do NOT call gp/apply from the frontend.
-      openInvoiceOrLink(data.invoice_link);
-      // optimistic close; real update comes from reload on paid callback
-      setTimeout(() => {
-        void reload();
-        onClose();
-      }, 600);
+      openInvoiceOrLink(data.invoice_link, undefined, false, (status: string) => {
+        if (status === 'paid') {
+          haptic('success');
+          toast('✓', 'Оплата прошла! Все уроки и бонусы открыты.');
+          void reload();
+          onClose();
+        } else if (status === 'failed') {
+          haptic('error');
+          toast('✕', 'Оплата не прошла. Пополни баланс Stars через @PremiumBot или Fragment.');
+        }
+      });
     } catch {
       toast('✕', 'Ошибка сети. Проверь подключение.');
     } finally {
@@ -69,61 +103,161 @@ export function Paywall({
     }
   };
 
-  const bookProdamus = async () => {
-    setBusy('prodamus');
-    try {
-      const data = await apiCreateInvoice({
-        course_id: courseId,
-        provider: 'prodamus',
-      });
-      if (!data?.pay_url) {
-        if (data?.error === 'prodamus_not_configured')
-          toast('!', 'Prodamus не настроен. Попробуй Stars.');
-        else toast('✕', 'Не удалось создать платёж.');
-        return;
-      }
-      openInvoiceOrLink(undefined, data.pay_url, true);
-      toast('✓', 'Оплата открылась в браузере. Вернись сюда после оплаты.');
-      // Poll backend for access confirmation (webhook-driven).
-      pollPaid(courseId, reload);
-      onClose();
-    } catch {
-      toast('✕', 'Ошибка сети.');
-    } finally {
-      setBusy(null);
-    }
-  };
-
   return (
-    <BottomSheet open={open} onClose={onClose} title="Открыть доступ">
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        <Button variant="primary" block disabled={busy === 'stars'} onClick={bookStars}>
-          Telegram Stars
-          <span style={{ opacity: 0.9, fontWeight: 700 }}>
-            2 500 Stars
-          </span>
-        </Button>
+    <BottomSheet open={open} onClose={onClose} title="Открыть полный курс">
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <p style={{ margin: 0, fontSize: 13, color: 'var(--color-text-dim)', lineHeight: 1.5 }}>
+          Уроки 2–6, 4 бонусных видеоурока от FREEDA DJ, виртуальная дек-консоль Rekordbox и треки Berlin Vault & Dark Matter.
+        </p>
+
+        {/* Главная кнопка нативной оплаты Stars */}
         <Button
-          variant="secondary"
+          variant="primary"
           block
-          disabled={busy === 'prodamus'}
-          onClick={bookProdamus}
-        >
-          Карта РФ / СБП (Prodamus)
-          <span style={{ opacity: 0.9, fontWeight: 700 }}>
-            {coursePrice.rub}
-          </span>
-        </Button>
-        <p
+          disabled={busy === 'stars'}
+          onClick={bookStars}
           style={{
-            fontSize: 11.5,
-            color: 'var(--color-text-dim)',
-            marginTop: 4,
-            textAlign: 'center',
+            padding: '13px 16px',
+            background: 'linear-gradient(135deg, var(--brand-gold), #d97706)',
+            color: '#1a1405',
+            fontWeight: 800,
+            fontSize: 15,
+            boxShadow: '0 6px 20px -4px rgba(245, 158, 11, 0.45)',
           }}
         >
-          Оплата внутри Telegram. Доступ откроется автоматически.
-        </p>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%' }}>
+            <IconSparkles size={17} />
+            <span>Оплатить Telegram Stars</span>
+            <span
+              style={{
+                background: 'rgba(0, 0, 0, 0.2)',
+                padding: '2px 8px',
+                borderRadius: 7,
+                fontSize: 13,
+                fontWeight: 800,
+                color: '#fff',
+              }}
+            >
+              2 500 ⭐
+            </span>
+          </div>
+        </Button>
+
+        {/* Нативная подсказка: экономия 30% на покупке звёзд без налога Apple/Google */}
+        <div
+          style={{
+            background: 'rgba(255, 255, 255, 0.035)',
+            border: '1px solid rgba(255, 255, 255, 0.08)',
+            borderRadius: 14,
+            padding: '13px 14px',
+          }}
+        >
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              marginBottom: 8,
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-text)' }}>
+                Как купить Stars на 30% дешевле:
+              </span>
+            </div>
+            <span
+              style={{
+                fontSize: 11,
+                fontWeight: 800,
+                color: 'var(--brand-mint)',
+                background: 'color-mix(in srgb, var(--brand-mint) 12%, transparent)',
+                padding: '2px 8px',
+                borderRadius: 6,
+                letterSpacing: '0.04em',
+              }}
+            >
+              −30% ВЫГОДА
+            </span>
+          </div>
+
+          <p style={{ margin: '0 0 10px', fontSize: 12, color: 'var(--color-text-dim)', lineHeight: 1.45 }}>
+            В App Store и Google Play наценка 30%. Купи звёзды напрямую через официального бота или за TON на Fragment без комиссии:
+          </p>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            <button
+              type="button"
+              onClick={() => {
+                haptic('light');
+                openTgLink('https://t.me/PremiumBot');
+              }}
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'flex-start',
+                padding: '10px 11px',
+                borderRadius: 12,
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+                background: 'rgba(255, 255, 255, 0.04)',
+                color: 'var(--color-text)',
+                cursor: 'pointer',
+                textAlign: 'left',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 3 }}>
+                <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--brand-gold)' }}>
+                  @PremiumBot
+                </span>
+                <span style={{ fontSize: 10, color: 'var(--brand-mint)', fontWeight: 800 }}>−30%</span>
+              </div>
+              <span style={{ fontSize: 10.5, color: 'var(--color-text-dim)', lineHeight: 1.3 }}>
+                Карта РФ / Мир в TG Desktop или Web
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                haptic('light');
+                openExternalWeb('https://fragment.com/stars');
+              }}
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'flex-start',
+                padding: '10px 11px',
+                borderRadius: 12,
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+                background: 'rgba(255, 255, 255, 0.04)',
+                color: 'var(--color-text)',
+                cursor: 'pointer',
+                textAlign: 'left',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 3 }}>
+                <span style={{ fontSize: 12.5, fontWeight: 700, color: '#38bdf8' }}>
+                  Fragment · TON
+                </span>
+                <span style={{ fontSize: 10, color: 'var(--brand-mint)', fontWeight: 800 }}>−30%</span>
+              </div>
+              <span style={{ fontSize: 10.5, color: 'var(--color-text-dim)', lineHeight: 1.3 }}>
+                Оплата за TON или криптокошелёк
+              </span>
+            </button>
+          </div>
+
+          <div
+            style={{
+              marginTop: 10,
+              fontSize: 11,
+              color: 'var(--color-text-dim)',
+              textAlign: 'center',
+              lineHeight: 1.35,
+            }}
+          >
+            После пополнения баланса нажми кнопку оплаты выше — курс откроется моментально.
+          </div>
+        </div>
       </div>
     </BottomSheet>
   );

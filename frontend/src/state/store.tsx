@@ -31,6 +31,7 @@ interface AppState {
   setReferral: (friends: number, gp: number) => void;
   reload: () => Promise<void>;
   completeLesson: (lessonId: number) => void;
+  completeBonusLesson: (bonusId: number) => void;
 }
 
 const defaultUser: User = {
@@ -83,12 +84,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setReferralGpEarned(gp);
   };
 
-  const completeLesson = (lessonId: number) =>
-    setCourseState((s) =>
-      s.completedLessons.includes(lessonId)
-        ? s
-        : { ...s, completedLessons: [...s.completedLessons, lessonId] },
-    );
+  const completeLesson = (lessonId: number) => {
+    setCourseState((s) => {
+      if (s.completedLessons.includes(lessonId)) return s;
+      return { ...s, completedLessons: [...s.completedLessons, lessonId] };
+    });
+    setUserState((u) => ({ ...u, groovePoints: u.groovePoints + 50 }));
+  };
+
+  const completeBonusLesson = (bonusId: number) => {
+    setBonusDone((prev) => Math.max(prev, bonusId));
+    setUserState((u) => ({ ...u, groovePoints: u.groovePoints + 30 }));
+  };
 
   const reload = async () => {
     // Design preview (window.__PREVIEW__): skip network, render immediately
@@ -192,6 +199,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setReferral,
       reload,
       completeLesson,
+      completeBonusLesson,
     }),
     [
       loading,

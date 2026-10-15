@@ -667,6 +667,7 @@ class CreateInvoice(BaseModel):
     course_id: str = "dj-basics"
     price: int | None = None  # если передан — переопределяет цену по-умолчанию
     provider: str = "stars"   # stars | prodamus | ton
+    points: int | None = None  # выбор количества списываемых GP (для менторства)
 
 @app.post("/api/create-invoice")
 async def create_invoice(
@@ -697,7 +698,11 @@ async def create_invoice(
                 status_code=400,
             )
         gp = db.get_gp(uid)
-        capped_gp = min(max(gp, 0), MENTOR_GP_CAP)
+        max_gp = min(max(gp, 0), MENTOR_GP_CAP)
+        if body.points is not None:
+            capped_gp = min(max(int(body.points), 0), max_gp)
+        else:
+            capped_gp = max_gp
         # База: 23 900 руб ($250), скидка до 4 100 руб ($50), пол: 19 800 руб ($200) -> чистыми $190
         discount_rub = round(capped_gp * 8.2)
         price_rub = max(19800, 23900 - discount_rub)

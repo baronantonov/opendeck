@@ -135,6 +135,7 @@ export async function apiCreateInvoice(payload: {
   course_id: string;
   price?: number;
   provider?: string;
+  points?: number;
 }): Promise<InvoiceResponse | null> {
   const r = await withTimeout(
     fetch(`${API_BASE}/api/create-invoice`, {

@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { openInvoice } from '@telegram-apps/sdk-react';
-import { apiCreateInvoice } from '../api/client';
+import { apiCreateInvoice, apiLessons } from '../api/client';
 import { useToast } from '../components/Toast';
 import { BottomSheet } from '../components/BottomSheet';
 import { Button, IconSparkles } from '../components/ui';
@@ -87,11 +87,27 @@ function openTelegramLinkFallback(link: string) {
 
 /**
  * Хук для прямого аутентичного чекаута курса в Telegram Stars без лишних модалок.
+ * Включает фоновую предзагрузку инвойс-ссылки для открытия за 0 миллисекунд.
  */
 export function useStarsCheckout() {
   const [busy, setBusy] = useState(false);
-  const { reload } = useApp();
+  const { reload, setPaid } = useApp();
   const { toast } = useToast();
+  const prefetchedLinkRef = useRef<string | null>(null);
+
+  // Предзагрузка инвойс-ссылки в фоне при монтировании:
+  // При клике на "Купить" нативное окно Telegram Stars откроется моментально!
+  useEffect(() => {
+    let active = true;
+    void apiCreateInvoice({ course_id: 'dj-basics', provider: 'stars' }).then((data) => {
+      if (active && data?.invoice_link) {
+        prefetchedLinkRef.current = data.invoice_link;
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const checkoutCourse = useCallback(
     async (courseId = 'dj-basics') => {
@@ -99,16 +115,23 @@ export function useStarsCheckout() {
       setBusy(true);
       haptic('medium');
       try {
-        const data = await apiCreateInvoice({ course_id: courseId, provider: 'stars' });
-        if (!data?.invoice_link) {
+        let invoiceLink = courseId === 'dj-basics' ? prefetchedLinkRef.current : null;
+        if (!invoiceLink) {
+          const data = await apiCreateInvoice({ course_id: courseId, provider: 'stars' });
+          invoiceLink = data?.invoice_link || null;
+        }
+
+        if (!invoiceLink) {
           toast('✕', 'Не удалось создать счёт Telegram Stars.');
           setBusy(false);
           return;
         }
 
-        const status = await openTelegramStarsInvoice(data.invoice_link, {
+        const status = await openTelegramStarsInvoice(invoiceLink, {
           onPaid: () => {
             haptic('success');
+            // Оптимистичное разблокирование: мгновенный доступ без ожидания вебхука
+            setPaid(true, true);
             toast('✓', 'Оплата прошла! Все уроки открыты.');
             void reload();
           },
@@ -117,7 +140,7 @@ export function useStarsCheckout() {
             toast('✕', 'Оплата не прошла.');
           },
           onCancelled: () => {
-            // Пользователь закрыл нативное окно оплаты Telegram Stars
+            // Пользователь закрыл системную шторку Telegram Stars
           },
           onPending: () => {
             toast('ℹ', 'Платёж обрабатывается...');
@@ -134,7 +157,7 @@ export function useStarsCheckout() {
         setBusy(false);
       }
     },
-    [busy, reload, toast],
+    [busy, reload, setPaid, toast],
   );
 
   return { checkoutCourse, busy };
@@ -607,26 +630,42 @@ export function MentorPay({
 
 function pollPaid(courseId: string, reload: () => Promise<void>) {
   let tries = 0;
-  const timer = setInterval(async () => {
+  let timer: any = null;
+  let done = false;
+
+  const checkStatus = async () => {
+    if (done) return;
     tries++;
-    if (tries > 30) {
-      clearInterval(timer);
+    if (tries > 60) {
+      cleanup();
       return;
     }
     try {
-      const r = await fetch(
-        `${(
-          (window as any).__OD_API__ || 'https://opendeck-tma.serveousercontent.com'
-        ).replace(/\/$/, '')}/api/lessons?course_id=${encodeURIComponent(courseId)}`,
-        { headers: { 'X-Init-Data': (window as any).Telegram?.WebApp?.initData || '' } },
-      );
-      const j = await r.json();
-      if (j?.paid) {
-        clearInterval(timer);
+      const data = await apiLessons(courseId);
+      if (data?.paid) {
+        done = true;
+        cleanup();
+        haptic('success');
         void reload();
       }
     } catch {
       /* ignore */
     }
-  }, 2000);
+  };
+
+  const onVisible = () => {
+    if (document.visibilityState === 'visible') {
+      void checkStatus();
+    }
+  };
+
+  const cleanup = () => {
+    if (timer) clearInterval(timer);
+    document.removeEventListener('visibilitychange', onVisible);
+    window.removeEventListener('focus', onVisible);
+  };
+
+  document.addEventListener('visibilitychange', onVisible);
+  window.addEventListener('focus', onVisible);
+  timer = setInterval(checkStatus, 2000);
 }

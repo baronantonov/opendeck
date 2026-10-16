@@ -663,6 +663,7 @@ def _ab_price(course_id: str, uid: int | None) -> tuple[int, str]:
 
 
 # ---- POST /api/create-invoice — Telegram Stars invoice ----
+_STARS_INVOICE_CACHE: dict[tuple[str, int], str] = {}
 
 class CreateInvoice(BaseModel):
     course_id: str = "dj-basics"
@@ -773,6 +774,16 @@ async def create_invoice(
             "title": label,
         }
 
+    cache_key = (course_id, price)
+    if cache_key in _STARS_INVOICE_CACHE:
+        return {
+            "invoice_link": _STARS_INVOICE_CACHE[cache_key],
+            "title": label,
+            "price": price,
+            "variant": variant,
+            "experiment": "price_tripwire" if course_id == "tripwire" else ("price_full" if course_id == COURSE_ID else None),
+        }
+
     async with httpx.AsyncClient(timeout=10) as c:
         resp = await c.post(
             f"https://api.telegram.org/bot{BOT_TOKEN}/createInvoiceLink",
@@ -788,6 +799,7 @@ async def create_invoice(
         data = resp.json()
     if not data.get("ok"):
         return JSONResponse({"error": "telegram_api_error", "detail": data}, status_code=502)
+    _STARS_INVOICE_CACHE[cache_key] = data["result"]
     return {
         "invoice_link": data["result"],
         "title": label,

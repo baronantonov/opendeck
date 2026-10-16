@@ -13,14 +13,16 @@ export function LessonPlayer({
   locked,
   courseId = 'dj-basics',
   onUnlock,
+  defaultOpen = false,
 }: {
   lesson: Lesson;
   index: number;
   locked: boolean;
   courseId?: string;
   onUnlock?: () => void;
+  defaultOpen?: boolean;
 }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
   const [done, setDone] = useState(false);
   const [deckOpen, setDeckOpen] = useState(false);
   const { toast } = useToast();
@@ -57,6 +59,9 @@ export function LessonPlayer({
         borderRadius: 16,
         padding: 14,
         marginBottom: 12,
+        width: '100%',
+        maxWidth: '100%',
+        boxSizing: 'border-box',
         opacity: locked ? 0.55 : 1,
       }}
     >

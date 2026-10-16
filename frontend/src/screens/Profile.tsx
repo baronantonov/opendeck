@@ -1,10 +1,10 @@
 import { useState, useMemo } from 'react';
 import { useApp } from '../state/store';
+import { ProfileHeroCard } from '../components/profile/ProfileHeroCard';
 import {
   Button,
   Card,
   ProgressBar,
-  Star,
   IconHeadphones,
   IconFader,
   IconWaveform,
@@ -19,7 +19,6 @@ import {
 import { useToast } from '../components/Toast';
 import { apiArchetypeShare, apiGpEarn } from '../api/client';
 import { haptic } from '../lib/theme';
-import { ARCHETYPES } from '../lib/constants';
 
 interface Rank {
   title: string;
@@ -160,51 +159,8 @@ export function Profile() {
 
   return (
     <div style={{ padding: '16px 16px 28px', display: 'flex', flexDirection: 'column', gap: 16 }}>
-      {/* User Info Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-        <div
-          className="user-avatar"
-          style={{
-            width: 54,
-            height: 54,
-            borderRadius: 16,
-            background: 'var(--color-surface)',
-            border: '1px solid rgba(255, 255, 255, 0.12)',
-            color: 'var(--brand-mint)',
-            display: 'grid',
-            placeItems: 'center',
-            fontWeight: 800,
-            fontSize: 20,
-            flexShrink: 0,
-          }}
-        >
-          {user.name[0] || 'D'}
-        </div>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontWeight: 800, fontSize: 18, lineHeight: 1.2 }}>{user.name}</div>
-          <div style={{ fontSize: 13, color: 'var(--brand-mint)', fontWeight: 600, marginTop: 2 }}>
-            {user.archetype}
-          </div>
-          <div style={{ fontSize: 11.5, color: 'var(--color-text-dim)', marginTop: 1 }}>
-            {ARCHETYPES[user.archetype] || 'Резидент Open Deck DJ'}
-          </div>
-        </div>
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 5,
-            background: 'color-mix(in srgb, var(--brand-gold) 12%, var(--color-surface))',
-            border: '1px solid color-mix(in srgb, var(--brand-gold) 24%, transparent)',
-            padding: '6px 12px',
-            borderRadius: 99,
-            fontWeight: 800,
-          }}
-        >
-          <Star size={14} />
-          <span style={{ color: 'var(--brand-gold)', fontSize: 13 }}>{user.groovePoints} GP</span>
-        </div>
-      </div>
+      {/* Two-Column Hero Card (Telegram Userpic + DB Info) */}
+      <ProfileHeroCard />
 
       {/* DJ Titles & Ranks Section (Звания) */}
       <Card

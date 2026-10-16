@@ -251,14 +251,13 @@ export function ProfileWidget({ onClick }: { onClick?: () => void }) {
         padding: '10px 14px',
         borderRadius: 18,
         background: 'var(--color-surface)',
-        border: '1px solid rgba(255, 255, 255, 0.08)',
-        boxShadow: '0 4px 16px rgba(0, 0, 0, 0.2)',
         cursor: 'pointer',
-        transition: 'transform 0.15s ease, background 0.15s ease, border-color 0.15s ease',
+        transition: 'transform 0.15s ease',
         userSelect: 'none',
       }}
-      className="profile-widget active:scale-[0.99] hover:border-white/15"
+      className="profile-widget glow-card-border active:scale-[0.99]"
     >
+      <div className="glow-card-ambient" aria-hidden="true" />
       {/* 1. Аватар Telegram + Fallback */}
       <ProfileAvatar
         photoUrl={data.photoUrl}

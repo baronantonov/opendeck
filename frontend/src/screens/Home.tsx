@@ -98,16 +98,17 @@ export function Home() {
               </div>
             </div>
 
-            <Button
+            <ShimmerButton
               variant="mint"
               block
+              shimmer
               onClick={() => {
                 haptic('medium');
                 nav('/learn');
               }}
             >
               Перейти к обучению
-            </Button>
+            </ShimmerButton>
           </GlowCard>
         </StaggerItem>
 

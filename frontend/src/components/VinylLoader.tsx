@@ -178,30 +178,49 @@ export const VinylDisk = memo(function VinylDisk({
 /**
  * Полноэкранный брендированный экран загрузки (Vinyl Splash Screen).
  * Отображает крутящийся винил с мягким фоновым сиянием и осуществляет
- * бесшовный fade-out + scale-up переход после загрузки данных.
+ * бесшовный fade-out + scale-up переход после готовности данных приложения.
+ * Гарантирует минимальное время показа (1350ms), чтобы переход был кинематографичным.
  */
 export function VinylLoader({
   isLoading,
   statusText = 'Синхронизация битов...',
   onExited,
 }: VinylLoaderProps) {
-  const [shouldRender, setShouldRender] = useState(isLoading);
+  // Всегда начинаем с отображения прелоадера при старте приложения
+  const [shouldRender, setShouldRender] = useState(true);
+  const [minTimeElapsed, setMinTimeElapsed] = useState(false);
   const [isExiting, setIsExiting] = useState(false);
 
+  // 1. Таймер минимального времени показа винила (1350мс)
   useEffect(() => {
-    if (!isLoading && shouldRender) {
+    const timer = window.setTimeout(() => {
+      setMinTimeElapsed(true);
+    }, 1350);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  // 2. Логика выхода: только когда данные готовы И прошло минимальное время
+  useEffect(() => {
+    if (!isLoading && minTimeElapsed && !isExiting) {
       setIsExiting(true);
-      const timer = window.setTimeout(() => {
+      const exitTimer = window.setTimeout(() => {
         setShouldRender(false);
-        setIsExiting(false);
         onExited?.();
       }, 380);
-      return () => window.clearTimeout(timer);
-    } else if (isLoading && !shouldRender) {
-      setShouldRender(true);
-      setIsExiting(false);
+      return () => window.clearTimeout(exitTimer);
     }
-  }, [isLoading, shouldRender, onExited]);
+  }, [isLoading, minTimeElapsed, isExiting, onExited]);
+
+  // Возможность тапнуть по экрану для мгновенного пропуска
+  const handleQuickSkip = () => {
+    if (!isExiting) {
+      setIsExiting(true);
+      window.setTimeout(() => {
+        setShouldRender(false);
+        onExited?.();
+      }, 200);
+    }
+  };
 
   if (!shouldRender) {
     return null;
@@ -211,7 +230,8 @@ export function VinylLoader({
     <div
       role="progressbar"
       aria-label="Загрузка приложения Open Deck DJ School"
-      className={`fixed inset-0 z-50 flex flex-col items-center justify-center select-none ${
+      onClick={handleQuickSkip}
+      className={`fixed inset-0 z-50 flex flex-col items-center justify-center select-none cursor-pointer ${
         isExiting ? 'animate-splash-exit' : ''
       }`}
       style={{
@@ -227,19 +247,19 @@ export function VinylLoader({
             width: 270,
             height: 270,
             background:
-              'radial-gradient(circle, rgba(140, 226, 200, 0.3) 0%, rgba(192, 160, 168, 0.22) 40%, transparent 72%)',
+              'radial-gradient(circle, rgba(140, 226, 200, 0.35) 0%, rgba(192, 160, 168, 0.25) 45%, transparent 75%)',
             filter: 'blur(32px)',
             pointerEvents: 'none',
           }}
         />
 
-        {/* Контейнер вращения виниловой пластинки (3s linear infinite) */}
+        {/* Контейнер непрерывного вращения виниловой пластинки (3s linear infinite) */}
         <div className="relative z-10 animate-spin-vinyl">
           <VinylDisk size={230} />
         </div>
 
         {/* Брендовая текстовая подпись и статус загрузки */}
-        <div className="mt-8 flex flex-col items-center gap-2 text-center z-10">
+        <div className="mt-8 flex flex-col items-center gap-2.5 text-center z-10">
           <h2
             className="brand-text text-xl font-bold tracking-[0.16em] uppercase m-0"
             style={{ fontFamily: 'var(--font-display, sans-serif)' }}
@@ -252,6 +272,29 @@ export function VinylLoader({
               style={{ animationDuration: '1.4s' }}
             />
             <span>{statusText}</span>
+          </div>
+
+          {/* Аккуратный анимированный прогресс-бар загрузки */}
+          <div
+            style={{
+              width: 130,
+              height: 3,
+              borderRadius: 99,
+              background: 'rgba(255, 255, 255, 0.1)',
+              overflow: 'hidden',
+              marginTop: 4,
+            }}
+          >
+            <div
+              style={{
+                height: '100%',
+                background: 'var(--brand-gradient)',
+                borderRadius: 99,
+                animation: 'shimmer 1.35s ease-out forwards',
+                width: '100%',
+                transformOrigin: 'left',
+              }}
+            />
           </div>
         </div>
       </div>

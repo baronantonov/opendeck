@@ -1,5 +1,5 @@
 import { Routes, Route, useLocation, Navigate } from 'react-router-dom';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { AppProvider, useApp } from './state/store';
 import { ToastProvider } from './components/Toast';
 import { BottomNav } from './components/BottomNav';
@@ -16,6 +16,7 @@ function Shell() {
   useSafeArea();
   const loc = useLocation();
   const { loading } = useApp();
+  const [splashFinished, setSplashFinished] = useState(false);
   const active = loc.pathname.split('/')[1] || 'home';
 
   // Reset scroll on tab change
@@ -25,7 +26,11 @@ function Shell() {
 
   return (
     <>
-      <VinylLoader isLoading={loading} statusText="Синхронизация битов..." />
+      <VinylLoader
+        isLoading={loading}
+        statusText="Синхронизация битов..."
+        onExited={() => setSplashFinished(true)}
+      />
 
       <main
         className="scroll-y"
@@ -36,13 +41,13 @@ function Shell() {
         }}
       >
         <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/home" element={<Home />} />
-          <Route path="/learn" element={<Learn />} />
+          <Route path="/" element={<Home key={active + String(splashFinished)} />} />
+          <Route path="/home" element={<Home key={active + String(splashFinished)} />} />
+          <Route path="/learn" element={<Learn key={active} />} />
           <Route path="/course" element={<Navigate to="/learn" replace />} />
           <Route path="/bonus" element={<Navigate to="/learn" replace />} />
           <Route path="/mentor" element={<Navigate to="/learn" replace />} />
-          <Route path="/profile" element={<Profile />} />
+          <Route path="/profile" element={<Profile key={active} />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>

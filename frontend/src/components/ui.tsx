@@ -60,7 +60,7 @@ export function Card({
 }) {
   return (
     <div
-      className={`animate-pop${strip ? ' brand-strip' : ''}`}
+      className={`brand-card${strip ? ' brand-strip' : ''}`}
       style={{
         background: 'var(--color-surface)',
         borderRadius: 18,

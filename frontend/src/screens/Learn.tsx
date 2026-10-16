@@ -161,7 +161,7 @@ export function Learn() {
       >
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
           <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--brand-mint)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-            Duolingo DJ Path · {completedCount}/{totalCount}
+            Программа курса · {completedCount}/{totalCount}
           </span>
           <div
             style={{
@@ -274,7 +274,7 @@ export function Learn() {
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
             <span style={{ fontWeight: 800, fontSize: 13.5, color: 'var(--brand-coral)' }}>
-              Доступ за пейволом
+              Полный курс и практика
             </span>
             <span style={{ fontWeight: 800, fontSize: 13.5, color: 'var(--brand-gold)' }}>
               2 500 Stars
@@ -450,7 +450,7 @@ export function Learn() {
                       ? `+${item.rewardGp} GP к скидке`
                       : isBonus && isPaid && !isLesson1Done
                         ? 'Пройди Урок 1 для открытия'
-                        : 'За пейволом'}
+                        : 'Требуется доступ'}
                 </div>
               </div>
             </div>
@@ -507,7 +507,7 @@ export function Learn() {
         </div>
 
         <p style={{ margin: '0 0 14px', fontSize: 13, color: 'var(--color-text-dim)', lineHeight: 1.5 }}>
-          4 персональные онлайн-сессии по 1.5ч с FREEDA DJ: разбор твоих миксов, постановка техники, сведение и дорожная карта выступлений. Оплата через Prodamus и Tribute (чистыми $190 мастеру).
+          4 персональные онлайн-сессии по 1.5ч с FREEDA DJ: разбор твоих миксов, постановка техники, сведение и дорожная карта выступлений.
         </p>
 
         {/* Pricing & GP Discount Breakdown */}

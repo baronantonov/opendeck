@@ -241,7 +241,7 @@ export function Home() {
           Виртуальная DJ-консоль
         </div>
         <p style={{ margin: '0 0 14px', fontSize: 12.5, color: 'var(--color-text-dim)', lineHeight: 1.45 }}>
-          Горизонтальный пульт Pioneer/Rekordbox: виниловые джоги, RGB волновые формы, фазометр тактов и треки Berlin Vault & Dark Matter.
+          Интерактивный пульт: запускай треки, управляй темпом и своди в реальном времени прямо с телефона.
         </p>
         <Button
           variant="secondary"
@@ -251,7 +251,7 @@ export function Home() {
             setDeckOpen(true);
           }}
         >
-          Встать за пульт Rekordbox
+          Практика на пульте
         </Button>
       </Card>
 
@@ -286,7 +286,7 @@ export function Home() {
           </div>
         </div>
         <p style={{ margin: '0 0 12px', fontSize: 12.5, color: 'var(--color-text-dim)', lineHeight: 1.45 }}>
-          Копи GP за уроки: каждые 100 GP дают $10 скидки на 4 персональные сессии с FREEDA DJ (до −$50 скидки). Оплата через Prodamus и Tribute.
+          Копи GP за уроки: каждые 100 GP дают $10 скидки на 4 персональные сессии с FREEDA DJ (до −$50 скидки).
         </p>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, fontSize: 13 }}>
           <span style={{ color: 'var(--color-text-dim)' }}>Твоя текущая цена:</span>

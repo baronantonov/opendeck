@@ -41,7 +41,7 @@ const EARN_ACTIONS = [
   { action: 'daily', label: 'Ежедневный бонус за активность', reward: 25, icon: IconSparkles },
   { action: 'share_achievement', label: 'Поделиться достижением', reward: 25, icon: IconShare },
   { action: 'invite_team', label: 'Пригласить друга в команду', reward: 50, icon: IconUsers },
-  { action: 'review', label: 'Оставить честный отзыв о школе', reward: 50, icon: IconTrophy },
+  { action: 'review', label: 'Оставить отзыв о курсе', reward: 50, icon: IconTrophy },
 ];
 
 export function Profile() {
@@ -343,7 +343,7 @@ export function Profile() {
                 color: 'var(--brand-mint)',
               }}
             >
-              ref_{user.referralCode}
+              {user.referralCode}
             </code>
           </div>
         )}
@@ -351,11 +351,11 @@ export function Profile() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           <Button variant="mint" block onClick={inviteFriend}>
             <IconUsers size={16} />
-            Пригласить друга в команду (+50 GP)
+            Пригласить друга в команду (+100 GP)
           </Button>
           <Button variant="secondary" block onClick={shareProfile}>
             <IconShare size={16} />
-            Поделиться профилем (+20 GP)
+            Поделиться профилем (+25 GP)
           </Button>
         </div>
       </Card>

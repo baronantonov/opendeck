@@ -13,7 +13,7 @@
   POST /webhooks/prodamus       — вебхук оплаты
 """
 from __future__ import annotations
-import os, json, httpx, hmac
+import os, json, httpx, hmac, time
 from pathlib import Path
 
 try:
@@ -687,15 +687,15 @@ async def create_invoice(
     price_usd = 30
     custom_order_id = None
     if course_id in ("tripwire", COURSE_ID):
-        # ⚠️ Курс-трипваер продаётся ТОЛЬКО за Telegram Stars!
-        if body.provider != "stars":
+        if body.provider == "tribute":
             return JSONResponse(
-                {"error": "course_only_stars",
-                 "detail": "Курс доступен для оплаты только через Telegram Stars (XTR)"},
+                {"error": "tribute_course_not_supported",
+                 "detail": "Оплата курса через Tribute недоступна (только менторство). Используй Stars или Prodamus (Карта/СБП)"},
                 status_code=400,
             )
         price, variant = _ab_price(course_id, uid)
         label = "Pocket DJ: Полный курс"
+        custom_order_id = f"{uid}:{course_id}:0:{int(time.time())}"
     elif course_id == "mentoring":
         if body.provider == "stars":
             return JSONResponse(

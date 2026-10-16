@@ -57,7 +57,7 @@ export function Mentor() {
               </span>
             )}
           </div>
-          <span style={{ fontSize: 12, color: 'var(--color-text-dim)' }}>Prodamus / Tribute</span>
+          <span style={{ fontSize: 12, color: 'var(--color-text-dim)' }}>Онлайн-оплата</span>
         </div>
         <Button variant="primary" block style={{ marginTop: 12 }} onClick={() => setOpen(true)}>
           Записаться

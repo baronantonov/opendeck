@@ -173,11 +173,23 @@ function openInvoiceOrLink(
   const tw = (window as any).Telegram?.WebApp;
   if (url) {
     try {
-      if (external && tw?.openLink) tw.openLink(url);
-      else if (tw?.openLink) tw.openLink(url);
-      else window.open(url, '_blank');
+      if (external && tw?.openLink) {
+        tw.openLink(url);
+        return;
+      } else if (tw?.openLink) {
+        tw.openLink(url);
+        return;
+      }
+    } catch (e) {
+      console.warn('tw.openLink failed, falling back to window.open:', e);
+    }
+    try {
+      const opened = window.open(url, '_blank');
+      if (!opened) {
+        window.location.assign(url);
+      }
     } catch {
-      window.open(url, '_blank');
+      window.location.assign(url);
     }
   }
 }
@@ -489,10 +501,16 @@ export function MentorPay({
         points: pointsToUse,
       });
       if (!data?.pay_url) {
-        toast('✕', 'Tribute не настроен.');
+        if (data?.error === 'tribute_not_configured')
+          toast('!', 'Tribute не настроен.');
+        else
+          toast('✕', 'Не удалось создать счёт в Tribute.');
         return;
       }
       openInvoiceOrLink(undefined, data.pay_url, true);
+      toast('✓', 'Оплата открылась в браузере. Вернись сюда после оплаты.');
+      pollPaid('mentoring', reload);
+      onClose();
     } catch {
       toast('✕', 'Ошибка сети.');
     } finally {
@@ -510,7 +528,7 @@ export function MentorPay({
           lineHeight: 1.5,
         }}
       >
-        4 персональные сессии по 1.5 часа, разбор твоих треков, сведение сета и поддержка между звонками. Оплата напрямую (чистыми $190 мастеру).
+        4 персональные сессии по 1.5 часа, разбор твоих треков, сведение сета и поддержка между звонками.
       </div>
 
       <PointsDiscountCounter
@@ -559,14 +577,14 @@ export function MentorPay({
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         <Button variant="primary" block disabled={busy === 'prodamus'} onClick={bookProdamus}>
-          Карта РФ / СБП (Prodamus)
+          Карта РФ / СБП
           <span style={{ fontWeight: 600 }}>
             {finalRub.toLocaleString('ru-RU')} ₽
             {discountRub > 0 && <span style={{ opacity: 0.85, fontSize: 11.5, marginLeft: 4 }}>(−{discountRub} ₽)</span>}
           </span>
         </Button>
         <Button variant="secondary" block disabled={busy === 'tribute'} onClick={bookTribute}>
-          Tribute (USDT / Международные карты)
+          Зарубежные карты / USDT
           <span style={{ fontWeight: 600 }}>
             ${finalUsd}
             {discountUsd > 0 && <span style={{ opacity: 0.85, fontSize: 11.5, marginLeft: 4 }}>(−${discountUsd})</span>}
@@ -580,7 +598,7 @@ export function MentorPay({
             margin: '2px 0 0',
           }}
         >
-          Оплата напрямую мастеру. Чистыми FREEDA DJ получает $190.
+          Безопасная оплата онлайн · Доступ открывается сразу
         </p>
       </div>
     </BottomSheet>

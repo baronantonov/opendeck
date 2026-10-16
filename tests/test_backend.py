@@ -158,6 +158,22 @@ def test_backend_suite():
     check("двойной gp/apply по тому же charge_id НЕ списывает повторно",
           a2.get("duplicate") is True and after == before - a1.get("discount", 0))
 
+    # создание инвойсов (Prodamus / Tribute)
+    inv_prod_m = client.post("/api/create-invoice", json={"course_id": "mentoring", "provider": "prodamus"},
+                             headers={"X-Init-Data": fr_init}).json()
+    check("создание счёта Prodamus для менторства возвращает pay_url",
+          bool(inv_prod_m.get("pay_url")))
+
+    inv_trib_m = client.post("/api/create-invoice", json={"course_id": "mentoring", "provider": "tribute"},
+                             headers={"X-Init-Data": fr_init}).json()
+    check("создание счёта Tribute для менторства возвращает pay_url",
+          bool(inv_trib_m.get("pay_url")))
+
+    inv_prod_c = client.post("/api/create-invoice", json={"course_id": "dj-basics", "provider": "prodamus"},
+                             headers={"X-Init-Data": fr_init}).json()
+    check("создание счёта Prodamus для курса возвращает pay_url",
+          bool(inv_prod_c.get("pay_url")))
+
     print(f"\nИтог: {passed} PASS / {failed} FAIL")
     assert failed == 0, f"Backend tests failed: {failed} checks failed"
 

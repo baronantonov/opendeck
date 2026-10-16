@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { openInvoice } from '@telegram-apps/sdk-react';
 import { apiCreateInvoice } from '../api/client';
 import { useToast } from '../components/Toast';
 import { BottomSheet } from '../components/BottomSheet';
@@ -7,31 +8,169 @@ import { PRICES, mentorPrices } from '../lib/constants';
 import { useApp } from '../state/store';
 import { haptic } from '../lib/theme';
 
-function openInvoiceOrLink(
-  link?: string,
-  url?: string,
-  external = false,
-  onStatus?: (status: string) => void,
-) {
+/**
+ * Аутентичное открытие окна оплаты Telegram Stars по официальной документации Telegram.
+ * 1. Пробует вызов официального SDK @telegram-apps/sdk-react (openInvoice).
+ * 2. Делает фоллбэк на window.Telegram.WebApp.openInvoice (официальный WebApp JS API).
+ * 3. При запуске вне Telegram открывает ссылку инвойса в приложении Telegram.
+ */
+export async function openTelegramStarsInvoice(
+  invoiceLink: string,
+  callbacks?: {
+    onPaid?: () => void;
+    onCancelled?: () => void;
+    onFailed?: () => void;
+    onPending?: () => void;
+  },
+): Promise<'paid' | 'cancelled' | 'failed' | 'pending' | 'fallback'> {
+  // 1. Попытка через @telegram-apps/sdk-react
+  try {
+    if (openInvoice && typeof (openInvoice as any).isAvailable === 'function' && (openInvoice as any).isAvailable()) {
+      const status = await openInvoice(invoiceLink, 'url');
+      if (status === 'paid') callbacks?.onPaid?.();
+      else if (status === 'cancelled') callbacks?.onCancelled?.();
+      else if (status === 'failed') callbacks?.onFailed?.();
+      else if (status === 'pending') callbacks?.onPending?.();
+      return status as 'paid' | 'cancelled' | 'failed' | 'pending';
+    }
+  } catch (e) {
+    console.warn('[@telegram-apps/sdk-react] openInvoice error:', e);
+  }
+
+  // 2. Официальный fallback через window.Telegram.WebApp.openInvoice (TMA Core API)
   const tw = (window as any).Telegram?.WebApp;
-  if (link) {
-    try {
-      if (tw?.openInvoice) {
-        tw.openInvoice(link, (status: string) => {
-          if (onStatus) {
-            onStatus(status);
-          } else if (status === 'paid') {
-            window.location.reload();
+  if (tw && typeof tw.openInvoice === 'function') {
+    return new Promise((resolve) => {
+      try {
+        tw.openInvoice(invoiceLink, (status: string) => {
+          if (status === 'paid') {
+            callbacks?.onPaid?.();
+            resolve('paid');
+          } else if (status === 'cancelled') {
+            callbacks?.onCancelled?.();
+            resolve('cancelled');
+          } else if (status === 'failed') {
+            callbacks?.onFailed?.();
+            resolve('failed');
+          } else if (status === 'pending') {
+            callbacks?.onPending?.();
+            resolve('pending');
+          } else {
+            resolve(status as any);
           }
         });
-        return;
+      } catch (err) {
+        console.warn('[Telegram.WebApp.openInvoice] error:', err);
+        openTelegramLinkFallback(invoiceLink);
+        resolve('fallback');
       }
-    } catch {
-      /* fallback */
-    }
-    window.location.reload();
-    return;
+    });
   }
+
+  // 3. Fallback вне Telegram (браузер / preview)
+  openTelegramLinkFallback(invoiceLink);
+  return 'fallback';
+}
+
+function openTelegramLinkFallback(link: string) {
+  const tw = (window as any).Telegram?.WebApp;
+  try {
+    if (tw?.openTelegramLink) {
+      tw.openTelegramLink(link);
+    } else {
+      window.open(link, '_blank');
+    }
+  } catch {
+    window.open(link, '_blank');
+  }
+}
+
+/**
+ * Хук для прямого аутентичного чекаута курса в Telegram Stars без лишних модалок.
+ */
+export function useStarsCheckout() {
+  const [busy, setBusy] = useState(false);
+  const { reload } = useApp();
+  const { toast } = useToast();
+
+  const checkoutCourse = useCallback(
+    async (courseId = 'dj-basics') => {
+      if (busy) return;
+      setBusy(true);
+      haptic('medium');
+      try {
+        const data = await apiCreateInvoice({ course_id: courseId, provider: 'stars' });
+        if (!data?.invoice_link) {
+          toast('✕', 'Не удалось создать счёт Telegram Stars.');
+          setBusy(false);
+          return;
+        }
+
+        const status = await openTelegramStarsInvoice(data.invoice_link, {
+          onPaid: () => {
+            haptic('success');
+            toast('✓', 'Оплата прошла! Все уроки открыты.');
+            void reload();
+          },
+          onFailed: () => {
+            haptic('error');
+            toast('✕', 'Оплата не прошла.');
+          },
+          onCancelled: () => {
+            // Пользователь закрыл нативное окно оплаты Telegram Stars
+          },
+          onPending: () => {
+            toast('ℹ', 'Платёж обрабатывается...');
+          },
+        });
+
+        if (status === 'fallback') {
+          toast('ℹ', 'Счёт Telegram Stars открыт в приложении Telegram.');
+        }
+      } catch (err) {
+        console.error('Stars checkout error:', err);
+        toast('✕', 'Ошибка сети при создании счёта.');
+      } finally {
+        setBusy(false);
+      }
+    },
+    [busy, reload, toast],
+  );
+
+  return { checkoutCourse, busy };
+}
+
+/**
+ * @deprecated Старая модалка заменена на аутентичный прямой чекаут Telegram Stars.
+ * Для совместимости компонент вызывает checkoutCourse() сразу при открытии.
+ */
+export function Paywall({
+  courseId = 'dj-basics',
+  open,
+  onClose,
+}: {
+  courseId?: string;
+  open: boolean;
+  onClose: () => void;
+}) {
+  const { checkoutCourse } = useStarsCheckout();
+
+  useEffect(() => {
+    if (open) {
+      onClose();
+      void checkoutCourse(courseId);
+    }
+  }, [open, courseId, onClose, checkoutCourse]);
+
+  return null;
+}
+
+function openInvoiceOrLink(
+  _link?: string,
+  url?: string,
+  external = false,
+) {
+  const tw = (window as any).Telegram?.WebApp;
   if (url) {
     try {
       if (external && tw?.openLink) tw.openLink(url);
@@ -41,226 +180,6 @@ function openInvoiceOrLink(
       window.open(url, '_blank');
     }
   }
-}
-
-function openTgLink(url: string) {
-  const tw = (window as any).Telegram?.WebApp;
-  try {
-    if (tw?.openTelegramLink) tw.openTelegramLink(url);
-    else window.open(url, '_blank');
-  } catch {
-    window.open(url, '_blank');
-  }
-}
-
-function openExternalWeb(url: string) {
-  const tw = (window as any).Telegram?.WebApp;
-  try {
-    if (tw?.openLink) tw.openLink(url);
-    else window.open(url, '_blank');
-  } catch {
-    window.open(url, '_blank');
-  }
-}
-
-export function Paywall({
-  courseId,
-  open,
-  onClose,
-}: {
-  courseId: string;
-  open: boolean;
-  onClose: () => void;
-}) {
-  const { toast } = useToast();
-  const { reload } = useApp();
-  const [busy, setBusy] = useState<string | null>(null);
-
-  const bookStars = async () => {
-    setBusy('stars');
-    haptic('medium');
-    try {
-      const data = await apiCreateInvoice({ course_id: courseId, provider: 'stars' });
-      if (!data?.invoice_link) {
-        toast('✕', 'Не удалось создать счёт в Telegram. Попробуй позже.');
-        return;
-      }
-      openInvoiceOrLink(data.invoice_link, undefined, false, (status: string) => {
-        if (status === 'paid') {
-          haptic('success');
-          toast('✓', 'Оплата прошла! Все уроки и бонусы открыты.');
-          void reload();
-          onClose();
-        } else if (status === 'failed') {
-          haptic('error');
-          toast('✕', 'Оплата не прошла. Пополни баланс Stars через @PremiumBot или Fragment.');
-        }
-      });
-    } catch {
-      toast('✕', 'Ошибка сети. Проверь подключение.');
-    } finally {
-      setBusy(null);
-    }
-  };
-
-  return (
-    <BottomSheet open={open} onClose={onClose} title="Открыть полный курс">
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        <p style={{ margin: 0, fontSize: 13, color: 'var(--color-text-dim)', lineHeight: 1.5 }}>
-          Уроки 2–6, 4 бонусных видеоурока от FREEDA DJ, виртуальная дек-консоль Rekordbox и треки Berlin Vault & Dark Matter.
-        </p>
-
-        {/* Главная кнопка нативной оплаты Stars */}
-        <Button
-          variant="primary"
-          block
-          disabled={busy === 'stars'}
-          onClick={bookStars}
-          style={{
-            padding: '13px 16px',
-            background: 'linear-gradient(135deg, var(--brand-gold), #d97706)',
-            color: '#1a1405',
-            fontWeight: 800,
-            fontSize: 15,
-            boxShadow: '0 6px 20px -4px rgba(245, 158, 11, 0.45)',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%' }}>
-            <IconSparkles size={17} />
-            <span>Оплатить Telegram Stars</span>
-            <span
-              style={{
-                background: 'rgba(0, 0, 0, 0.2)',
-                padding: '2px 8px',
-                borderRadius: 7,
-                fontSize: 13,
-                fontWeight: 800,
-                color: '#fff',
-              }}
-            >
-              2 500 ⭐
-            </span>
-          </div>
-        </Button>
-
-        {/* Нативная подсказка: экономия 30% на покупке звёзд без налога Apple/Google */}
-        <div
-          style={{
-            background: 'rgba(255, 255, 255, 0.035)',
-            border: '1px solid rgba(255, 255, 255, 0.08)',
-            borderRadius: 14,
-            padding: '13px 14px',
-          }}
-        >
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              marginBottom: 8,
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-text)' }}>
-                Как купить Stars на 30% дешевле:
-              </span>
-            </div>
-            <span
-              style={{
-                fontSize: 11,
-                fontWeight: 800,
-                color: 'var(--brand-mint)',
-                background: 'color-mix(in srgb, var(--brand-mint) 12%, transparent)',
-                padding: '2px 8px',
-                borderRadius: 6,
-                letterSpacing: '0.04em',
-              }}
-            >
-              −30% ВЫГОДА
-            </span>
-          </div>
-
-          <p style={{ margin: '0 0 10px', fontSize: 12, color: 'var(--color-text-dim)', lineHeight: 1.45 }}>
-            В App Store и Google Play наценка 30%. Купи звёзды напрямую через официального бота или за TON на Fragment без комиссии:
-          </p>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-            <button
-              type="button"
-              onClick={() => {
-                haptic('light');
-                openTgLink('https://t.me/PremiumBot');
-              }}
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'flex-start',
-                padding: '10px 11px',
-                borderRadius: 12,
-                border: '1px solid rgba(255, 255, 255, 0.08)',
-                background: 'rgba(255, 255, 255, 0.04)',
-                color: 'var(--color-text)',
-                cursor: 'pointer',
-                textAlign: 'left',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 3 }}>
-                <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--brand-gold)' }}>
-                  @PremiumBot
-                </span>
-                <span style={{ fontSize: 10, color: 'var(--brand-mint)', fontWeight: 800 }}>−30%</span>
-              </div>
-              <span style={{ fontSize: 10.5, color: 'var(--color-text-dim)', lineHeight: 1.3 }}>
-                Карта РФ / Мир в TG Desktop или Web
-              </span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                haptic('light');
-                openExternalWeb('https://fragment.com/stars');
-              }}
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'flex-start',
-                padding: '10px 11px',
-                borderRadius: 12,
-                border: '1px solid rgba(255, 255, 255, 0.08)',
-                background: 'rgba(255, 255, 255, 0.04)',
-                color: 'var(--color-text)',
-                cursor: 'pointer',
-                textAlign: 'left',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 3 }}>
-                <span style={{ fontSize: 12.5, fontWeight: 700, color: '#38bdf8' }}>
-                  Fragment · TON
-                </span>
-                <span style={{ fontSize: 10, color: 'var(--brand-mint)', fontWeight: 800 }}>−30%</span>
-              </div>
-              <span style={{ fontSize: 10.5, color: 'var(--color-text-dim)', lineHeight: 1.3 }}>
-                Оплата за TON или криптокошелёк
-              </span>
-            </button>
-          </div>
-
-          <div
-            style={{
-              marginTop: 10,
-              fontSize: 11,
-              color: 'var(--color-text-dim)',
-              textAlign: 'center',
-              lineHeight: 1.35,
-            }}
-          >
-            После пополнения баланса нажми кнопку оплаты выше — курс откроется моментально.
-          </div>
-        </div>
-      </div>
-    </BottomSheet>
-  );
 }
 
 function PointsDiscountCounter({

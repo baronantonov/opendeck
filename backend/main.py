@@ -695,7 +695,7 @@ async def create_invoice(
                 status_code=400,
             )
         price, variant = _ab_price(course_id, uid)
-        label = "Pocket DJ: полный курс (2 500 ⭐)"
+        label = "Pocket DJ: Полный курс"
     elif course_id == "mentoring":
         if body.provider == "stars":
             return JSONResponse(

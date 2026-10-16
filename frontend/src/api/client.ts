@@ -4,11 +4,11 @@ import type {
   InvoiceResponse,
 } from '../types';
 
-// API_BASE: in prod this is the public HTTPS backend. The legacy ngrok tunnel in
-// the old index.html must NOT be used. Override via VITE_API_BASE at build time.
 export const API_BASE =
   (import.meta.env.VITE_API_BASE as string | undefined)?.replace(/\/$/, '') ||
-  'https://opendeck-tma.serveousercontent.com';
+  (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+    ? 'http://localhost:8000'
+    : 'https://squabble-lilly-lankiness.ngrok-free.dev');
 
 // Test-mode: if the backend is unreachable (e.g. no tunnel running), fail fast
 // instead of hanging. The UI falls back to local content after the timeout.

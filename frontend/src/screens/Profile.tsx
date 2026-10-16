@@ -93,15 +93,21 @@ export function Profile() {
   const inviteFriend = async () => {
     haptic('medium');
     const refCode = user.referralCode || 'opendeck';
-    const botUrl = `https://t.me/OpenDeck_bot?start=ref_${refCode}`;
-    const text = `Привет! Учусь диджеингу в Open Deck DJ School на базе Rekordbox. Лови +100 GP при регистрации в моей команде:`;
-    const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(botUrl)}&text=${encodeURIComponent(text)}`;
-
+    const archetype = user.archetype || 'Куратор Вайба';
     try {
-      (window as any).Telegram?.WebApp?.openTelegramLink?.(shareUrl) || window.open(shareUrl, '_blank');
+      const tw = (window as any).Telegram?.WebApp;
+      if (tw?.sendData) {
+        tw.sendData(JSON.stringify({ action: 'invite', code: refCode, archetype }));
+      } else {
+        // Fallback для тестирования вне Telegram WebView
+        const botUrl = `https://t.me/OpenDeck_bot?start=ref_${refCode}`;
+        const text = `Привет! Учусь диджеингу в Open Deck DJ School на базе Rekordbox. Лови +100 GP при регистрации в моей команде:`;
+        const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(botUrl)}&text=${encodeURIComponent(text)}`;
+        window.open(shareUrl, '_blank');
+      }
       await earn('invite_team', 'Приглашение в команду');
     } catch {
-      window.open(shareUrl, '_blank');
+      // ignore
     }
   };
 

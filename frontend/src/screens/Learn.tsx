@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { useApp, COURSE_LESSONS } from '../state/store';
 import { BONUS_LESSONS, mentorPrices } from '../lib/constants';
 import { Button, Card, Star } from '../components/ui';
-import { Paywall, MentorPay } from '../payment/Paywall';
+import { useStarsCheckout, MentorPay } from '../payment/Paywall';
 import { LessonPlayer } from '../components/LessonPlayer';
 import { haptic } from '../lib/theme';
 
@@ -17,7 +17,7 @@ interface TrackItem {
 
 export function Learn() {
   const { user, course, bonusDone, isPaid, adminMode } = useApp();
-  const [payOpen, setPayOpen] = useState(false);
+  const { checkoutCourse, busy: checkoutBusy } = useStarsCheckout();
   const [mentorOpen, setMentorOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'all' | 'course' | 'bonus'>('all');
   const [selectedLesson, setSelectedLesson] = useState<{
@@ -283,8 +283,13 @@ export function Learn() {
           <div style={{ fontSize: 12.5, color: 'var(--color-text-dim)', marginBottom: 12, lineHeight: 1.45 }}>
             Урок 1 и первый бонус открыты бесплатно. Разблокируй все остальные уроки сведения и 3 бонусных урока от FREEDA DJ за 2 500 Stars, чтобы собрать сет и накопить скидку на личный созвон.
           </div>
-          <Button variant="coral" block onClick={() => setPayOpen(true)}>
-            Открыть полный курс · 2 500 Stars
+          <Button
+            variant="coral"
+            block
+            disabled={checkoutBusy}
+            onClick={() => checkoutCourse('dj-basics')}
+          >
+            {checkoutBusy ? 'Открываем Telegram Stars...' : 'Открыть полный курс · 2 500 Stars'}
           </Button>
         </Card>
       )}
@@ -626,7 +631,7 @@ export function Learn() {
               })}
               onUnlock={() => {
                 setSelectedLesson(null);
-                setPayOpen(true);
+                void checkoutCourse('dj-basics');
               }}
             />
           </div>
@@ -634,7 +639,6 @@ export function Learn() {
       )}
 
       {/* Paywalls */}
-      <Paywall courseId="dj-basics" open={payOpen} onClose={() => setPayOpen(false)} />
       <MentorPay open={mentorOpen} onClose={() => setMentorOpen(false)} />
     </div>
   );

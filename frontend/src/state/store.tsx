@@ -101,22 +101,32 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   const reload = async () => {
-    // Design preview (window.__PREVIEW__): skip network, render immediately
-    // with local fallback data so the UI is fully visible outside Telegram.
-    if ((window as any).__PREVIEW__) {
+    // Design preview or outside Telegram: render immediately
+    // with local fallback data so the UI is fully visible in WebViews and browsers.
+    const isPreview =
+      (window as any).__PREVIEW__ ||
+      (typeof window !== 'undefined' &&
+        (window.location.search.includes('preview') ||
+          window.location.search.includes('noWelcome') ||
+          !(window as any).Telegram?.WebApp?.initData));
+
+    if (isPreview) {
       const tu = (window as any).Telegram?.WebApp?.initDataUnsafe?.user;
-      if (tu) {
-        setUser({
-          name: tu.first_name || 'Аня',
-          archetype: 'Куратор Вайба',
-          groovePoints: 120,
-          referralCode: 'ABC123',
-          referralFriends: 2,
-          referralGpEarned: 40,
-          bonusLessons: 0,
-          photoUrl: '',
-        });
-      }
+      setUser({
+        name: tu?.first_name || 'Антон',
+        archetype: 'Куратор Вайба',
+        groovePoints: 120,
+        referralCode: 'DJ2026',
+        referralFriends: 2,
+        referralGpEarned: 40,
+        bonusLessons: 1,
+        photoUrl: '',
+      });
+      setCourse({
+        currentLessonId: 1,
+        completedLessons: [1],
+        freeLessons: 1,
+      });
       setLoading(false);
       return;
     }

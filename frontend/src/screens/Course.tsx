@@ -1,12 +1,11 @@
-import { useState } from 'react';
 import { useApp, COURSE_LESSONS } from '../state/store';
 import { LessonPlayer } from '../components/LessonPlayer';
-import { Paywall } from '../payment/Paywall';
+import { useStarsCheckout } from '../payment/Paywall';
 import { Card } from '../components/ui';
 
 export function Course() {
   const { course, isPaid, adminMode } = useApp();
-  const [payOpen, setPayOpen] = useState(false);
+  const { checkoutCourse } = useStarsCheckout();
 
   const isUnlocked = (i: number) =>
     isPaid || adminMode || i < course.freeLessons;
@@ -41,11 +40,9 @@ export function Course() {
           lesson={lesson}
           index={i}
           locked={!isUnlocked(i)}
-          onUnlock={() => setPayOpen(true)}
+          onUnlock={() => void checkoutCourse('dj-basics')}
         />
       ))}
-
-      <Paywall courseId="dj-basics" open={payOpen} onClose={() => setPayOpen(false)} />
     </div>
   );
 }

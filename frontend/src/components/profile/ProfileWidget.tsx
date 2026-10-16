@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../../state/store';
 import { getUserRank, type RankDef } from '../../lib/constants';
-import { Star } from '../ui';
 import { haptic } from '../../lib/theme';
+import { GpGlowBadge } from '../MotionWrappers';
 
 /**
  * Тип данных пользователя, возвращаемый официальным Telegram WebApp SDK.
@@ -344,7 +344,7 @@ export function ProfileWidget({ onClick }: { onClick?: () => void }) {
         </div>
       </div>
 
-      {/* 3. Бизнес-метрика: Баланс Groove Points (GP) из SQLite БД */}
+      {/* 3. Бизнес-метрика: Баланс Groove Points (GP) с Ambient Glow */}
       <div
         style={{
           display: 'flex',
@@ -355,23 +355,7 @@ export function ProfileWidget({ onClick }: { onClick?: () => void }) {
           flexShrink: 0,
         }}
       >
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 4,
-            background: 'color-mix(in srgb, var(--brand-gold) 12%, var(--color-surface))',
-            border: '1px solid color-mix(in srgb, var(--brand-gold) 28%, transparent)',
-            padding: '5px 10px',
-            borderRadius: 99,
-            boxShadow: '0 2px 8px rgba(245, 180, 0, 0.08)',
-          }}
-        >
-          <Star size={13} />
-          <b style={{ fontSize: 13, color: 'var(--brand-gold)', letterSpacing: '-0.2px' }}>
-            {data.groovePoints} GP
-          </b>
-        </div>
+        <GpGlowBadge points={data.groovePoints} />
         <span style={{ fontSize: 10, color: 'var(--color-text-dim)', paddingRight: 4, fontWeight: 500 }}>
           {data.archetype}
         </span>

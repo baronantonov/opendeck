@@ -9,6 +9,8 @@ import { Home } from './screens/Home';
 import { Learn } from './screens/Learn';
 import { Profile } from './screens/Profile';
 
+import { VinylLoader } from './components/VinylLoader';
+
 function Shell() {
   useTelegramTheme();
   useSafeArea();
@@ -21,26 +23,10 @@ function Shell() {
     document.querySelector('.scroll-y')?.scrollTo({ top: 0 });
   }, [active]);
 
-  if (loading) {
-    return (
-      <div
-        style={{
-          padding: 'calc(var(--safe-top, 0px) + 16px) 16px 16px',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 12,
-        }}
-      >
-        <div className="skel" style={{ height: 46, borderRadius: 14 }} />
-        <div className="skel" style={{ height: 160, borderRadius: 18 }} />
-        <div className="skel" style={{ height: 60, borderRadius: 14 }} />
-        <div className="skel" style={{ height: 90, borderRadius: 14 }} />
-      </div>
-    );
-  }
-
   return (
     <>
+      <VinylLoader isLoading={loading} statusText="Синхронизация битов..." />
+
       <main
         className="scroll-y"
         style={{

@@ -179,3 +179,201 @@ button {
     transform: translateY(0);
   }
 }
+
+/* ==========================================================================
+   Motion System: 60 FPS Telegram WebApp GPU-accelerated Keyframes & Utilities
+   Uses only composite properties: transform (3d) & opacity
+   ========================================================================== */
+
+/* Vinyl Spin & Glow */
+@keyframes vinyl-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin-vinyl {
+  animation: vinyl-spin 3s linear infinite;
+  will-change: transform;
+  transform-origin: center center;
+}
+
+@keyframes vinyl-ambient-pulse {
+  0%, 100% {
+    opacity: 0.22;
+    transform: scale(0.96) translate3d(0, 0, 0);
+  }
+  50% {
+    opacity: 0.38;
+    transform: scale(1.08) translate3d(0, 0, 0);
+  }
+}
+
+.animate-vinyl-ambient {
+  animation: vinyl-ambient-pulse 3.2s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+/* Staggered entrance: cubic-bezier(0.22, 1, 0.36, 1) */
+@keyframes stagger-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 12px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.stagger-item {
+  opacity: 0;
+  animation: stagger-in 0.42s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: var(--stagger-delay, 0ms);
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+}
+
+/* Sheen / Shimmer light sweep for CTA and premium elements (runs every ~5s) */
+@keyframes sheen-sweep {
+  0%, 15% {
+    transform: translate3d(-130%, 0, 0) skewX(-20deg);
+  }
+  45%, 100% {
+    transform: translate3d(240%, 0, 0) skewX(-20deg);
+  }
+}
+
+.sheen-overlay {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.sheen-sweep {
+  position: absolute;
+  top: -20%;
+  bottom: -20%;
+  width: 48%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.02) 20%,
+    rgba(255, 255, 255, 0.28) 50%,
+    rgba(255, 255, 255, 0.02) 80%,
+    transparent 100%
+  );
+  transform: translate3d(-130%, 0, 0) skewX(-20deg);
+  animation: sheen-sweep 4.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  will-change: transform;
+  pointer-events: none;
+}
+
+/* Animated Mesh / Gradient Border for high-priority cards */
+@keyframes border-gradient-shift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.glow-card-border {
+  position: relative;
+  background: var(--color-surface);
+  border-radius: 18px;
+  isolation: isolate;
+}
+
+.glow-card-border::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: 19px;
+  padding: 1px;
+  background: linear-gradient(
+    115deg,
+    rgba(192, 160, 168, 0.42) 0%,
+    rgba(140, 226, 200, 0.32) 45%,
+    rgba(243, 201, 105, 0.38) 75%,
+    rgba(192, 160, 168, 0.42) 100%
+  );
+  background-size: 250% 250%;
+  animation: border-gradient-shift 8s ease infinite;
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.glow-card-ambient {
+  position: absolute;
+  inset: 0;
+  border-radius: 18px;
+  background: radial-gradient(
+    circle at 50% 0%,
+    color-mix(in srgb, var(--brand-mauve) 20%, transparent) 0%,
+    transparent 70%
+  );
+  filter: blur(16px);
+  opacity: 0.25;
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* Splash Screen Exit animation */
+@keyframes splash-fade-scale {
+  from {
+    opacity: 1;
+    transform: scale(1) translate3d(0, 0, 0);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.05) translate3d(0, 0, 0);
+    visibility: hidden;
+  }
+}
+
+.animate-splash-exit {
+  animation: splash-fade-scale 0.38s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  will-change: transform, opacity;
+  pointer-events: none !important;
+}
+
+/* Accessibility: respect prefers-reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+  .stagger-item {
+    opacity: 1 !important;
+    transform: none !important;
+    animation: none !important;
+  }
+  .sheen-sweep {
+    display: none !important;
+  }
+  .animate-spin-vinyl {
+    animation: none !important;
+  }
+  .glow-card-border::before {
+    animation: none !important;
+  }
+  .animate-splash-exit {
+    display: none !important;
+  }
+}

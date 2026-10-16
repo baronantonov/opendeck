@@ -2,10 +2,12 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp, COURSE_LESSONS } from '../state/store';
 import { ARCHETYPES, mentorPrices } from '../lib/constants';
-import { Button, Card, ProgressBar, Star } from '../components/ui';
+import { Button, Card, ProgressBar } from '../components/ui';
 import { haptic } from '../lib/theme';
 import { HorizontalDeckModal } from '../components/deck/HorizontalDeckModal';
 import { MentorPay } from '../payment/Paywall';
+
+import { ProfileWidget } from '../components/profile/ProfileWidget';
 
 export function Home() {
   const nav = useNavigate();
@@ -25,46 +27,8 @@ export function Home() {
 
   return (
     <div style={{ padding: '16px 16px 24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
-      {/* User Header */}
-      <header style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-        <div
-          className="user-avatar"
-          style={{
-            width: 48,
-            height: 48,
-            borderRadius: 15,
-            background: 'var(--brand-mauve)',
-            color: '#1d1f1e',
-            display: 'grid',
-            placeItems: 'center',
-            fontWeight: 800,
-            fontSize: 19,
-            flexShrink: 0,
-          }}
-        >
-          {user.name[0] || 'D'}
-        </div>
-        <div style={{ flex: 1, overflow: 'hidden' }}>
-          <div style={{ fontSize: 12, color: 'var(--color-text-dim)' }}>Привет,</div>
-          <div style={{ fontWeight: 800, fontSize: 16, whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
-            {user.name}
-          </div>
-        </div>
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 5,
-            background: 'color-mix(in srgb, var(--brand-gold) 12%, var(--color-surface))',
-            border: '1px solid color-mix(in srgb, var(--brand-gold) 24%, transparent)',
-            padding: '6px 12px',
-            borderRadius: 99,
-          }}
-        >
-          <Star size={14} />
-          <b style={{ fontSize: 13, color: 'var(--brand-gold)' }}>{user.groovePoints} GP</b>
-        </div>
-      </header>
+      {/* Profile Header Widget */}
+      <ProfileWidget />
 
       {/* Dashboard Hero Banner */}
       <Card

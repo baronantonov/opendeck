@@ -114,13 +114,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const tu = (window as any).Telegram?.WebApp?.initDataUnsafe?.user;
       setUser({
         name: tu?.first_name || 'Антон',
+        lastName: tu?.last_name || 'Евдокимов',
+        username: tu?.username || 'baronantonov',
         archetype: 'Куратор Вайба',
         groovePoints: 120,
         referralCode: 'DJ2026',
         referralFriends: 2,
         referralGpEarned: 40,
         bonusLessons: 1,
-        photoUrl: '',
+        photoUrl: tu?.photo_url || '',
+        isPremium: Boolean(tu?.is_premium),
       });
       setCourse({
         currentLessonId: 1,
@@ -133,6 +136,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     setLoading(true);
     try {
+      const tu = (window as any).Telegram?.WebApp?.initDataUnsafe?.user;
       const sp =
         (window as any).Telegram?.WebApp?.initDataUnsafe?.start_param || null;
       setStartParam(sp);
@@ -156,8 +160,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
           referralGpEarned: init.user.referral_gp_earned ?? 0,
           bonusLessons: init.user.bonus_lessons ?? 0,
           archetype: init.user.archetype || 'Куратор Вайба',
-          name: init.user.first_name || user.name,
-          photoUrl: init.user.photo_url || '',
+          name: tu?.first_name || init.user.first_name || user.name,
+          lastName: tu?.last_name || '',
+          username: tu?.username || init.user.username || '',
+          photoUrl: tu?.photo_url || init.user.photo_url || '',
+          isPremium: Boolean(tu?.is_premium),
         });
         setCourse({
           completedLessons: (init.course.completed_lessons || []).slice(),
@@ -173,6 +180,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
           referralGpEarned: profile.referral_gp_earned ?? 0,
           bonusLessons: profile.bonus_lessons ?? 0,
           archetype: profile.archetype || 'Куратор Вайба',
+          name: tu?.first_name || profile.user?.first_name || user.name,
+          lastName: tu?.last_name || '',
+          username: tu?.username || profile.user?.username || '',
+          photoUrl: tu?.photo_url || profile.user?.photo_url || '',
+          isPremium: Boolean(tu?.is_premium),
         });
       }
 

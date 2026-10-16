@@ -136,3 +136,28 @@ export function mentorStarsPrice(gp: number): number {
 }
 
 export const ADMIN_ID = 285754501;
+
+export interface RankDef {
+  title: string;
+  minGp: number;
+  tag: string;
+  desc: string;
+}
+
+export const DJ_RANKS: RankDef[] = [
+  { title: 'Bedroom DJ', minGp: 0, tag: 'LVL 1', desc: 'Первые шаги за деками и знакомство с софтом' },
+  { title: 'Beatmatcher', minGp: 100, tag: 'LVL 2', desc: 'Чувствуешь BPM, сетку и синхронизацию' },
+  { title: 'Groove Selector', minGp: 250, tag: 'LVL 3', desc: 'Мастер лупов, Beat Jump и переходов' },
+  { title: 'Club Resident', minGp: 450, tag: 'LVL 4', desc: 'Собрал свой первый сет и держишь танцпол' },
+  { title: 'Festival Headliner', minGp: 700, tag: 'LVL 5', desc: 'Высший ранг Open Deck DJ School' },
+];
+
+export function getUserRank(gp: number): RankDef {
+  let rank = DJ_RANKS[0];
+  for (const r of DJ_RANKS) {
+    if (gp >= r.minGp) {
+      rank = r;
+    }
+  }
+  return rank;
+}

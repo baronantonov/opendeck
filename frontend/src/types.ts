@@ -7,6 +7,8 @@ export interface Lesson {
 
 export interface User {
   name: string;
+  lastName?: string;
+  username?: string;
   archetype: string;
   groovePoints: number;
   referralCode: string;
@@ -14,6 +16,7 @@ export interface User {
   referralGpEarned: number;
   bonusLessons: number;
   photoUrl: string;
+  isPremium?: boolean;
 }
 
 export interface CourseProgress {

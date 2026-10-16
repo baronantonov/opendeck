@@ -45,7 +45,7 @@ export function BottomSheet({
           borderTopRightRadius: 22,
           borderTop: '1px solid color-mix(in srgb, var(--color-text) 12%, transparent)',
           padding: '18px 16px 24px',
-          maxHeight: '86vh',
+          maxHeight: 'calc(100vh - var(--safe-top, 0px) - 24px)',
           overflowY: 'auto',
         }}
       >

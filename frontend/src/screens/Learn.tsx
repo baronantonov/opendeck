@@ -587,7 +587,7 @@ export function Learn() {
               borderTopLeftRadius: 24,
               borderTopRightRadius: 24,
               padding: '20px 16px 28px',
-              maxHeight: '90vh',
+              maxHeight: 'calc(100vh - var(--safe-top, 0px) - 24px)',
               overflowY: 'auto',
             }}
             onClick={(e) => e.stopPropagation()}

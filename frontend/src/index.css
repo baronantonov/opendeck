@@ -47,6 +47,16 @@
   --safe-top: env(safe-area-inset-top, 0px);
 }
 
+html.tg-fullscreen {
+  --safe-top: 78px;
+}
+
+@supports (padding-top: env(safe-area-inset-top)) {
+  html.tg-fullscreen {
+    --safe-top: max(env(safe-area-inset-top, 0px), 78px);
+  }
+}
+
 * {
   -webkit-tap-highlight-color: transparent;
   box-sizing: border-box;

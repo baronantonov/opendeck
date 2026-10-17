@@ -453,6 +453,17 @@ button {
   animation: badge-shake 0.45s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
 }
 
+/* Linear progress countdown for Market 8s popup */
+@keyframes market-countdown {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+
+
 /* 8. Accessibility: graceful degradation on reduced motion */
 @media (prefers-reduced-motion: reduce) {
   .animate-spin-vinyl {

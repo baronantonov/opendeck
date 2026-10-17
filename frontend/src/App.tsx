@@ -10,6 +10,7 @@ import { ExitConfirmModal } from './components/ExitConfirmModal';
 import { HomeScreenBanner } from './components/HomeScreenBanner';
 import { Home } from './screens/Home';
 import { Learn } from './screens/Learn';
+import { TribeScreen } from './screens/TribeScreen';
 import { Profile } from './screens/Profile';
 import { VinylLoader } from './components/VinylLoader';
 
@@ -54,6 +55,7 @@ function Shell() {
           <Route path="/course" element={<Navigate to="/learn" replace />} />
           <Route path="/bonus" element={<Navigate to="/learn" replace />} />
           <Route path="/mentor" element={<Navigate to="/learn" replace />} />
+          <Route path="/tribe" element={<TribeScreen key={active} />} />
           <Route path="/profile" element={<Profile key={active} />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

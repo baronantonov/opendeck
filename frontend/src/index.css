@@ -421,7 +421,39 @@ button {
   transition: transform 0.08s ease;
 }
 
-/* 6. Accessibility: graceful degradation on reduced motion */
+/* 7. Accordion Grid & Badge Shake System */
+.accordion-grid {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.32s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.accordion-grid.open {
+  grid-template-rows: 1fr;
+}
+
+.accordion-content-overflow {
+  overflow: hidden;
+  min-height: 0;
+}
+
+@keyframes badge-shake {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  20%, 60% {
+    transform: translateX(-4px);
+  }
+  40%, 80% {
+    transform: translateX(4px);
+  }
+}
+
+.animate-badge-shake {
+  animation: badge-shake 0.45s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+
+/* 8. Accessibility: graceful degradation on reduced motion */
 @media (prefers-reduced-motion: reduce) {
   .animate-spin-vinyl {
     animation: none !important;
@@ -433,4 +465,11 @@ button {
   .dj-play-btn--active {
     animation: none !important;
   }
+  .accordion-grid {
+    transition: none !important;
+  }
+  .animate-badge-shake {
+    animation: none !important;
+  }
 }
+

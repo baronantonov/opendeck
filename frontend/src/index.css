@@ -45,20 +45,32 @@
   color-scheme: light dark;
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --safe-top: env(safe-area-inset-top, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
   --app-safe-bottom: env(safe-area-inset-bottom, 0px);
   --app-safe-top: env(safe-area-inset-top, 0px);
+  --app-safe-left: env(safe-area-inset-left, 0px);
+  --app-safe-right: env(safe-area-inset-right, 0px);
   --tabbar-height: 68px;
 }
 
 html.tg-fullscreen {
   --safe-top: 78px;
   --app-safe-top: 78px;
+  --safe-bottom: 16px;
+  --app-safe-bottom: 16px;
 }
 
 @supports (padding-top: env(safe-area-inset-top)) {
   html.tg-fullscreen {
     --safe-top: max(env(safe-area-inset-top, 0px), 78px);
     --app-safe-top: max(env(safe-area-inset-top, 0px), 78px);
+    --safe-bottom: max(env(safe-area-inset-bottom, 0px), 16px);
+    --app-safe-bottom: max(env(safe-area-inset-bottom, 0px), 16px);
+    --safe-left: env(safe-area-inset-left, 0px);
+    --safe-right: env(safe-area-inset-right, 0px);
+    --app-safe-left: env(safe-area-inset-left, 0px);
+    --app-safe-right: env(safe-area-inset-right, 0px);
   }
 }
 

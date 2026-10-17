@@ -31,6 +31,8 @@ export function getCombinedSafeArea(): TelegramSafeAreaInset {
   // contentSafeAreaInset в Bot API 8.0+ содержит отступ под системные контролы Telegram (✕, ..., стрелка)
   let top = Math.max(Number(content.top || 0), Number(device.top || 0));
   let bottom = Math.max(Number(device.bottom || 0), Number(content.bottom || 0));
+  const left = Math.max(Number(device.left || 0), Number(content.left || 0));
+  const right = Math.max(Number(device.right || 0), Number(content.right || 0));
 
   // Fallback для полноэкранного режима при первой загрузке (пока Telegram WebView асинхронно передает insets)
   if (isFullscreen && top < 70) {
@@ -43,8 +45,8 @@ export function getCombinedSafeArea(): TelegramSafeAreaInset {
   return {
     top,
     bottom,
-    left: device.left || 0,
-    right: device.right || 0,
+    left,
+    right,
   };
 }
 
@@ -81,9 +83,13 @@ export function useTelegramInit(): TelegramInitState {
       // Основные CSS-переменные по ТЗ
       root.style.setProperty('--app-safe-top', `${insets.top}px`);
       root.style.setProperty('--app-safe-bottom', `${insets.bottom}px`);
+      root.style.setProperty('--app-safe-left', `${insets.left}px`);
+      root.style.setProperty('--app-safe-right', `${insets.right}px`);
       // Обратная совместимость для существующих компонентов
       root.style.setProperty('--safe-top', `${insets.top}px`);
       root.style.setProperty('--safe-bottom', `${insets.bottom}px`);
+      root.style.setProperty('--safe-left', `${insets.left}px`);
+      root.style.setProperty('--safe-right', `${insets.right}px`);
 
       if (isFs) {
         root.classList.add('tg-fullscreen');

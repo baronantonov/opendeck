@@ -43,7 +43,9 @@ export function calculateSafeAreaInsets(): SafeAreaInsets {
 
   // contentSafeAreaInset в Telegram 8.0+ содержит высоту под системные кнопки Telegram
   let top = Math.max(Number(content.top || 0), Number(device.top || 0));
-  const bottom = Math.max(Number(device.bottom || 0), Number(content.bottom || 0));
+  let bottom = Math.max(Number(device.bottom || 0), Number(content.bottom || 0));
+  const left = Math.max(Number(device.left || 0), Number(content.left || 0));
+  const right = Math.max(Number(device.right || 0), Number(content.right || 0));
 
   // Если включен Fullscreen, но Telegram API еще не передал точные значения (асинхронный баг WebView),
   // выставляем проверенный fallback под плашку контролов Telegram:
@@ -52,19 +54,22 @@ export function calculateSafeAreaInsets(): SafeAreaInsets {
   if (isFullscreen && top < 70) {
     top = isIos ? 98 : 78;
   }
+  if (isIos && bottom === 0 && isFullscreen) {
+    bottom = 20;
+  }
 
   return {
     top,
     bottom,
-    left: device.left || 0,
-    right: device.right || 0,
+    left,
+    right,
     isFullscreen,
   };
 }
 
 /**
  * Реактивный хук Safe Area для Telegram Mini App:
- * 1. Вычисляет актуальный отступ и записывает его в CSS-переменные --safe-top и --safe-bottom на :root.
+ * 1. Вычисляет актуальный отступ и записывает его в CSS-переменные --safe-* и --app-safe-* на :root.
  * 2. Подписывается на события Telegram: safeAreaChanged, contentSafeAreaChanged, fullscreenChanged, viewportChanged.
  * 3. Выполняет быстрый начальный поллинг, чтобы избежать задержек при открытии приложения.
  */
@@ -79,12 +84,19 @@ export function useSafeArea(): SafeAreaInsets {
       setInsets(next);
 
       if (typeof document !== 'undefined') {
-        document.documentElement.style.setProperty('--safe-top', `${next.top}px`);
-        document.documentElement.style.setProperty('--safe-bottom', `${next.bottom}px`);
+        const root = document.documentElement;
+        root.style.setProperty('--safe-top', `${next.top}px`);
+        root.style.setProperty('--safe-bottom', `${next.bottom}px`);
+        root.style.setProperty('--safe-left', `${next.left}px`);
+        root.style.setProperty('--safe-right', `${next.right}px`);
+        root.style.setProperty('--app-safe-top', `${next.top}px`);
+        root.style.setProperty('--app-safe-bottom', `${next.bottom}px`);
+        root.style.setProperty('--app-safe-left', `${next.left}px`);
+        root.style.setProperty('--app-safe-right', `${next.right}px`);
         if (next.isFullscreen) {
-          document.documentElement.classList.add('tg-fullscreen');
+          root.classList.add('tg-fullscreen');
         } else {
-          document.documentElement.classList.remove('tg-fullscreen');
+          root.classList.remove('tg-fullscreen');
         }
       }
     };

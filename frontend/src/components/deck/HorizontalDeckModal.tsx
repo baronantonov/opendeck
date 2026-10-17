@@ -8,6 +8,7 @@ import { triggerCelebrationConfetti } from '../ConfettiEffect';
 import type { Lesson } from '../../types';
 import { drawOverview, drawVertical, generateTrack, isKickAt, levelAt, TrackWave } from './waveform';
 import { useRegisterModal } from '../../lib/navigation';
+import { useSafeArea } from '../../lib/safeArea';
 
 interface HorizontalDeckModalProps {
   isOpen: boolean;
@@ -246,7 +247,11 @@ export const HorizontalDeckModal: React.FC<HorizontalDeckModalProps> = ({ isOpen
   const meterA = useRef<HTMLDivElement>(null);
   const meterB = useRef<HTMLDivElement>(null);
 
+  const safeArea = useSafeArea();
   const containerRef = useRef<HTMLDivElement>(null);
+  const safeViewportRef = useRef<HTMLDivElement>(null);
+  const crossfaderTrackRef = useRef<HTMLDivElement>(null);
+  const isDraggingXf = useRef(false);
   const [frameSize, setFrameSize] = useState({ w: 0, h: 0 });
   const [portrait, setPortrait] = useState(false);
   const [flip180, setFlip180] = useState(false);
@@ -254,13 +259,15 @@ export const HorizontalDeckModal: React.FC<HorizontalDeckModalProps> = ({ isOpen
   useRegisterModal('horizontal-deck-modal', isOpen, onClose);
 
   useEffect(() => {
-    if (!containerRef.current) return;
+    if (!safeViewportRef.current) return;
     const observer = new ResizeObserver((entries) => {
       const { width, height } = entries[0].contentRect;
-      setFrameSize({ w: width, h: height });
-      setPortrait(height > width);
+      if (width > 0 && height > 0) {
+        setFrameSize({ w: width, h: height });
+        setPortrait(height > width);
+      }
     });
-    observer.observe(containerRef.current);
+    observer.observe(safeViewportRef.current);
     return () => observer.disconnect();
   }, [isOpen]);
 
@@ -393,7 +400,7 @@ export const HorizontalDeckModal: React.FC<HorizontalDeckModalProps> = ({ isOpen
     }
   };
 
-  const handleSuccessfulBeatmatch = () => {
+  const handleSuccessfulBeatmatch = useCallback(() => {
     claimedRef.current = true;
     setIsMatched(true);
     haptic.success();
@@ -402,19 +409,97 @@ export const HorizontalDeckModal: React.FC<HorizontalDeckModalProps> = ({ isOpen
     window.setTimeout(() => {
       onClose();
     }, 2500);
+  }, [completeLesson, haptic, onClose]);
+
+  const updateCrossfaderFromPointer = useCallback(
+    (clientX: number, clientY: number) => {
+      const track = crossfaderTrackRef.current;
+      if (!track) return;
+      const rect = track.getBoundingClientRect();
+
+      let val = 0;
+      // Если дорожка фейдера на экране ориентирована вертикально (высота больше ширины, например в повернутом portrait-режиме)
+      if (rect.height > rect.width) {
+        // При обычном portrait (rotate 90deg): верх фейдера на экране (top) — это дека A (0), низ (bottom) — это дека B (1)
+        // При flip180 (rotate -90deg): дека A находится снизу, дека B сверху
+        const raw = flip180
+          ? (rect.bottom - clientY) / rect.height
+          : (clientY - rect.top) / rect.height;
+        val = Math.max(0, Math.min(1, raw));
+      } else {
+        // Горизонтальный фейдер на экране (landscape или десктоп)
+        const raw = (clientX - rect.left) / rect.width;
+        val = Math.max(0, Math.min(1, raw));
+      }
+
+      xfRef.current = val;
+      setCrossfader(val);
+      audioEngine.setCrossfader(val);
+
+      if (
+        Math.abs(val - lastHapticXf.current) > 0.05 ||
+        (val >= 0.48 && val <= 0.52 && Math.abs(0.5 - lastHapticXf.current) > 0.02)
+      ) {
+        lastHapticXf.current = val;
+        haptic.selection();
+      }
+
+      const r = rt.current;
+      if (!claimedRef.current && r.A.playing && r.B.playing && val >= 0.45 && val <= 0.55) {
+        handleSuccessfulBeatmatch();
+      }
+    },
+    [flip180, haptic, handleSuccessfulBeatmatch],
+  );
+
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    isDraggingXf.current = true;
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {}
+    updateCrossfaderFromPointer(e.clientX, e.clientY);
   };
 
-  const handleCrossfader = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const v = parseFloat(e.target.value);
-    xfRef.current = v;
-    setCrossfader(v);
-    audioEngine.setCrossfader(v);
-    if (Math.abs(v - lastHapticXf.current) > 0.06) {
-      lastHapticXf.current = v;
-      haptic.selection();
-    }
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isDraggingXf.current && e.buttons === 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+    updateCrossfaderFromPointer(e.clientX, e.clientY);
+  };
+
+  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isDraggingXf.current) return;
+    isDraggingXf.current = false;
+    try {
+      if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+        e.currentTarget.releasePointerCapture(e.pointerId);
+      }
+    } catch {}
+  };
+
+  const handlePointerCancel = (e: React.PointerEvent<HTMLDivElement>) => {
+    isDraggingXf.current = false;
+    try {
+      if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+        e.currentTarget.releasePointerCapture(e.pointerId);
+      }
+    } catch {}
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    let next = crossfader;
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') next = Math.max(0, crossfader - 0.05);
+    else if (e.key === 'ArrowRight' || e.key === 'ArrowDown') next = Math.min(1, crossfader + 0.05);
+    else return;
+    e.preventDefault();
+    xfRef.current = next;
+    setCrossfader(next);
+    audioEngine.setCrossfader(next);
+    haptic.selection();
     const r = rt.current;
-    if (!claimedRef.current && r.A.playing && r.B.playing && v >= 0.45 && v <= 0.55) {
+    if (!claimedRef.current && r.A.playing && r.B.playing && next >= 0.45 && next <= 0.55) {
       handleSuccessfulBeatmatch();
     }
   };
@@ -428,7 +513,12 @@ export const HorizontalDeckModal: React.FC<HorizontalDeckModalProps> = ({ isOpen
       : step === 'play_b'
       ? { text: 'Шаг 2 · Нажми PLAY на правой деке', color: ORANGE }
       : step === 'crossfade'
-      ? { text: 'Шаг 3 · Двигай кроссфейдер к центру — введи второй трек', color: '#8ce2c8' }
+      ? {
+          text: portrait
+            ? 'Шаг 3 · Свайпай фейдер к центру — введи второй трек'
+            : 'Шаг 3 · Двигай кроссфейдер к центру — введи второй трек',
+          color: '#8ce2c8',
+        }
       : null;
 
   const frameStyle: React.CSSProperties = portrait
@@ -440,7 +530,7 @@ export const HorizontalDeckModal: React.FC<HorizontalDeckModalProps> = ({ isOpen
         height: `${frameSize.w}px`,
         transform: `translate(-50%, -50%) rotate(${flip180 ? -90 : 90}deg)`,
       }
-    : { position: 'absolute', inset: 0 };
+    : { position: 'relative', width: '100%', height: '100%' };
 
   const playBtn = (d: DeckId, playing: boolean, coach: boolean) => (
     <button
@@ -501,168 +591,191 @@ export const HorizontalDeckModal: React.FC<HorizontalDeckModalProps> = ({ isOpen
     <div
       ref={containerRef}
       className="fixed inset-0 z-50 touch-none select-none overflow-hidden bg-black"
-      style={{ fontFamily: '"Helvetica Neue", Roboto, "Segoe UI", Arial, sans-serif' }}
+      style={{
+        paddingTop: `max(env(safe-area-inset-top, 0px), var(--app-safe-top, ${safeArea.top}px))`,
+        paddingBottom: `max(env(safe-area-inset-bottom, 0px), var(--app-safe-bottom, ${safeArea.bottom}px))`,
+        paddingLeft: `max(env(safe-area-inset-left, 0px), var(--app-safe-left, ${safeArea.left}px))`,
+        paddingRight: `max(env(safe-area-inset-right, 0px), var(--app-safe-right, ${safeArea.right}px))`,
+        fontFamily: '"Helvetica Neue", Roboto, "Segoe UI", Arial, sans-serif',
+      }}
     >
-      <div style={frameStyle} className="flex flex-col overflow-hidden bg-black text-[#d6d6d6]">
-        {/* ============ ROW 1 · track info + overview waveforms ============ */}
-        <div className="flex shrink-0 items-stretch gap-2 px-2 pt-[0.8%]" style={{ height: '15%' }}>
-          <div className="aspect-square h-full shrink-0 overflow-hidden rounded-[2px]">
-            <VinylArt />
-          </div>
-          {header('A')}
-          <div className="flex shrink-0 items-center justify-center gap-1.5">
-            <button
-              onClick={onClose}
-              title="Выйти из пульта"
-              className="flex h-[76%] min-h-[36px] items-center justify-center gap-1.5 rounded-[4px] border border-[#5a5a5a] bg-[#2c2c2c] px-2.5 text-[11px] font-bold text-white hover:bg-[#3a3a3a] active:scale-95 shadow-md"
-            >
-              <div className="h-4 w-4 flex items-center justify-center">
-                <RekordboxLogo />
-              </div>
-              <span className="text-xs font-black text-[#f5926e]">✕</span>
-              <span className="text-[10px] tracking-wider uppercase">ВЫХОД</span>
-            </button>
-            {portrait && (
+      <div
+        ref={safeViewportRef}
+        className="relative flex h-full w-full items-center justify-center overflow-hidden p-1 sm:p-2"
+      >
+        <div style={frameStyle} className="flex flex-col overflow-hidden bg-black text-[#d6d6d6]">
+          {/* ============ ROW 1 · track info + overview waveforms ============ */}
+          <div className="flex shrink-0 items-stretch gap-2 px-3 pt-1.5" style={{ height: '15%' }}>
+            <div className="aspect-square h-full shrink-0 overflow-hidden rounded-[2px]">
+              <VinylArt />
+            </div>
+            {header('A')}
+            <div className="flex shrink-0 items-center justify-center gap-1.5">
               <button
-                onClick={() => {
-                  haptic.light();
-                  setFlip180((f) => !f);
-                }}
-                title="Повернуть на 180°"
-                className="flex h-[76%] min-h-[36px] px-1.5 items-center justify-center rounded-[4px] border border-[#4a4a4a] bg-[#2c2c2c] text-[10px] font-bold text-[#bbb] active:bg-[#3a3a3a]"
+                onClick={onClose}
+                title="Выйти из пульта"
+                className="flex h-[76%] min-h-[36px] items-center justify-center gap-1.5 rounded-[4px] border border-[#5a5a5a] bg-[#2c2c2c] px-2.5 text-[11px] font-bold text-white hover:bg-[#3a3a3a] active:scale-95 shadow-md"
               >
-                180°
+                <div className="h-4 w-4 flex items-center justify-center">
+                  <RekordboxLogo />
+                </div>
+                <span className="text-xs font-black text-[#f5926e]">✕</span>
+                <span className="text-[10px] tracking-wider uppercase">ВЫХОД</span>
               </button>
-            )}
+              {portrait && (
+                <button
+                  onClick={() => {
+                    haptic.light();
+                    setFlip180((f) => !f);
+                  }}
+                  title="Повернуть на 180°"
+                  className="flex h-[76%] min-h-[36px] px-1.5 items-center justify-center rounded-[4px] border border-[#4a4a4a] bg-[#2c2c2c] text-[10px] font-bold text-[#bbb] active:bg-[#3a3a3a]"
+                >
+                  180°
+                </button>
+              )}
+            </div>
+            {header('B')}
+            <div className="aspect-square h-full shrink-0 overflow-hidden rounded-[2px]">
+              <VinylArt />
+            </div>
           </div>
-          {header('B')}
-          <div className="aspect-square h-full shrink-0 overflow-hidden rounded-[2px]">
-            <VinylArt />
-          </div>
-        </div>
 
-        {/* ============ ROW 2 · BPM / key / mixer ============ */}
-        <div className="flex shrink-0 items-center justify-between px-2" style={{ height: '12%' }}>
-          <BpmBox keyName={TRACKS.A.key} />
-          <div className="flex h-full items-center gap-3">
-            <button className="flex aspect-square h-[72%] items-center justify-center rounded-[3px] bg-[#383838]" onClick={() => haptic.light()}>
-              <MixerIcon />
-            </button>
-            <div className="flex h-[72%] gap-[5px]">
-              {[meterA, meterB].map((ref, i) => (
-                <div key={i} className="relative h-full w-[5px] overflow-hidden rounded-[1px] bg-[#1e1e1e]">
-                  <div
-                    ref={ref}
-                    className="absolute bottom-0 left-0 right-0"
-                    style={{ height: '0%', background: 'linear-gradient(to top, #2fbf4a 0%, #2fbf4a 55%, #f2d01c 78%, #ff3b30 100%)', backgroundSize: '100% 100%' }}
-                  />
+          {/* ============ ROW 2 · BPM / key / mixer ============ */}
+          <div className="flex shrink-0 items-center justify-between px-3" style={{ height: '12%' }}>
+            <BpmBox keyName={TRACKS.A.key} />
+            <div className="flex h-full items-center gap-3">
+              <button className="flex aspect-square h-[72%] items-center justify-center rounded-[3px] bg-[#383838]" onClick={() => haptic.light()}>
+                <MixerIcon />
+              </button>
+              <div className="flex h-[72%] gap-[5px]">
+                {[meterA, meterB].map((ref, i) => (
+                  <div key={i} className="relative h-full w-[5px] overflow-hidden rounded-[1px] bg-[#1e1e1e]">
+                    <div
+                      ref={ref}
+                      className="absolute bottom-0 left-0 right-0"
+                      style={{ height: '0%', background: 'linear-gradient(to top, #2fbf4a 0%, #2fbf4a 55%, #f2d01c 78%, #ff3b30 100%)', backgroundSize: '100% 100%' }}
+                    />
+                  </div>
+                ))}
+              </div>
+              <button className="flex aspect-square h-[72%] items-center justify-center rounded-[3px] bg-[#383838]" onClick={() => haptic.light()}>
+                <PadIcon className="h-[40%] w-[64%]" />
+              </button>
+            </div>
+            <BpmBox mirrored keyName={TRACKS.B.key} />
+          </div>
+
+          {/* ============ MAIN · side buttons, jogs, vertical waveforms ============ */}
+          <div className="relative flex min-h-0 flex-1 items-center gap-1 px-3">
+            {sideButtons('A')}
+            <div className="flex h-full min-w-0 flex-1 items-center justify-center py-[1.2%]">
+              <JogWheel id="A" markerRef={jogA} ringRef={ringA} highlight={step === 'play_a'} onTouch={() => haptic.light()} />
+            </div>
+
+            <div className="flex h-full shrink-0 gap-[6px] py-[0.8%]" style={{ width: '17%' }}>
+              {(['A', 'B'] as DeckId[]).map((d) => (
+                <div key={d} className="flex min-w-0 flex-1 flex-col">
+                  <canvas ref={d === 'A' ? vA : vB} className="block min-h-0 w-full flex-1" />
+                  <span ref={d === 'A' ? barsA : barsB} className="pt-[2px] text-center text-[9px] leading-none tabular-nums text-[#3d8bff]">
+                    --.- Bars
+                  </span>
                 </div>
               ))}
             </div>
-            <button className="flex aspect-square h-[72%] items-center justify-center rounded-[3px] bg-[#383838]" onClick={() => haptic.light()}>
-              <PadIcon className="h-[40%] w-[64%]" />
-            </button>
-          </div>
-          <BpmBox mirrored keyName={TRACKS.B.key} />
-        </div>
 
-        {/* ============ MAIN · side buttons, jogs, vertical waveforms ============ */}
-        <div className="relative flex min-h-0 flex-1 items-center gap-1 px-2">
-          {sideButtons('A')}
-          <div className="flex h-full min-w-0 flex-1 items-center justify-center py-[1.2%]">
-            <JogWheel id="A" markerRef={jogA} ringRef={ringA} highlight={step === 'play_a'} onTouch={() => haptic.light()} />
-          </div>
-
-          <div className="flex h-full shrink-0 gap-[6px] py-[0.8%]" style={{ width: '17%' }}>
-            {(['A', 'B'] as DeckId[]).map((d) => (
-              <div key={d} className="flex min-w-0 flex-1 flex-col">
-                <canvas ref={d === 'A' ? vA : vB} className="block min-h-0 w-full flex-1" />
-                <span ref={d === 'A' ? barsA : barsB} className="pt-[2px] text-center text-[9px] leading-none tabular-nums text-[#3d8bff]">
-                  --.- Bars
-                </span>
-              </div>
-            ))}
-          </div>
-
-          <div className="flex h-full min-w-0 flex-1 items-center justify-center py-[1.2%]">
-            <JogWheel id="B" markerRef={jogB} ringRef={ringB} highlight={step === 'play_b'} onTouch={() => haptic.light()} />
-          </div>
-          {sideButtons('B')}
-
-          {/* Coach-mark hint */}
-          {hint && (
-            <div className="pointer-events-none absolute bottom-[3%] left-1/2 z-20 -translate-x-1/2 whitespace-nowrap">
-              <div
-                className="animate-pulse rounded-full border bg-black/85 px-3.5 py-1 text-[11px] font-semibold"
-                style={{ borderColor: hint.color, color: hint.color, boxShadow: `0 0 14px ${hint.color}55` }}
-              >
-                {hint.text}
-              </div>
+            <div className="flex h-full min-w-0 flex-1 items-center justify-center py-[1.2%]">
+              <JogWheel id="B" markerRef={jogB} ringRef={ringB} highlight={step === 'play_b'} onTouch={() => haptic.light()} />
             </div>
-          )}
+            {sideButtons('B')}
 
-          {/* Success flash */}
-          {isMatched && (
-            <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center">
-              <div className="absolute inset-0 animate-pulse bg-[#8ce2c8]/10" />
-              <div className="relative flex items-center gap-3 rounded-2xl border-2 border-[#8ce2c8] bg-black/85 px-5 py-3 shadow-[0_0_40px_rgba(140,226,200,0.55)]">
-                <CheckCircle2 className="h-6 w-6 shrink-0 text-[#8ce2c8]" />
-                <div>
-                  <div className="text-sm font-bold text-white">Твоё первое сведение — поздравляю! 🎉</div>
-                  <div className="mt-0.5 flex items-center gap-1 text-xs font-bold text-[#8ce2c8]">
-                    <Sparkles className="h-3.5 w-3.5" /> +50 GP
+            {/* Coach-mark hint */}
+            {hint && (
+              <div className="pointer-events-none absolute bottom-[3%] left-1/2 z-20 -translate-x-1/2 whitespace-nowrap">
+                <div
+                  className="animate-pulse rounded-full border bg-black/85 px-3.5 py-1 text-[11px] font-semibold shadow-lg"
+                  style={{ borderColor: hint.color, color: hint.color, boxShadow: `0 0 14px ${hint.color}55` }}
+                >
+                  {hint.text}
+                </div>
+              </div>
+            )}
+
+            {/* Success flash */}
+            {isMatched && (
+              <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center">
+                <div className="absolute inset-0 animate-pulse bg-[#8ce2c8]/10" />
+                <div className="relative flex items-center gap-3 rounded-2xl border-2 border-[#8ce2c8] bg-black/85 px-5 py-3 shadow-[0_0_40px_rgba(140,226,200,0.55)]">
+                  <CheckCircle2 className="h-6 w-6 shrink-0 text-[#8ce2c8]" />
+                  <div>
+                    <div className="text-sm font-bold text-white">Твоё первое сведение — поздравляю! 🎉</div>
+                    <div className="mt-0.5 flex items-center gap-1 text-xs font-bold text-[#8ce2c8]">
+                      <Sparkles className="h-3.5 w-3.5" /> +50 GP
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          )}
-        </div>
-
-        {/* ============ BOTTOM · transport + crossfader ============ */}
-        <div className="flex shrink-0 items-center bg-[#1c1c1c] px-2 pb-[max(env(safe-area-inset-bottom,0px),4px)]" style={{ height: '17%' }}>
-          <div className="flex h-full items-center justify-center gap-[18%]" style={{ width: '31%' }}>
-            {playBtn('A', playingA, step === 'play_a')}
-            {cueBtn('A', playingA)}
-          </div>
-
-          <div className="relative h-[72%] flex-1">
-            {step === 'crossfade' && (
-              <div
-                className="pointer-events-none absolute -top-[46%] z-10 -translate-x-1/2 animate-bounce whitespace-nowrap rounded-full bg-[#8ce2c8] px-2 py-[1px] text-[9px] font-bold text-black"
-                style={{ left: `calc(${crossfader} * (100% - 14px) + 7px)` }}
-              >
-                ← →
-              </div>
             )}
-            <div className="absolute bottom-[8%] left-0 top-[8%] w-[2px] bg-[#cfcfcf]" />
-            <div className="absolute bottom-[8%] right-0 top-[8%] w-[2px] bg-[#cfcfcf]" />
-            <div className="absolute left-0 right-0 top-1/2 h-[3px] -translate-y-1/2 bg-[#5c5c5c]" />
-            <div className="absolute bottom-[30%] left-1/2 top-[30%] w-px -translate-x-1/2 bg-[#777]" />
-            <div
-              className="pointer-events-none absolute bottom-[4%] top-[4%] flex w-[14px] justify-between"
-              style={{
-                left: `calc(${crossfader} * (100% - 14px))`,
-                filter: step === 'crossfade' ? 'drop-shadow(0 0 6px #8ce2c8)' : undefined,
-              }}
-            >
-              <div className="h-full w-[5px] rounded-[1px] bg-[#dcdcdc]" />
-              <div className="h-full w-[5px] rounded-[1px] bg-[#dcdcdc]" />
-            </div>
-            <input
-              type="range"
-              min={0}
-              max={1}
-              step={0.005}
-              value={crossfader}
-              onChange={handleCrossfader}
-              aria-label="Crossfader"
-              className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-            />
           </div>
 
-          <div className="flex h-full items-center justify-center gap-[18%]" style={{ width: '31%' }}>
-            {cueBtn('B', playingB)}
-            {playBtn('B', playingB, step === 'play_b')}
+          {/* ============ BOTTOM · transport + crossfader ============ */}
+          <div className="flex shrink-0 items-center bg-[#1c1c1c] px-3 pb-1.5" style={{ height: '17%' }}>
+            <div className="flex h-full items-center justify-center gap-[18%]" style={{ width: '31%' }}>
+              {playBtn('A', playingA, step === 'play_a')}
+              {cueBtn('A', playingA)}
+            </div>
+
+            <div
+              ref={crossfaderTrackRef}
+              role="slider"
+              aria-label="Кроссфейдер"
+              aria-valuemin={0}
+              aria-valuemax={1}
+              aria-valuenow={crossfader}
+              tabIndex={0}
+              onPointerDown={handlePointerDown}
+              onPointerMove={handlePointerMove}
+              onPointerUp={handlePointerUp}
+              onPointerCancel={handlePointerCancel}
+              onKeyDown={handleKeyDown}
+              className="group relative h-[72%] flex-1 touch-none select-none cursor-pointer focus:outline-none"
+              style={{ touchAction: 'none' }}
+            >
+              {/* Расширенная зона взаимодействия для комфортного захвата пальцем */}
+              <div className="absolute -inset-y-3 -inset-x-2" />
+
+              {step === 'crossfade' && (
+                <div
+                  className="pointer-events-none absolute -top-[46%] z-10 -translate-x-1/2 animate-bounce whitespace-nowrap rounded-full bg-[#8ce2c8] px-2 py-[1px] text-[9px] font-bold text-black shadow-md"
+                  style={{ left: `calc(${crossfader} * (100% - 16px) + 8px)` }}
+                >
+                  {portrait ? '↕ СВАЙП' : '← →'}
+                </div>
+              )}
+              {/* Ограничители трека */}
+              <div className="absolute bottom-[8%] left-0 top-[8%] w-[2px] bg-[#cfcfcf]" />
+              <div className="absolute bottom-[8%] right-0 top-[8%] w-[2px] bg-[#cfcfcf]" />
+              {/* Направляющая линия */}
+              <div className="absolute left-0 right-0 top-1/2 h-[3px] -translate-y-1/2 rounded-[1px] bg-[#5c5c5c]" />
+              {/* Центральная засечка */}
+              <div className="absolute bottom-[30%] left-1/2 top-[30%] w-px -translate-x-1/2 bg-[#777]" />
+              {/* Скользящий бегунок кроссфейдера */}
+              <div
+                className="pointer-events-none absolute bottom-[4%] top-[4%] flex w-[16px] justify-between rounded-[2px]"
+                style={{
+                  left: `calc(${crossfader} * (100% - 16px))`,
+                  filter: step === 'crossfade' ? 'drop-shadow(0 0 8px #8ce2c8)' : 'drop-shadow(0 2px 4px rgba(0,0,0,0.5))',
+                }}
+              >
+                <div className="h-full w-[6px] rounded-[1px] bg-[#dcdcdc] border-r border-[#999]" />
+                <div className="h-full w-[6px] rounded-[1px] bg-[#dcdcdc] border-l border-[#999]" />
+              </div>
+            </div>
+
+            <div className="flex h-full items-center justify-center gap-[18%]" style={{ width: '31%' }}>
+              {cueBtn('B', playingB)}
+              {playBtn('B', playingB, step === 'play_b')}
+            </div>
           </div>
         </div>
       </div>

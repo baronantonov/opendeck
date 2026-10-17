@@ -2,9 +2,8 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { getTelegramWebApp, type HomeScreenStatus } from '../types';
 
 export const DIRECT_LINK = 'http://t.me/OpenDeck_bot/webapp';
-export const STORAGE_PERMANENT_KEY = 'opendeck_hs_added';
-export const STORAGE_LEGACY_KEY = 'tma_hs_added';
-export const STORAGE_SESSION_DISMISSED_KEY = 'opendeck_banner_dismissed';
+export const STORAGE_PERMANENT_KEY = 'opendeck_hs_installed_v2';
+export const STORAGE_SESSION_DISMISSED_KEY = 'opendeck_banner_dismissed_v2';
 
 /**
  * Проверка постоянного статуса установки ярлыка в CloudStorage и localStorage
@@ -13,10 +12,7 @@ async function getStoredAddedFlag(): Promise<boolean> {
   if (typeof window === 'undefined') return false;
 
   try {
-    if (
-      localStorage.getItem(STORAGE_PERMANENT_KEY) === 'true' ||
-      localStorage.getItem(STORAGE_LEGACY_KEY) === 'true'
-    ) {
+    if (localStorage.getItem(STORAGE_PERMANENT_KEY) === 'true') {
       return true;
     }
   } catch {}
@@ -30,14 +26,7 @@ async function getStoredAddedFlag(): Promise<boolean> {
           if (!err && val === 'true') {
             resolve(true);
           } else {
-            // Проверка резервного/legacy ключа
-            cs.getItem?.(STORAGE_LEGACY_KEY, (err2, val2) => {
-              if (!err2 && val2 === 'true') {
-                resolve(true);
-              } else {
-                resolve(false);
-              }
-            });
+            resolve(false);
           }
         });
       } catch {
@@ -94,18 +83,32 @@ function setSessionDismissed(): void {
 function isLaunchedFromHomeScreen(): boolean {
   if (typeof window === 'undefined') return false;
 
-  const tw = getTelegramWebApp();
-  const startParam = String(tw?.initDataUnsafe?.start_param || '').toLowerCase();
+  const query = (window.location.search + window.location.hash).toLowerCase();
+  // Если передан флаг принудительного показа/отладки в URL — не считаем запущенным с ярлыка
   if (
-    startParam.includes('hs') ||
-    startParam.includes('homescreen') ||
-    startParam.includes('shortcut') ||
-    startParam.includes('webapp')
+    query.includes('force_hs=1') ||
+    query.includes('banner=1') ||
+    query.includes('debug_hs=1') ||
+    query.includes('test_hs=1')
+  ) {
+    return false;
+  }
+
+  const tw = getTelegramWebApp();
+  const startParam = String(tw?.initDataUnsafe?.start_param || '').toLowerCase().trim();
+
+  // ВНИМАНИЕ: BotFather создает ссылку вида t.me/OpenDeck_bot/webapp,
+  // поэтому start_param='webapp' НЕ является маркером ярлыка!
+  // Проверяем строго маркеры запуска именно с ярлыка:
+  if (
+    startParam === 'hs' ||
+    startParam === 'homescreen' ||
+    startParam === 'shortcut' ||
+    startParam.startsWith('hs_')
   ) {
     return true;
   }
 
-  const query = (window.location.search + window.location.hash).toLowerCase();
   if (
     query.includes('hs=1') ||
     query.includes('startapp=hs') ||
@@ -138,8 +141,8 @@ export interface UseHomeScreenBannerReturn {
 /**
  * Хук управления показом баннера «Ярлык на экран»:
  * - Проверка Telegram WebApp SDK и Bot API 8.0+
- * - Постоянный статус ('opendeck_hs_added') в CloudStorage / localStorage
- * - Глобальный сессионный лимит ('opendeck_banner_dismissed') в sessionStorage
+ * - Постоянный статус ('opendeck_hs_installed_v2') в CloudStorage / localStorage
+ * - Глобальный сессионный лимит ('opendeck_banner_dismissed_v2') в sessionStorage
  * - Задержка показа ровно 2000 мс
  * - Автоскрытие через 8000 мс с плавным прогресс-баром
  * - Аппаратное ускорение анимаций появления и скрытия
@@ -237,57 +240,109 @@ export function useHomeScreenBanner(active: boolean = true): UseHomeScreenBanner
     let isCurrent = true;
 
     async function evaluateEligibility() {
+      const query = (window.location.search + window.location.hash).toLowerCase();
+      const isForce =
+        query.includes('force_hs=1') ||
+        query.includes('banner=1') ||
+        query.includes('debug_hs=1') ||
+        query.includes('test_hs=1');
+
+      console.log('[TMA HomeScreen] Evaluating eligibility... isForce:', isForce);
+
+      if (isForce) {
+        try {
+          sessionStorage.removeItem(STORAGE_SESSION_DISMISSED_KEY);
+          localStorage.removeItem(STORAGE_PERMANENT_KEY);
+        } catch {}
+      }
+
       // 1. Проверяем глобальный сессионный лимит (закрыто пользователем ранее в сессии)
-      if (isSessionDismissed()) return;
+      if (!isForce && isSessionDismissed()) {
+        console.log('[TMA HomeScreen] Skipped: banner dismissed in this session');
+        return;
+      }
 
       // 2. Проверяем, запущен ли app уже из ярлыка
-      if (isLaunchedFromHomeScreen()) {
+      if (!isForce && isLaunchedFromHomeScreen()) {
+        console.log('[TMA HomeScreen] App launched from shortcut, saving added flag');
         setStoredAddedFlag();
         return;
       }
 
       // 3. Проверяем постоянный флаг в CloudStorage / localStorage
-      const alreadyAdded = await getStoredAddedFlag();
-      if (!isCurrent || alreadyAdded) return;
+      if (!isForce) {
+        const alreadyAdded = await getStoredAddedFlag();
+        if (!isCurrent || alreadyAdded) {
+          console.log('[TMA HomeScreen] Skipped: shortcut already added permanently');
+          return;
+        }
+      }
 
       const proceedToShow = () => {
-        // Задержка показа: ровно 2000 мс после инициализации
+        console.log('[TMA HomeScreen] Scheduling banner appearance in 2000ms');
         delayTimerRef.current = setTimeout(() => {
-          if (!isCurrent || isClosingRef.current || isSessionDismissed()) return;
+          if (!isCurrent || isClosingRef.current) return;
+          if (!isForce && isSessionDismissed()) return;
 
+          console.log('[TMA HomeScreen] Mounting banner to DOM');
           setIsMounted(true);
           setProgress(100);
 
-          // Два requestAnimationFrame для гарантии монтирования DOM перед анимацией входа
-          requestAnimationFrame(() => {
-            requestAnimationFrame(() => {
-              if (!isCurrent || isClosingRef.current) return;
-              setIsVisible(true);
-              startAutoDismiss();
-            });
-          });
+          setTimeout(() => {
+            if (!isCurrent || isClosingRef.current) return;
+            console.log('[TMA HomeScreen] Showing banner UI');
+            setIsVisible(true);
+            startAutoDismiss();
+          }, 50);
         }, 2000);
       };
 
       const tw = getTelegramWebApp();
       if (!tw || typeof tw.checkHomeScreenStatus !== 'function') {
-        // Обычный браузер или ранняя версия Bot API
+        console.log('[TMA HomeScreen] checkHomeScreenStatus not available (browser or old TMA), showing banner');
         proceedToShow();
         return;
       }
 
       // 4. Официальная проверка через WebApp.checkHomeScreenStatus (Bot API 8.0+)
-      tw.checkHomeScreenStatus((status: HomeScreenStatus) => {
-        if (!isCurrent || isClosingRef.current || isSessionDismissed()) return;
-
-        // Если 'added' или 'unsupported' — показ блокируется
-        if (status === 'added' || status === 'unsupported') {
-          return;
+      let callbackFired = false;
+      const fallbackTimer = setTimeout(() => {
+        if (!callbackFired && isCurrent && !isClosingRef.current) {
+          console.warn('[TMA HomeScreen] checkHomeScreenStatus timed out after 700ms, proceeding to show');
+          proceedToShow();
         }
+      }, 700);
 
-        // Если 'missed' или 'unknown' (iOS) — показываем баннер
+      try {
+        tw.checkHomeScreenStatus((status: HomeScreenStatus) => {
+          callbackFired = true;
+          clearTimeout(fallbackTimer);
+          console.log('[TMA HomeScreen] checkHomeScreenStatus returned:', status);
+
+          if (!isCurrent || isClosingRef.current) return;
+          if (!isForce && isSessionDismissed()) return;
+
+          // Если 'added' — ярлык уже добавлен
+          if (status === 'added' && !isForce) {
+            setStoredAddedFlag();
+            console.log('[TMA HomeScreen] Skipped: already added');
+            return;
+          }
+
+          // Если платформа не поддерживает ярлыки (например, Desktop)
+          if (status === 'unsupported' && !isForce) {
+            console.log('[TMA HomeScreen] Skipped: unsupported on current client');
+            return;
+          }
+
+          // 'missed', 'unknown' (iOS) или isForce
+          proceedToShow();
+        });
+      } catch (err) {
+        console.warn('[TMA HomeScreen] checkHomeScreenStatus error:', err);
+        clearTimeout(fallbackTimer);
         proceedToShow();
-      });
+      }
     }
 
     void evaluateEligibility();

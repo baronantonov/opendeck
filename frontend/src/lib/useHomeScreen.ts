@@ -7,7 +7,6 @@ export {
   setStoredAddedFlag,
   DIRECT_LINK,
   STORAGE_PERMANENT_KEY,
-  STORAGE_LEGACY_KEY,
   STORAGE_SESSION_DISMISSED_KEY,
   type UseHomeScreenBannerReturn,
 } from './useHomeScreenBanner';

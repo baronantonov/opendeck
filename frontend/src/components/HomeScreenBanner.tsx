@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { Smartphone, X } from 'lucide-react';
 import { useHomeScreenBanner } from '../lib/useHomeScreenBanner';
 
@@ -16,8 +17,16 @@ export interface HomeScreenBannerProps {
  * - Динамический отступ над таб-баром с учетом safe-area
  * - Сквозной клик вокруг карточки (pointer-events-none для обертки, pointer-events-auto для баннера)
  */
-export function HomeScreenBanner({ active, splashFinished }: HomeScreenBannerProps) {
-  const isEnabled = active ?? splashFinished ?? true;
+export function HomeScreenBanner({ active = true, splashFinished }: HomeScreenBannerProps) {
+  // Страховочный таймер: если splash screen по какой-то причине не прислал onExited
+  const [splashTimeout, setSplashTimeout] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setSplashTimeout(true), 2500);
+    return () => clearTimeout(t);
+  }, []);
+
+  const isSplashDone = splashFinished !== undefined ? (splashFinished || splashTimeout) : true;
+  const isEnabled = active && isSplashDone;
   const { isMounted, isVisible, progress, dismiss, handleAdd } = useHomeScreenBanner(isEnabled);
 
   if (!isMounted) return null;
@@ -25,7 +34,7 @@ export function HomeScreenBanner({ active, splashFinished }: HomeScreenBannerPro
   return (
     <aside
       aria-label="Добавить ярлык на рабочий стол"
-      className="fixed left-0 right-0 z-50 pointer-events-none flex justify-center px-3"
+      className="fixed left-0 right-0 z-[120] pointer-events-none flex justify-center px-3"
       style={{
         bottom: 'calc(var(--app-safe-bottom, var(--safe-bottom, 0px)) + var(--tabbar-height, 68px) + 12px)',
       }}

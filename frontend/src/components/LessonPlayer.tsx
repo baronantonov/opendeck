@@ -14,6 +14,7 @@ export function LessonPlayer({
   courseId = 'dj-basics',
   onUnlock,
   defaultOpen = false,
+  onLessonComplete,
 }: {
   lesson: Lesson;
   index: number;
@@ -21,17 +22,15 @@ export function LessonPlayer({
   courseId?: string;
   onUnlock?: () => void;
   defaultOpen?: boolean;
+  onLessonComplete?: (index: number) => void;
 }) {
   const [open, setOpen] = useState(defaultOpen);
   const [done, setDone] = useState(false);
   const [deckOpen, setDeckOpen] = useState(false);
   const { toast } = useToast();
-  const { completeLesson, completeBonusLesson, course, bonusDone } = useApp();
+  const { completeLesson, course } = useApp();
 
-  const isCompleted =
-    courseId === 'dj-bonus'
-      ? bonusDone >= index + 1 || done
-      : course.completedLessons.includes(index + 1) || done;
+  const isCompleted = course.completedLessons.includes(index + 1) || done;
 
   const markDone = async () => {
     try {
@@ -42,14 +41,11 @@ export function LessonPlayer({
     } catch {
       /* offline ok */
     }
-    if (courseId === 'dj-bonus') {
-      completeBonusLesson(index + 1);
-    } else {
-      completeLesson(index + 1);
-    }
+    completeLesson(index + 1);
     setDone(true);
     haptic('success');
-    toast('✓', `Урок пройден: +${courseId === 'dj-bonus' ? 30 : 50} GP`);
+    toast('✓', 'Урок пройден: +50 GP');
+    onLessonComplete?.(index);
   };
 
   return (

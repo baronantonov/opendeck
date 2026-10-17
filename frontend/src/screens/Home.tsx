@@ -60,7 +60,7 @@ export function Home() {
 
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11.5, color: 'var(--color-text-dim)', marginTop: 8 }}>
               <span>Шаг 1: Интерфейс</span>
-              <span>Шаг 6: Финальный сет</span>
+              <span>Шаг 10: Финальный микс</span>
             </div>
           </Card>
         </StaggerItem>
@@ -95,12 +95,12 @@ export function Home() {
             </div>
 
             <h3 style={{ fontSize: 17, fontWeight: 800, margin: '0 0 6px' }}>
-              {dc >= tc ? 'Все 6 основных уроков пройдены' : nextLesson.t}
+              {dc >= tc ? 'Все 10 уроков пройдены' : nextLesson.t}
             </h3>
 
             <p style={{ margin: '0 0 14px', fontSize: 13, color: 'var(--color-text-dim)', lineHeight: 1.45 }}>
               {dc >= tc
-                ? 'Ты освоил базовую траекторию. Переходи в раздел Обучение для просмотра бонусов от FREEDA DJ или записи на персональный созвон.'
+                ? 'Ты полностью освоил курс Pocket DJ! Переходи в раздел Племя для общения в закрытом клубе или запишись на менторскую сессию.'
                 : nextLesson.d[0]}
             </p>
 
@@ -110,10 +110,10 @@ export function Home() {
               shimmer
               onClick={() => {
                 haptic('medium');
-                nav('/learn');
+                nav(dc >= tc ? '/tribe' : '/learn');
               }}
             >
-              {dc >= tc ? 'Смотреть бонусы и созвоны' : `Продолжить: Урок ${nextId}`}
+              {dc >= tc ? 'Перейти в Племя' : `Продолжить: Урок ${nextId}`}
             </ShimmerButton>
           </Card>
         </StaggerItem>

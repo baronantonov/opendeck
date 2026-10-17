@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useApp, COURSE_LESSONS } from '../state/store';
-import { BONUS_LESSONS, mentorPrices } from '../lib/constants';
+import { isLessonUnlocked, mentorPrices } from '../lib/constants';
 import { Button, ProgressBar, Star } from '../components/ui';
+import { useToast } from '../components/Toast';
 import { useStarsCheckout, MentorPay } from '../payment/Paywall';
 import { LessonPlayer } from '../components/LessonPlayer';
 import { haptic } from '../lib/theme';
@@ -22,14 +23,12 @@ import { useRegisterModal } from '../lib/navigation';
 import { GiftCourseModal } from '../components/GiftCourseModal';
 
 export function Learn() {
-  const { user, course, bonusDone, isPaid, adminMode } = useApp();
+  const { user, course, isPaid, adminMode } = useApp();
+  const { toast } = useToast();
   const { checkoutCourse, busy: checkoutBusy } = useStarsCheckout();
   const [mentorOpen, setMentorOpen] = useState(false);
   const [giftOpen, setGiftOpen] = useState(false);
-  const [selectedLesson, setSelectedLesson] = useState<{
-    type: 'course' | 'bonus';
-    index: number;
-  } | null>(null);
+  const [selectedLesson, setSelectedLesson] = useState<number | null>(null);
 
   // Состояние открытых карточек-спойлеров (Pocket DJ развернут по умолчанию)
   const [openSections, setOpenSections] = useState<Set<string>>(new Set(['pocket-dj']));
@@ -47,31 +46,29 @@ export function Learn() {
   const tc = COURSE_LESSONS.length;
   const progressPct = Math.round((dc / tc) * 100);
 
-  // Вычисляем индекс текущего активного урока (первый незавершенный открытый)
-  const currentLessonIndex = Math.min(dc, tc - 1);
-
-  // Логика разблокировки основного урока
-  const isCourseLessonUnlocked = (idx: number): boolean => {
-    if (adminMode) return true;
-    if (idx === 0) return true; // Урок 1 всегда открыт бесплатно
-    return isPaid; // Уроки 2-6 открываются при оплате курса
-  };
-
-  // Логика разблокировки бонусных уроков
-  const isBonusLessonUnlocked = (idx: number): boolean => {
-    if (adminMode) return true;
-    if (idx === 0) return true; // Бонус 1 открыт бесплатно
-    return isPaid; // Бонусы 2, 3, 4 открываются мгновенно при оплате курса
-  };
-
-  const handleOpenLesson = (type: 'course' | 'bonus', index: number) => {
-    haptic('medium');
-    const unlocked = type === 'course' ? isCourseLessonUnlocked(index) : isBonusLessonUnlocked(index);
-    if (!unlocked) {
-      void checkoutCourse('dj-basics');
+  const handleOpenLesson = (index: number) => {
+    const status = isLessonUnlocked(index, course.completedLessons, isPaid, adminMode);
+    if (!status.unlocked) {
+      haptic('warning');
+      if (status.reason === 'needs_paywall') {
+        void checkoutCourse('dj-basics');
+      } else {
+        toast('🔒', 'Сначала заверши предыдущий урок');
+      }
       return;
     }
-    setSelectedLesson({ type, index });
+    haptic('medium');
+    setSelectedLesson(index);
+  };
+
+  const handleLessonComplete = (completedIndex: number) => {
+    // Авто-вызов пейволла через 500 мс после завершения Урока 2 (индекс 1)
+    if (completedIndex === 1 && !isPaid && !adminMode) {
+      setTimeout(() => {
+        setSelectedLesson(null);
+        void checkoutCourse('dj-basics');
+      }, 500);
+    }
   };
 
   // Переключение активных спойлеров
@@ -361,20 +358,23 @@ export function Learn() {
                     Уроки основной траектории
                   </span>
                   <span style={{ fontSize: 11, color: 'var(--color-text-dim)' }}>
-                    6 шагов
+                    10 уроков
                   </span>
                 </div>
 
                 {COURSE_LESSONS.map((lesson, idx) => {
                   const stepNumber = idx + 1;
                   const completed = course.completedLessons.includes(stepNumber);
-                  const unlocked = isCourseLessonUnlocked(idx);
-                  const isCurrent = unlocked && !completed && idx === currentLessonIndex;
+                  const status = isLessonUnlocked(idx, course.completedLessons, isPaid, adminMode);
+                  const unlocked = status.unlocked;
+                  const isCurrent = unlocked && !completed && (idx === 0 || course.completedLessons.includes(idx));
+                  const isPaidLesson = idx >= 2;
+                  const showPaywallBadge = isPaidLesson && !isPaid && !adminMode;
 
                   return (
                     <div
                       key={`course-lesson-${idx}`}
-                      onClick={() => handleOpenLesson('course', idx)}
+                      onClick={() => handleOpenLesson(idx)}
                       role="button"
                       tabIndex={0}
                       style={{
@@ -385,17 +385,21 @@ export function Learn() {
                         borderRadius: 14,
                         background: isCurrent
                           ? 'color-mix(in srgb, var(--brand-mint) 7%, var(--color-surface))'
-                          : 'rgba(255, 255, 255, 0.03)',
+                          : showPaywallBadge
+                            ? 'rgba(245, 146, 110, 0.03)'
+                            : 'rgba(255, 255, 255, 0.03)',
                         border: isCurrent
                           ? '1.5px solid color-mix(in srgb, var(--brand-mint) 45%, transparent)'
                           : completed
                             ? '1px solid color-mix(in srgb, var(--brand-mint) 20%, transparent)'
-                            : '1px solid rgba(255, 255, 255, 0.06)',
+                            : showPaywallBadge
+                              ? '1px solid color-mix(in srgb, var(--brand-coral) 20%, transparent)'
+                              : '1px solid rgba(255, 255, 255, 0.06)',
                         boxShadow: isCurrent ? '0 4px 16px rgba(140, 226, 200, 0.1)' : 'none',
                         cursor: 'pointer',
                         boxSizing: 'border-box',
                         width: '100%',
-                        opacity: !unlocked ? 0.6 : 1,
+                        opacity: !unlocked && !showPaywallBadge ? 0.6 : 1,
                         transition: 'transform 0.15s ease, background 0.15s ease',
                         userSelect: 'none',
                       }}
@@ -414,52 +418,107 @@ export function Learn() {
                             ? 'var(--brand-mint)'
                             : isCurrent
                               ? 'color-mix(in srgb, var(--brand-mint) 18%, var(--color-surface))'
-                              : 'rgba(255, 255, 255, 0.04)',
+                              : showPaywallBadge
+                                ? 'color-mix(in srgb, var(--brand-coral) 12%, transparent)'
+                                : 'rgba(255, 255, 255, 0.04)',
                           color: completed
                             ? '#11322a'
                             : isCurrent
                               ? 'var(--brand-mint)'
-                              : 'var(--color-text-dim)',
-                          border: isCurrent ? '1.5px solid var(--brand-mint)' : '1px solid rgba(255, 255, 255, 0.08)',
+                              : showPaywallBadge
+                                ? 'var(--brand-coral)'
+                                : 'var(--color-text-dim)',
+                          border: isCurrent
+                            ? '1.5px solid var(--brand-mint)'
+                            : showPaywallBadge
+                              ? '1px solid color-mix(in srgb, var(--brand-coral) 30%, transparent)'
+                              : '1px solid rgba(255, 255, 255, 0.08)',
                           fontWeight: 800,
                           fontSize: 14,
                         }}
                       >
                         {completed ? (
                           <CheckCircle2 size={20} strokeWidth={2.5} />
+                        ) : showPaywallBadge ? (
+                          <Lock size={16} />
                         ) : !unlocked ? (
                           <Lock size={16} />
                         ) : isCurrent ? (
                           <Play size={16} fill="currentColor" />
                         ) : (
-                          <span>0{stepNumber}</span>
+                          <span>{stepNumber < 10 ? `0${stepNumber}` : stepNumber}</span>
                         )}
                       </div>
 
                       {/* Текст урока */}
                       <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-                          <span
-                            style={{
-                              fontSize: 10,
-                              fontWeight: 800,
-                              textTransform: 'uppercase',
-                              letterSpacing: '0.04em',
-                              color: completed
-                                ? 'var(--brand-mint)'
-                                : isCurrent
-                                  ? 'var(--brand-mint)'
-                                  : 'var(--color-text-dim)',
-                            }}
-                          >
-                            {completed
-                              ? 'Пройден ✓'
-                              : isCurrent
-                                ? 'Текущий урок'
-                                : idx === 0
-                                  ? 'Бесплатный урок'
-                                  : `Урок ${stepNumber}`}
-                          </span>
+                          {completed ? (
+                            <span
+                              style={{
+                                fontSize: 10,
+                                fontWeight: 800,
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.04em',
+                                color: 'var(--brand-mint)',
+                              }}
+                            >
+                              Пройден ✓
+                            </span>
+                          ) : isCurrent ? (
+                            <span
+                              style={{
+                                fontSize: 10,
+                                fontWeight: 800,
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.04em',
+                                color: 'var(--brand-mint)',
+                              }}
+                            >
+                              Текущий урок
+                            </span>
+                          ) : showPaywallBadge ? (
+                            <span
+                              style={{
+                                fontSize: 9.5,
+                                fontWeight: 800,
+                                color: 'var(--brand-coral)',
+                                background: 'color-mix(in srgb, var(--brand-coral) 12%, transparent)',
+                                border: '1px solid color-mix(in srgb, var(--brand-coral) 30%, transparent)',
+                                padding: '1px 6px',
+                                borderRadius: 6,
+                                letterSpacing: '0.04em',
+                                textTransform: 'uppercase',
+                              }}
+                            >
+                              Pocket DJ
+                            </span>
+                          ) : idx === 0 || idx === 1 ? (
+                            <span
+                              style={{
+                                fontSize: 10,
+                                fontWeight: 800,
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.04em',
+                                color: 'var(--brand-mint)',
+                              }}
+                            >
+                              Бесплатный урок
+                            </span>
+                          ) : (
+                            <span
+                              style={{
+                                fontSize: 10,
+                                fontWeight: 800,
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.04em',
+                                color: 'var(--color-text-dim)',
+                              }}
+                            >
+                              Урок {stepNumber}
+                            </span>
+                          )}
+
                           <span
                             style={{
                               fontSize: 10,
@@ -515,6 +574,24 @@ export function Learn() {
                           >
                             Смотреть
                           </div>
+                        ) : showPaywallBadge ? (
+                          <div
+                            style={{
+                              background: 'color-mix(in srgb, var(--brand-coral) 12%, transparent)',
+                              color: 'var(--brand-coral)',
+                              border: '1px solid color-mix(in srgb, var(--brand-coral) 30%, transparent)',
+                              padding: '5px 8px',
+                              borderRadius: 8,
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 4,
+                              fontSize: 11,
+                              fontWeight: 800,
+                            }}
+                          >
+                            <Lock size={12} />
+                            <span>Открыть</span>
+                          </div>
                         ) : !unlocked ? (
                           <div
                             style={{
@@ -533,156 +610,6 @@ export function Learn() {
                     </div>
                   );
                 })}
-              </div>
-
-              {/* Блок бонусов от FREEDA DJ */}
-              <div
-                style={{
-                  background: 'rgba(0, 0, 0, 0.25)',
-                  borderRadius: 16,
-                  padding: '14px 14px',
-                  border: '1px solid rgba(255, 255, 255, 0.06)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 10,
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <Sparkles size={15} color="var(--brand-coral)" />
-                    <span
-                      style={{
-                        fontSize: 11,
-                        fontWeight: 800,
-                        color: 'var(--brand-coral)',
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.05em',
-                      }}
-                    >
-                      Бонусные материалы
-                    </span>
-                  </div>
-                  <span
-                    style={{
-                      fontSize: 11,
-                      fontWeight: 700,
-                      color: isPaid ? 'var(--brand-mint)' : 'var(--brand-gold)',
-                      background: 'rgba(0,0,0,0.3)',
-                      padding: '2px 8px',
-                      borderRadius: 6,
-                    }}
-                  >
-                    {isPaid ? 'Все 4 открыты ✓' : `${bonusDone}/4 пройдено`}
-                  </span>
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {BONUS_LESSONS.map((bonus, bIdx) => {
-                    const completed = bonusDone >= bIdx + 1;
-                    const unlocked = isBonusLessonUnlocked(bIdx);
-
-                    return (
-                      <div
-                        key={`bonus-lesson-${bIdx}`}
-                        onClick={() => handleOpenLesson('bonus', bIdx)}
-                        role="button"
-                        tabIndex={0}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 10,
-                          padding: '10px 10px',
-                          borderRadius: 12,
-                          background: completed
-                            ? 'color-mix(in srgb, var(--brand-mint) 7%, transparent)'
-                            : 'rgba(255, 255, 255, 0.02)',
-                          border: completed
-                            ? '1px solid color-mix(in srgb, var(--brand-mint) 22%, transparent)'
-                            : '1px solid rgba(255, 255, 255, 0.05)',
-                          cursor: 'pointer',
-                          opacity: !unlocked ? 0.65 : 1,
-                          boxSizing: 'border-box',
-                        }}
-                        className="active:scale-[0.99]"
-                      >
-                        <div
-                          style={{
-                            width: 34,
-                            height: 34,
-                            borderRadius: 10,
-                            flexShrink: 0,
-                            display: 'grid',
-                            placeItems: 'center',
-                            background: completed
-                              ? 'rgba(140, 226, 200, 0.15)'
-                              : unlocked
-                                ? 'color-mix(in srgb, var(--brand-coral) 12%, transparent)'
-                                : 'rgba(255, 255, 255, 0.04)',
-                            color: completed
-                              ? 'var(--brand-mint)'
-                              : unlocked
-                                ? 'var(--brand-coral)'
-                                : 'var(--color-text-dim)',
-                            border: '1px solid rgba(255, 255, 255, 0.08)',
-                            fontWeight: 800,
-                            fontSize: 12,
-                          }}
-                        >
-                          {completed ? (
-                            <CheckCircle2 size={16} />
-                          ) : !unlocked ? (
-                            <Lock size={14} />
-                          ) : (
-                            <span>B{bIdx + 1}</span>
-                          )}
-                        </div>
-
-                        <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                            <span
-                              style={{
-                                fontSize: 9.5,
-                                fontWeight: 800,
-                                color: bIdx === 0 ? 'var(--brand-mint)' : 'var(--brand-coral)',
-                                textTransform: 'uppercase',
-                              }}
-                            >
-                              {bIdx === 0 ? 'Бесплатно' : completed ? 'Пройден' : 'PRO'}
-                            </span>
-                            <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--brand-gold)' }}>
-                              +30 GP
-                            </span>
-                          </div>
-                          <div
-                            style={{
-                              fontSize: 12.5,
-                              fontWeight: 700,
-                              color: 'var(--color-text)',
-                              marginTop: 1,
-                              whiteSpace: 'nowrap',
-                              textOverflow: 'ellipsis',
-                              overflow: 'hidden',
-                            }}
-                          >
-                            {bonus.t}
-                          </div>
-                        </div>
-
-                        <div style={{ flexShrink: 0 }}>
-                          {unlocked ? (
-                            <div style={{ color: 'var(--brand-mint)', display: 'grid', placeItems: 'center' }}>
-                              <Play size={14} fill="currentColor" />
-                            </div>
-                          ) : (
-                            <div style={{ color: 'var(--color-text-dim)', display: 'grid', placeItems: 'center' }}>
-                              <Lock size={13} />
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
               </div>
             </div>
           </div>
@@ -1067,7 +994,7 @@ export function Learn() {
       </div>
 
       {/* ──────────────── МОДАЛЬНОЕ ОКНО ПЛЕЕРА УРОКА ──────────────── */}
-      {selectedLesson && (
+      {selectedLesson !== null && (
         <div
           style={{
             position: 'fixed',
@@ -1098,9 +1025,7 @@ export function Learn() {
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
               <div style={{ fontWeight: 800, fontSize: 16 }}>
-                {selectedLesson.type === 'bonus'
-                  ? `Бонус ${selectedLesson.index + 1} от FREEDA DJ`
-                  : `Урок ${selectedLesson.index + 1}`}
+                {`Урок ${selectedLesson + 1}: ${COURSE_LESSONS[selectedLesson]?.t || ''}`}
               </div>
               <button
                 type="button"
@@ -1123,23 +1048,16 @@ export function Learn() {
             </div>
 
             <LessonPlayer
-              lesson={
-                selectedLesson.type === 'course'
-                  ? COURSE_LESSONS[selectedLesson.index]
-                  : BONUS_LESSONS[selectedLesson.index]
-              }
-              index={selectedLesson.index}
-              courseId={selectedLesson.type === 'course' ? 'dj-basics' : 'dj-bonus'}
+              lesson={COURSE_LESSONS[selectedLesson]}
+              index={selectedLesson}
+              courseId="dj-basics"
               defaultOpen={true}
-              locked={
-                selectedLesson.type === 'course'
-                  ? !isCourseLessonUnlocked(selectedLesson.index)
-                  : !isBonusLessonUnlocked(selectedLesson.index)
-              }
+              locked={!isLessonUnlocked(selectedLesson, course.completedLessons, isPaid, adminMode).unlocked}
               onUnlock={() => {
                 setSelectedLesson(null);
                 void checkoutCourse('dj-basics');
               }}
+              onLessonComplete={handleLessonComplete}
             />
           </div>
         </div>

@@ -44,7 +44,7 @@ const EARN_ACTIONS = [
 ];
 
 export function Profile() {
-  const { user, course, bonusDone, referralFriends, referralGpEarned } = useApp();
+  const { user, course, referralFriends, referralGpEarned } = useApp();
   const { toast } = useToast();
   const [busy, setBusy] = useState<string | null>(null);
   const dc = course.completedLessons.length;
@@ -116,7 +116,7 @@ export function Profile() {
     const text = `Мой DJ-профиль в Open Deck:
 Звание: ${currentRank.title}
 Архетип: ${user.archetype}
-Прогресс: ${user.groovePoints} GP · ${dc}/6 уроков
+Прогресс: ${user.groovePoints} GP · ${dc}/10 уроков
 Обучение диджеингу на базе Rekordbox. Присоединяйся!`;
     const link = `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(text)}`;
 
@@ -147,9 +147,9 @@ export function Profile() {
 
   const achs = [
     { name: 'Первый бит', got: dc >= 1, desc: 'Пройди урок 1 по контроллеру', icon: IconFader },
-    { name: 'Половина пути', got: dc >= 3, desc: 'Пройди первые 3 урока курса', icon: IconWaveform },
-    { name: 'DJ-сет собран', got: dc >= 6, desc: 'Заверши все 6 основных уроков', icon: IconDisc },
-    { name: 'Теоретик музыки', got: bonusDone >= 4, desc: 'Пройди все 4 бонус-урока от FREEDA DJ', icon: IconSparkles },
+    { name: 'Половина пути', got: dc >= 5, desc: 'Пройди первые 5 уроков курса', icon: IconWaveform },
+    { name: 'Мастер сведения', got: dc >= 7, desc: 'Освой кроссфейдер, лупы и фильтры', icon: IconSparkles },
+    { name: 'DJ-сет собран', got: dc >= 10, desc: 'Заверши все 10 уроков курса', icon: IconDisc },
     { name: 'Мастер нетворкинга', got: referralFriends >= 3, desc: 'Пригласи 3 друзей в школу', icon: IconUsers },
     { name: 'Архетип раскрыт', got: !!user.archetype, desc: 'Определи свой персональный вайб', icon: IconFlame },
     { name: 'Золотой резерв', got: user.groovePoints >= 300, desc: 'Накопи 300+ GP на скидку созвона', icon: IconTrophy },
@@ -228,7 +228,7 @@ export function Profile() {
           <div style={{ display: 'inline-flex', color: 'var(--brand-mint)', marginBottom: 2 }}>
             <IconFader size={18} />
           </div>
-          <div style={{ fontSize: 15, fontWeight: 800 }}>{dc}/6</div>
+          <div style={{ fontSize: 15, fontWeight: 800 }}>{dc}/10</div>
           <div style={{ fontSize: 11, color: 'var(--color-text-dim)' }}>Уроков</div>
         </div>
         <div
@@ -243,8 +243,8 @@ export function Profile() {
           <div style={{ display: 'inline-flex', color: 'var(--brand-mauve)', marginBottom: 2 }}>
             <IconSparkles size={18} />
           </div>
-          <div style={{ fontSize: 15, fontWeight: 800 }}>{bonusDone}/4</div>
-          <div style={{ fontSize: 11, color: 'var(--color-text-dim)' }}>Бонусов</div>
+          <div style={{ fontSize: 15, fontWeight: 800 }}>{user.groovePoints}</div>
+          <div style={{ fontSize: 11, color: 'var(--color-text-dim)' }}>Баланс GP</div>
         </div>
         <div
           style={{

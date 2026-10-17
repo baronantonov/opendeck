@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useApp } from '../state/store';
 import { getTelegramWebApp } from '../types';
 import { haptic } from '../lib/theme';
-import { Button, Card, ProgressBar } from '../components/ui';
+import { Button, Card } from '../components/ui';
+import { useStarsCheckout } from '../payment/Paywall';
 import {
   StaggerContainer,
   StaggerItem,
@@ -191,16 +192,18 @@ function TribeCanvasConfetti({ onComplete }: { onComplete?: () => void }) {
 
 export function TribeScreen() {
   const navigate = useNavigate();
-  const { course } = useApp();
+  const { course, isPaid, adminMode } = useApp();
+  const { checkoutCourse, busy: checkoutBusy } = useStarsCheckout();
   const [showConfetti, setShowConfetti] = useState(false);
 
-  // Условие разблокировки: пройден ли Урок 2 курса Pocket DJ
+  // Доступ в Племя открывается мгновенно при оплате курса (или в режиме админа)
+  const hasAccess = isPaid || adminMode;
   const isLesson1Done = course.completedLessons.includes(1);
   const isLesson2Done = course.completedLessons.includes(2);
 
-  // Однократный запуск конфетти при первом входе на разблокированный экран
+  // Однократный запуск конфетти при первом входе после получения доступа
   useEffect(() => {
-    if (!isLesson2Done) return;
+    if (!hasAccess) return;
 
     const localFlag = localStorage.getItem(CONFETTI_SHOWN_KEY);
     if (localFlag === 'true') {
@@ -247,7 +250,7 @@ export function TribeScreen() {
     } else {
       triggerConfettiSuccess();
     }
-  }, [isLesson2Done]);
+  }, [hasAccess]);
 
   // Обработчик входа в закрытый Telegram-кэмп
   const handleJoinCamp = () => {
@@ -284,8 +287,8 @@ export function TribeScreen() {
       {showConfetti && <TribeCanvasConfetti onComplete={() => setShowConfetti(false)} />}
 
       <StaggerContainer stepMs={65}>
-        {/* Состояние Б: Урок 2 ПРОЙДЕН — Доступ открыт */}
-        {isLesson2Done ? (
+        {/* Состояние Б: Доступ в Племя ОТКРЫТ (курс оплачен или adminMode) */}
+        {hasAccess ? (
           <>
             {/* 1. Главная карточка с сиянием и бейджем доступа */}
             <StaggerItem index={0}>
@@ -589,7 +592,7 @@ export function TribeScreen() {
                     }}
                   >
                     <Lock size={12} />
-                    Доступ ограничен
+                    Доступ закрыт
                   </span>
 
                   <span
@@ -601,7 +604,7 @@ export function TribeScreen() {
                       borderRadius: 99,
                     }}
                   >
-                    Урок 2 не пройден
+                    Требуется Pocket DJ
                   </span>
                 </div>
 
@@ -649,7 +652,7 @@ export function TribeScreen() {
                   </div>
                 </div>
 
-                {/* Интригующий текст согласно ТЗ */}
+                {/* Интригующий продающий текст */}
                 <div
                   style={{
                     background: 'rgba(0, 0, 0, 0.28)',
@@ -668,24 +671,48 @@ export function TribeScreen() {
                       fontWeight: 500,
                     }}
                   >
-                    Твой пропуск в наш закрытый 'Open Deck DJ camp' ждет тебя. Он откроется сразу после прохождения второго урока Pocket DJ. Там ты сможешь задать любые вопросы и познакомиться со своим "племенем".
+                    Твой пропуск в наш закрытый 'Open Deck DJ camp' ждет тебя. Доступ к комьюнити открывается мгновенно при оплате курса Pocket DJ. Внутри — закрытый чат студентов, разборы миксов и поддержка кураторов.
                   </p>
                 </div>
 
-                {/* Кнопка «Перейти к обучению» */}
+                {/* Кнопка покупки курса */}
                 <Button
                   variant="gradient"
                   block
-                  onClick={handleGoToLearn}
+                  disabled={checkoutBusy}
+                  onClick={() => {
+                    haptic('medium');
+                    void checkoutCourse('dj-basics');
+                  }}
                   style={{
                     padding: '14px 18px',
                     fontSize: 15,
                     fontWeight: 700,
                     cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 8,
                   }}
                 >
-                  <span>Перейти к обучению</span>
-                  <ArrowRight size={18} />
+                  <Sparkles size={18} />
+                  <span>{checkoutBusy ? 'Открываем Telegram Stars...' : 'Открыть Pocket DJ · 2 500 Stars'}</span>
+                </Button>
+
+                {/* Вторичная кнопка «Бесплатные уроки курса» */}
+                <Button
+                  variant="secondary"
+                  block
+                  onClick={handleGoToLearn}
+                  style={{
+                    marginTop: 8,
+                    padding: '12px 18px',
+                    fontSize: 14,
+                    cursor: 'pointer',
+                  }}
+                >
+                  <span>Бесплатные вводные уроки</span>
+                  <ArrowRight size={16} />
                 </Button>
               </GlowCard>
             </StaggerItem>
@@ -702,16 +729,14 @@ export function TribeScreen() {
                   }}
                 >
                   <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-text)' }}>
-                    Прогресс допуска в Camp
+                    Допуск в закрытый Camp
                   </span>
-                  <span style={{ fontSize: 12, color: 'var(--brand-mint)', fontWeight: 700 }}>
-                    {isLesson1Done ? '1 из 2 уроков' : '0 из 2 уроков'}
+                  <span style={{ fontSize: 12, color: 'var(--brand-gold)', fontWeight: 700 }}>
+                    Покупка курса
                   </span>
                 </div>
 
-                <ProgressBar value={isLesson1Done ? 50 : 0} />
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 14 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 4 }}>
                   {/* Шаг 1 */}
                   <div
                     style={{
@@ -748,13 +773,55 @@ export function TribeScreen() {
                           Урок 1: Первый контроллер
                         </div>
                         <div style={{ fontSize: 11, color: isLesson1Done ? 'var(--brand-mint)' : 'var(--color-text-dim)' }}>
-                          {isLesson1Done ? 'Пройден' : 'Бесплатный вводный урок'}
+                          {isLesson1Done ? 'Пройден ✓' : 'Бесплатный вводный урок'}
                         </div>
                       </div>
                     </div>
                   </div>
 
-                  {/* Шаг 2 (Ключевой) */}
+                  {/* Шаг 2 */}
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '10px 12px',
+                      background: isLesson2Done ? 'rgba(140, 226, 200, 0.08)' : 'rgba(0, 0, 0, 0.2)',
+                      borderRadius: 12,
+                      border: isLesson2Done
+                        ? '1px solid rgba(140, 226, 200, 0.2)'
+                        : '1px solid rgba(255, 255, 255, 0.04)',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div
+                        style={{
+                          width: 24,
+                          height: 24,
+                          borderRadius: '50%',
+                          background: isLesson2Done ? 'var(--brand-mint)' : 'rgba(255, 255, 255, 0.08)',
+                          color: isLesson2Done ? '#11322a' : 'var(--color-text-dim)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: 12,
+                          fontWeight: 800,
+                        }}
+                      >
+                        {isLesson2Done ? <CheckCircle2 size={16} /> : '2'}
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-text)' }}>
+                          Урок 2: Знакомство с FREEDA
+                        </div>
+                        <div style={{ fontSize: 11, color: isLesson2Done ? 'var(--brand-mint)' : 'var(--color-text-dim)' }}>
+                          {isLesson2Done ? 'Пройден ✓' : 'Бесплатный практический урок'}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Шаг 3 (Ключевой) */}
                   <div
                     style={{
                       display: 'flex',
@@ -781,55 +848,14 @@ export function TribeScreen() {
                           fontWeight: 800,
                         }}
                       >
-                        2
-                      </div>
-                      <div>
-                        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-text)' }}>
-                          Урок 2: Основы сведения
-                        </div>
-                        <div style={{ fontSize: 11, color: 'var(--brand-coral)', fontWeight: 600 }}>
-                          Ключ к разблокировке Племени 🔑
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Шаг 3: Вход в чат */}
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      padding: '10px 12px',
-                      background: 'rgba(0, 0, 0, 0.2)',
-                      borderRadius: 12,
-                      border: '1px solid rgba(255, 255, 255, 0.04)',
-                      opacity: 0.7,
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <div
-                        style={{
-                          width: 24,
-                          height: 24,
-                          borderRadius: '50%',
-                          background: 'rgba(255, 255, 255, 0.08)',
-                          color: 'var(--color-text-dim)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontSize: 12,
-                          fontWeight: 700,
-                        }}
-                      >
                         <Lock size={13} />
                       </div>
                       <div>
-                        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-text)' }}>
-                          Инвайт в Open Deck DJ camp
+                        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-text)' }}>
+                          Курс Pocket DJ + Open Deck Camp
                         </div>
-                        <div style={{ fontSize: 11, color: 'var(--color-text-dim)' }}>
-                          Откроется мгновенно после сдачи 2-го урока
+                        <div style={{ fontSize: 11, color: 'var(--brand-coral)', fontWeight: 600 }}>
+                          Ключ к разблокировке Племени 🔑
                         </div>
                       </div>
                     </div>

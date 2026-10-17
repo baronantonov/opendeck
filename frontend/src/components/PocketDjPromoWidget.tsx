@@ -181,7 +181,7 @@ export function PocketDjPromoWidget({
             <div className="flex items-center gap-2.5 text-[12px]">
               <CheckCircle2 size={15} color="var(--brand-mint)" className="shrink-0" />
               <span>
-                <b className="text-[var(--color-text)]">6 практических уроков</b>: от первого экрана до сведения сета
+                <b className="text-[var(--color-text)]">10 практических уроков</b>: от первого экрана до клубного микса
               </span>
             </div>
 
@@ -202,14 +202,14 @@ export function PocketDjPromoWidget({
             <div className="flex items-center gap-2.5 text-[12px]">
               <Flame size={15} color="var(--brand-coral)" className="shrink-0" />
               <span>
-                <b className="text-[var(--color-text)]">Закрытый DJ Camp</b>: комьюнити и разбор миксов (с 2-го урока)
+                <b className="text-[var(--color-text)]">Закрытый DJ Camp</b>: доступ в комьюнити сразу при покупке курса
               </span>
             </div>
 
             <div className="flex items-center gap-2.5 text-[12px]">
               <Sparkles size={15} color="var(--brand-mint)" className="shrink-0" />
               <span>
-                <b className="text-[var(--color-text)]">4 бонусных видео</b> от FREEDA DJ: теория, колесо Камелота
+                <b className="text-[var(--color-text)]">Продвинутые техники</b>: эффекты, лупы и сведение финального микса
               </span>
             </div>
           </div>

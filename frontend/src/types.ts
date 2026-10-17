@@ -66,3 +66,118 @@ export interface MentorPrice {
   final: number;
   discount: number;
 }
+
+export type HomeScreenStatus = 'added' | 'unsupported' | 'missed' | 'unknown';
+
+export interface TelegramSafeAreaInset {
+  top: number;
+  bottom: number;
+  left: number;
+  right: number;
+}
+
+export interface TelegramCloudStorage {
+  getItem: (
+    key: string,
+    callback: (error: Error | null, value: string) => void,
+  ) => void;
+  setItem: (
+    key: string,
+    value: string,
+    callback?: (error: Error | null, result: boolean) => void,
+  ) => void;
+  getItems?: (
+    keys: string[],
+    callback: (error: Error | null, values: Record<string, string>) => void,
+  ) => void;
+  removeItem?: (
+    key: string,
+    callback?: (error: Error | null, result: boolean) => void,
+  ) => void;
+  removeItems?: (
+    keys: string[],
+    callback?: (error: Error | null, result: boolean) => void,
+  ) => void;
+  getKeys?: (callback: (error: Error | null, keys: string[]) => void) => void;
+}
+
+export interface TelegramBackButton {
+  isVisible: boolean;
+  show: () => void;
+  hide: () => void;
+  onClick: (callback: () => void) => void;
+  offClick: (callback: () => void) => void;
+}
+
+export interface TelegramHapticFeedback {
+  impactOccurred: (
+    style: 'light' | 'medium' | 'heavy' | 'rigid' | 'soft',
+  ) => void;
+  notificationOccurred: (type: 'error' | 'success' | 'warning') => void;
+  selectionChanged: () => void;
+}
+
+export interface TelegramWebApp {
+  initData: string;
+  initDataUnsafe: {
+    query_id?: string;
+    user?: {
+      id: number;
+      is_bot?: boolean;
+      first_name: string;
+      last_name?: string;
+      username?: string;
+      language_code?: string;
+      photo_url?: string;
+    };
+    start_param?: string;
+    auth_date?: number;
+    hash?: string;
+  };
+  version: string;
+  platform: string;
+  colorScheme: 'light' | 'dark';
+  themeParams: Record<string, string>;
+  isExpanded: boolean;
+  viewportHeight: number;
+  viewportStableHeight: number;
+  headerColor: string;
+  backgroundColor: string;
+  bottomBarColor?: string;
+  isClosingConfirmationEnabled: boolean;
+  isFullscreen?: boolean;
+  safeAreaInset?: TelegramSafeAreaInset;
+  contentSafeAreaInset?: TelegramSafeAreaInset;
+
+  BackButton: TelegramBackButton;
+  HapticFeedback: TelegramHapticFeedback;
+  CloudStorage?: TelegramCloudStorage;
+
+  ready: () => void;
+  expand: () => void;
+  close: () => void;
+  requestFullscreen?: () => void;
+  exitFullscreen?: () => void;
+  lockOrientation?: () => void;
+  unlockOrientation?: () => void;
+  disableVerticalSwipes?: () => void;
+  enableVerticalSwipes?: () => void;
+  enableClosingConfirmation?: () => void;
+  disableClosingConfirmation?: () => void;
+  setHeaderColor?: (color: string) => void;
+  setBackgroundColor?: (color: string) => void;
+  setBottomBarColor?: (color: string) => void;
+  checkHomeScreenStatus?: (callback: (status: HomeScreenStatus) => void) => void;
+  addToHomeScreen?: () => void;
+  onEvent?: (eventType: string, eventHandler: (...args: any[]) => void) => void;
+  offEvent?: (eventType: string, eventHandler: (...args: any[]) => void) => void;
+  openLink?: (url: string, options?: { try_instant_view?: boolean }) => void;
+  openTelegramLink?: (url: string) => void;
+  openInvoice?: (url: string, callback?: (status: string) => void) => void;
+}
+
+export function getTelegramWebApp(): TelegramWebApp | null {
+  if (typeof window === 'undefined') return null;
+  return (window as any).Telegram?.WebApp || null;
+}
+

@@ -4,18 +4,21 @@ import { AppProvider, useApp } from './state/store';
 import { ToastProvider } from './components/Toast';
 import { BottomNav } from './components/BottomNav';
 import { useTelegramTheme } from './lib/theme';
-import { useSafeArea } from './lib/safeArea';
+import { useTelegramInit } from './lib/useTelegramInit';
+import { NavigationProvider, useNavigation } from './lib/navigation';
+import { ExitConfirmModal } from './components/ExitConfirmModal';
+import { HomeScreenBanner } from './components/HomeScreenBanner';
 import { Home } from './screens/Home';
 import { Learn } from './screens/Learn';
 import { Profile } from './screens/Profile';
-
 import { VinylLoader } from './components/VinylLoader';
 
 function Shell() {
   useTelegramTheme();
-  useSafeArea();
+  useTelegramInit();
   const loc = useLocation();
   const { loading } = useApp();
+  const { isExitModalOpen, closeExitModal } = useNavigation();
   const [splashFinished, setSplashFinished] = useState(false);
   const active = loc.pathname.split('/')[1] || 'home';
 
@@ -25,7 +28,7 @@ function Shell() {
   }, [active]);
 
   return (
-    <>
+    <div className="tma-app-shell">
       <VinylLoader
         isLoading={loading}
         statusText="Синхронизация битов..."
@@ -36,7 +39,7 @@ function Shell() {
         className="scroll-y"
         style={{
           flex: 1,
-          paddingTop: 'var(--safe-top, 0px)',
+          paddingTop: 'var(--app-safe-top, var(--safe-top, 0px))',
           paddingBottom: 12,
         }}
       >
@@ -51,8 +54,15 @@ function Shell() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
+
+      {/* Компактный плавающий баннер ярлыка на рабочий стол */}
+      <HomeScreenBanner splashFinished={splashFinished} />
+
+      {/* Кастомный попап подтверждения выхода */}
+      <ExitConfirmModal open={isExitModalOpen} onClose={closeExitModal} />
+
       <BottomNav />
-    </>
+    </div>
   );
 }
 
@@ -60,7 +70,9 @@ export default function App() {
   return (
     <AppProvider>
       <ToastProvider>
-        <Shell />
+        <NavigationProvider>
+          <Shell />
+        </NavigationProvider>
       </ToastProvider>
     </AppProvider>
   );

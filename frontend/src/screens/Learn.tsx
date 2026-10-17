@@ -6,6 +6,7 @@ import { useStarsCheckout, MentorPay } from '../payment/Paywall';
 import { LessonPlayer } from '../components/LessonPlayer';
 import { haptic } from '../lib/theme';
 import { CheckCircle2, Lock, Play, Sparkles } from 'lucide-react';
+import { useRegisterModal } from '../lib/navigation';
 
 export function Learn() {
   const { user, course, bonusDone, isPaid, adminMode } = useApp();
@@ -15,6 +16,9 @@ export function Learn() {
     type: 'course' | 'bonus';
     index: number;
   } | null>(null);
+
+  useRegisterModal('learn-lesson-modal', selectedLesson !== null, () => setSelectedLesson(null));
+  useRegisterModal('learn-mentor-modal', mentorOpen, () => setMentorOpen(false));
 
   const { discountUsd, discountRub, finalUsd, finalRub, cappedGp } = mentorPrices(user.groovePoints);
 

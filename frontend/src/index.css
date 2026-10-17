@@ -45,16 +45,34 @@
   color-scheme: light dark;
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --safe-top: env(safe-area-inset-top, 0px);
+  --app-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --app-safe-top: env(safe-area-inset-top, 0px);
 }
 
 html.tg-fullscreen {
   --safe-top: 78px;
+  --app-safe-top: 78px;
 }
 
 @supports (padding-top: env(safe-area-inset-top)) {
   html.tg-fullscreen {
     --safe-top: max(env(safe-area-inset-top, 0px), 78px);
+    --app-safe-top: max(env(safe-area-inset-top, 0px), 78px);
   }
+}
+
+.tma-app-shell {
+  width: 100%;
+  max-width: 480px;
+  margin-left: auto;
+  margin-right: auto;
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  background: var(--color-bg);
+  box-shadow: 0 0 40px rgba(0, 0, 0, 0.45);
 }
 
 * {

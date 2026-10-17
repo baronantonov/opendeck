@@ -7,6 +7,7 @@ import { haptic as rawHaptic } from '../../lib/theme';
 import { triggerCelebrationConfetti } from '../ConfettiEffect';
 import type { Lesson } from '../../types';
 import { drawOverview, drawVertical, generateTrack, isKickAt, levelAt, TrackWave } from './waveform';
+import { useRegisterModal } from '../../lib/navigation';
 
 interface HorizontalDeckModalProps {
   isOpen: boolean;
@@ -250,21 +251,7 @@ export const HorizontalDeckModal: React.FC<HorizontalDeckModalProps> = ({ isOpen
   const [portrait, setPortrait] = useState(false);
   const [flip180, setFlip180] = useState(false);
 
-  useEffect(() => {
-    if (!isOpen) return;
-    const tg = (window as any).Telegram?.WebApp;
-    if (tg?.BackButton) {
-      tg.BackButton.show();
-      const handler = () => onClose();
-      tg.BackButton.onClick(handler);
-      return () => {
-        try {
-          tg.BackButton.offClick(handler);
-          tg.BackButton.hide();
-        } catch {}
-      };
-    }
-  }, [isOpen, onClose]);
+  useRegisterModal('horizontal-deck-modal', isOpen, onClose);
 
   useEffect(() => {
     if (!containerRef.current) return;

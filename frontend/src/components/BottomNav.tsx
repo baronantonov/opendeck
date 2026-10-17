@@ -45,7 +45,7 @@ export function BottomNav() {
         background: 'color-mix(in srgb, var(--color-surface) 94%, #000)',
         backdropFilter: 'blur(16px)',
         borderTop: '1px solid color-mix(in srgb, var(--color-text) 10%, transparent)',
-        paddingBottom: 'var(--safe-bottom)',
+        paddingBottom: 'var(--app-safe-bottom, var(--safe-bottom, 0px))',
         zIndex: 50,
       }}
     >

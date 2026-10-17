@@ -18,6 +18,7 @@ import {
   Globe,
   ShieldCheck,
 } from 'lucide-react';
+import { useRegisterModal } from '../lib/navigation';
 
 /**
  * Аутентичное открытие окна оплаты Telegram Stars по официальной документации Telegram.
@@ -240,6 +241,8 @@ export function MentorPay({
   const { user, reload } = useApp();
   const [busy, setBusy] = useState<'prodamus' | 'tribute' | null>(null);
   const [selectedMethod, setSelectedMethod] = useState<'prodamus' | 'tribute'>('prodamus');
+
+  useRegisterModal('mentor-pay-modal', open, onClose);
 
   // Управление свайпом вниз для мобильных экранов (bottom-sheet)
   const sheetRef = useRef<HTMLDivElement>(null);

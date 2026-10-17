@@ -463,8 +463,22 @@ button {
   }
 }
 
+/* 8. Pulsing Glow for Primary Promo CTA */
+@keyframes button-glow-pulse {
+  0%, 100% {
+    box-shadow: 0 0 16px rgba(140, 226, 200, 0.45), 0 0 32px rgba(140, 226, 200, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 28px rgba(140, 226, 200, 0.85), 0 0 52px rgba(140, 226, 200, 0.4);
+  }
+}
 
-/* 8. Accessibility: graceful degradation on reduced motion */
+.button-glow-pulse {
+  animation: button-glow-pulse 3.2s ease-in-out infinite;
+  will-change: box-shadow;
+}
+
+/* 9. Accessibility: graceful degradation on reduced motion */
 @media (prefers-reduced-motion: reduce) {
   .animate-spin-vinyl {
     animation: none !important;
@@ -482,5 +496,9 @@ button {
   .animate-badge-shake {
     animation: none !important;
   }
+  .button-glow-pulse {
+    animation: none !important;
+  }
 }
+
 

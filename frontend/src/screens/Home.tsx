@@ -1,18 +1,19 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp, COURSE_LESSONS } from '../state/store';
-import { ARCHETYPES, mentorPrices } from '../lib/constants';
+import { mentorPrices } from '../lib/constants';
 import { Button, Card, ProgressBar } from '../components/ui';
 import { haptic } from '../lib/theme';
 import { HorizontalDeckModal } from '../components/deck/HorizontalDeckModal';
 import { MentorPay } from '../payment/Paywall';
 
 import { ProfileWidget } from '../components/profile/ProfileWidget';
-import { StaggerContainer, StaggerItem, GlowCard, ShimmerButton } from '../components/MotionWrappers';
+import { StaggerContainer, StaggerItem, ShimmerButton } from '../components/MotionWrappers';
+import { PocketDjPromoWidget } from '../components/PocketDjPromoWidget';
 
 export function Home() {
   const nav = useNavigate();
-  const { user, course, bonusDone } = useApp();
+  const { user, course } = useApp();
   const [deckOpen, setDeckOpen] = useState(false);
   const [mentorOpen, setMentorOpen] = useState(false);
 
@@ -24,7 +25,6 @@ export function Home() {
   const nextId = nextLessonIndex + 1;
 
   const { discountUsd, finalUsd, finalRub } = mentorPrices(user.groovePoints);
-  const archLine = ARCHETYPES[user.archetype] || 'Твой путь DJ начинается здесь';
 
   return (
     <div style={{ padding: '16px 16px 24px' }}>
@@ -34,85 +34,12 @@ export function Home() {
           <ProfileWidget />
         </StaggerItem>
 
-        {/* 2. Dashboard Hero Banner with Ambient Glow & Animated Gradient Border */}
+        {/* 2. Main Pocket DJ Promo Magnet Widget */}
         <StaggerItem index={1}>
-          <GlowCard strip ambientGlow animatedBorder>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--brand-mint)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                {user.archetype}
-              </span>
-              <span style={{ fontSize: 11, color: 'var(--color-text-dim)', background: 'rgba(255,255,255,0.06)', padding: '2px 8px', borderRadius: 6 }}>
-                Дашборд
-              </span>
-            </div>
-
-            <h1 className="brand-text" style={{ fontSize: 24, margin: '4px 0 6px' }}>
-              Open Deck DJ School
-            </h1>
-            <p style={{ margin: '0 0 14px', fontSize: 13, opacity: 0.88, lineHeight: 1.45 }}>
-              {archLine}
-            </p>
-
-            {/* Mini Stats Grid */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 14 }}>
-              <div
-                style={{
-                  background: 'rgba(0,0,0,0.3)',
-                  borderRadius: 12,
-                  padding: '8px 10px',
-                  textAlign: 'center',
-                }}
-              >
-                <div style={{ fontSize: 11, color: 'var(--color-text-dim)' }}>Пройдено</div>
-                <div style={{ fontSize: 14, fontWeight: 800, marginTop: 2 }}>
-                  {dc}/{tc} ур.
-                </div>
-              </div>
-
-              <div
-                style={{
-                  background: 'rgba(0,0,0,0.3)',
-                  borderRadius: 12,
-                  padding: '8px 10px',
-                  textAlign: 'center',
-                }}
-              >
-                <div style={{ fontSize: 11, color: 'var(--color-text-dim)' }}>Бонусы</div>
-                <div style={{ fontSize: 14, fontWeight: 800, marginTop: 2 }}>
-                  {bonusDone}/4
-                </div>
-              </div>
-
-              <div
-                style={{
-                  background: 'rgba(0,0,0,0.3)',
-                  borderRadius: 12,
-                  padding: '8px 10px',
-                  textAlign: 'center',
-                }}
-              >
-                <div style={{ fontSize: 11, color: 'var(--color-text-dim)' }}>Скидка созвон</div>
-                <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--brand-mint)', marginTop: 2 }}>
-                  −${discountUsd}
-                </div>
-              </div>
-            </div>
-
-            <ShimmerButton
-              variant="mint"
-              block
-              shimmer
-              onClick={() => {
-                haptic('medium');
-                nav('/learn');
-              }}
-            >
-              Перейти к обучению
-            </ShimmerButton>
-          </GlowCard>
+          <PocketDjPromoWidget badgeText="Главный курс · Выбор школы" />
         </StaggerItem>
 
-        {/* 3. Progress Bar Section (Прогрессбар) */}
+        {/* 3. Progress Bar & Course Milestones Section */}
         <StaggerItem index={2}>
           <Card strip>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>

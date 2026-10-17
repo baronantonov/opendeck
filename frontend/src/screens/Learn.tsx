@@ -16,13 +16,16 @@ import {
   Sliders,
   Flame,
   Award,
+  Gift,
 } from 'lucide-react';
 import { useRegisterModal } from '../lib/navigation';
+import { GiftCourseModal } from '../components/GiftCourseModal';
 
 export function Learn() {
   const { user, course, bonusDone, isPaid, adminMode } = useApp();
   const { checkoutCourse, busy: checkoutBusy } = useStarsCheckout();
   const [mentorOpen, setMentorOpen] = useState(false);
+  const [giftOpen, setGiftOpen] = useState(false);
   const [selectedLesson, setSelectedLesson] = useState<{
     type: 'course' | 'bonus';
     index: number;
@@ -278,40 +281,70 @@ export function Learn() {
                 Пошаговый трек от первого бита до готового сета на 5 треков. Осваиваем квадратную сетку, фазирование, частоты (EQ) и тренируемся в интерактивной деке.
               </p>
 
-              {/* Баннер разблокировки полного курса (если не оплачен) */}
-              {!isPaid && !adminMode && (
-                <div
-                  style={{
-                    background: 'color-mix(in srgb, var(--brand-coral) 8%, var(--color-surface))',
-                    borderRadius: 16,
-                    padding: '14px 14px',
-                    border: '1px solid color-mix(in srgb, var(--brand-coral) 35%, transparent)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 10,
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <span style={{ fontWeight: 800, fontSize: 13.5, color: 'var(--brand-coral)' }}>
-                      Полный курс и практика
-                    </span>
-                    <span style={{ fontWeight: 800, fontSize: 13.5, color: 'var(--brand-gold)' }}>
-                      2 500 Stars
-                    </span>
-                  </div>
-                  <p style={{ fontSize: 12, color: 'var(--color-text-dim)', margin: 0, lineHeight: 1.4 }}>
-                    Урок 1 и первый бонус открыты бесплатно. Разблокируй все 6 уроков, тренажер и 4 бонусных видео.
-                  </p>
-                  <Button
-                    variant="coral"
-                    block
-                    disabled={checkoutBusy}
-                    onClick={() => checkoutCourse('dj-basics')}
-                  >
-                    {checkoutBusy ? 'Открываем Telegram Stars...' : 'Открыть полный курс · 2 500 Stars'}
-                  </Button>
+              {/* Баннер разблокировки полного курса и кнопка подарка */}
+              <div
+                style={{
+                  background: 'color-mix(in srgb, var(--brand-coral) 8%, var(--color-surface))',
+                  borderRadius: 16,
+                  padding: '14px 14px',
+                  border: '1px solid color-mix(in srgb, var(--brand-coral) 35%, transparent)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 10,
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ fontWeight: 800, fontSize: 13.5, color: 'var(--brand-coral)' }}>
+                    {isPaid ? 'Подарить курс «Pocket DJ»' : 'Полный курс и практика'}
+                  </span>
+                  <span style={{ fontWeight: 800, fontSize: 13.5, color: 'var(--brand-gold)' }}>
+                    2 500 Stars
+                  </span>
                 </div>
-              )}
+                <p style={{ fontSize: 12, color: 'var(--color-text-dim)', margin: 0, lineHeight: 1.4 }}>
+                  {isPaid
+                    ? 'Подари доступ другу в Telegram: 6 уроков сведения, виртуальная дека и закрытый DJ Camp.'
+                    : 'Урок 1 и первый бонус открыты бесплатно. Разблокируй все 6 уроков, тренажер и 4 бонусных видео.'}
+                </p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {!isPaid && !adminMode && (
+                    <Button
+                      variant="coral"
+                      block
+                      disabled={checkoutBusy}
+                      onClick={() => checkoutCourse('dj-basics')}
+                    >
+                      {checkoutBusy ? 'Открываем Telegram Stars...' : 'Открыть полный курс · 2 500 Stars'}
+                    </Button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      haptic('light');
+                      setGiftOpen(true);
+                    }}
+                    className="active:scale-[0.98] transition-transform select-none"
+                    style={{
+                      border: '1px solid color-mix(in srgb, var(--brand-coral) 40%, transparent)',
+                      background: 'color-mix(in srgb, var(--brand-coral) 12%, transparent)',
+                      color: 'var(--brand-coral)',
+                      borderRadius: 14,
+                      padding: '10px 16px',
+                      fontSize: 13.5,
+                      fontWeight: 700,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 7,
+                      cursor: 'pointer',
+                      width: '100%',
+                    }}
+                  >
+                    <Gift size={16} />
+                    <span>Подарить курс другу</span>
+                  </button>
+                </div>
+              </div>
 
               {/* Список 6 уроков курса */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
@@ -1114,6 +1147,15 @@ export function Learn() {
 
       {/* Модалка оплаты менторства */}
       <MentorPay open={mentorOpen} onClose={() => setMentorOpen(false)} />
+
+      {/* Модалка оформления подарка курса */}
+      <GiftCourseModal
+        isOpen={giftOpen}
+        onClose={() => setGiftOpen(false)}
+        courseId="dj-basics"
+        courseTitle="Pocket DJ"
+        priceStars={2500}
+      />
     </div>
   );
 }

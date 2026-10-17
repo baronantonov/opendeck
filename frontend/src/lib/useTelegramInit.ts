@@ -103,6 +103,7 @@ export function useTelegramInit(): TelegramInitState {
     const tw = getTelegramWebApp();
     if (!tw) {
       syncSafeAreaCss();
+      setState((prev) => ({ ...prev, isReady: true }));
       return;
     }
 

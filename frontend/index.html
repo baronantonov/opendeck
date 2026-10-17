@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="ru">
   <head>
-    <!--opendeck-version:e447cf2-->
+    <!--opendeck-version:3c8097e-->
     <meta charset="UTF-8" />
     <meta
       name="viewport"
@@ -15,7 +15,7 @@
         try {
           var params = new URLSearchParams(window.location.search);
           var urlVer = params.get('v');
-          var m = document.documentElement.outerHTML.match(/opendeck-version:e447cf2-9a-fA-Z_-]+)/);
+          var m = new RegExp('<!--' + 'opendeck-version:([0-9a-zA-Z_-]+)-->').exec(document.documentElement.outerHTML);
           var htmlVer = m ? m[1] : '';
           var activeVer = urlVer || htmlVer;
           var key = 'opendeck_app_version';

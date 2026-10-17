@@ -15,28 +15,26 @@ import { VinylLoader } from './components/VinylLoader';
 
 function Shell() {
   useTelegramTheme();
-  useTelegramInit();
+  const { isReady: isTgReady } = useTelegramInit();
+  const { isLoaded: isSessionLoaded } = useApp();
   const loc = useLocation();
-  const { loading } = useApp();
   const { isExitModalOpen, closeExitModal } = useNavigation();
   const [splashFinished, setSplashFinished] = useState(false);
   const active = loc.pathname.split('/')[1] || 'home';
+
+  // Комплексный флаг готовности: платформа Telegram + данные пользователя и курса
+  const isAppReady = isTgReady && isSessionLoaded;
 
   // Reset scroll on tab change
   useEffect(() => {
     document.querySelector('.scroll-y')?.scrollTo({ top: 0 });
   }, [active]);
 
-  // Страховочный таймер: гарантирует отображение UI через 2.8с даже при оффлайне
-  useEffect(() => {
-    const t = setTimeout(() => setSplashFinished(true), 2800);
-    return () => clearTimeout(t);
-  }, []);
-
   return (
     <div className="tma-app-shell">
+      {/* VinylLoader удерживает оверлей, пока Telegram и сессия не готовы (+ минимальные 1.35с) */}
       <VinylLoader
-        isLoading={loading}
+        isLoading={!isAppReady}
         statusText="Синхронизация битов..."
         onExited={() => setSplashFinished(true)}
       />
@@ -50,8 +48,8 @@ function Shell() {
         }}
       >
         <Routes>
-          <Route path="/" element={<Home key={active + String(splashFinished)} />} />
-          <Route path="/home" element={<Home key={active + String(splashFinished)} />} />
+          <Route path="/" element={<Home key={active} />} />
+          <Route path="/home" element={<Home key={active} />} />
           <Route path="/learn" element={<Learn key={active} />} />
           <Route path="/course" element={<Navigate to="/learn" replace />} />
           <Route path="/bonus" element={<Navigate to="/learn" replace />} />
@@ -61,14 +59,14 @@ function Shell() {
         </Routes>
       </main>
 
-      {/* Компактный плавающий баннер ярлыка на рабочий стол */}
+      {/* Компактный плавающий баннер ярлыка на рабочий стол (активируется после сплэша) */}
       <HomeScreenBanner splashFinished={splashFinished} />
 
       {/* Кастомный попап подтверждения выхода */}
       <ExitConfirmModal open={isExitModalOpen} onClose={closeExitModal} />
 
-      {/* Навигационное меню: скрыто во время экрана загрузки */}
-      {splashFinished && <BottomNav />}
+      {/* Навигационное меню: смонтировано сразу под оверлеем прелоадера, исключая CLS и задержку появления */}
+      <BottomNav />
     </div>
   );
 }

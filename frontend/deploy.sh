@@ -22,7 +22,7 @@ npx tsc --noEmit
 
 GIT_HASH=$(git -C "$ROOT" rev-parse --short HEAD 2>/dev/null || date +%s)
 echo "→ version-busting hash: $GIT_HASH"
-sed -i "s/opendeck-version:[^ -]*/opendeck-version:$GIT_HASH/" "$FRONTEND/index.html"
+sed -i "1,10s/<!--opendeck-version:[^ >]*-->/<!--opendeck-version:$GIT_HASH-->/" "$FRONTEND/index.html"
 
 echo "→ building single-file bundle"
 npm run build

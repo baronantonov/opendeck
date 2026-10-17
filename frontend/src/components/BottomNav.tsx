@@ -34,10 +34,10 @@ function DjPlayGlyph() {
         marginLeft: '2px', // оптическое центрирование вершины треугольника
       }}
     >
-      {/* Крупный чистый треугольник PLAY без символа паузы */}
+      {/* Крупный чистый треугольник PLAY в фирменном изумрудном тоне */}
       <path
         d="M7.5 5.2C7.5 4.3 8.5 3.7 9.3 4.2l10.4 6.8c0.8 0.5 0.8 1.7 0 2.2L9.3 20c-0.8 0.5-1.8-0.1-1.8-1V5.2Z"
-        fill="#1b1f1e"
+        fill="#11322a"
       />
     </svg>
   );
@@ -90,7 +90,7 @@ export function BottomNav() {
                 flex: 1,
                 border: 'none',
                 background: 'transparent',
-                color: on ? '#ff9e3b' : 'rgba(244, 247, 245, 0.72)',
+                color: on ? 'var(--brand-mint)' : 'rgba(244, 247, 245, 0.72)',
                 padding: '0 0 8px',
                 display: 'flex',
                 flexDirection: 'column',
@@ -111,8 +111,8 @@ export function BottomNav() {
                   borderRadius: '50%',
                   marginTop: -16,
                   background: on
-                    ? 'linear-gradient(145deg, #ffa834 0%, #ff7300 55%, #f25500 100%)'
-                    : 'linear-gradient(145deg, #ff9b20 0%, #ff6a00 55%, #e84e00 100%)',
+                    ? 'radial-gradient(circle at 40% 35%, #b6f8e7 0%, var(--brand-mint) 55%, #63dab5 100%)'
+                    : 'radial-gradient(circle at 40% 35%, #a6f1dd 0%, var(--brand-mint) 55%, #66d4b0 100%)',
                   border: 'none',
                   outline: 'none',
                   display: 'flex',

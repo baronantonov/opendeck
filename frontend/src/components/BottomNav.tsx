@@ -26,22 +26,19 @@ function DjPlayGlyph() {
   return (
     <svg
       viewBox="0 0 24 24"
-      width="22"
-      height="22"
+      width="28"
+      height="28"
       fill="none"
       style={{
         display: 'block',
-        overflow: 'visible',
+        marginLeft: '2px', // оптическое центрирование вершины треугольника
       }}
     >
-      {/* Классический треугольник PLAY диджейского пульта */}
+      {/* Крупный чистый треугольник PLAY без символа паузы */}
       <path
-        d="M5.5 5.2C5.5 4.5 6.3 4.1 6.9 4.5l8.6 6.1c0.6 0.4 0.6 1.4 0 1.8L6.9 19.5c-0.6 0.4-1.4 0-1.4-0.7V5.2Z"
-        fill="#121514"
+        d="M7.5 5.2C7.5 4.3 8.5 3.7 9.3 4.2l10.4 6.8c0.8 0.5 0.8 1.7 0 2.2L9.3 20c-0.8 0.5-1.8-0.1-1.8-1V5.2Z"
+        fill="#1b1f1e"
       />
-      {/* Две риски PAUSE справа как на Pioneer CDJ */}
-      <rect x="17" y="5.5" width="2.2" height="13" rx="1.1" fill="#121514" />
-      <rect x="20.8" y="5.5" width="2.2" height="13" rx="1.1" fill="#121514" />
     </svg>
   );
 }
@@ -109,14 +106,15 @@ export function BottomNav() {
               <div
                 className={`dj-play-btn ${on ? 'dj-play-btn--active' : ''}`}
                 style={{
-                  width: 50,
-                  height: 50,
+                  width: 52,
+                  height: 52,
                   borderRadius: '50%',
                   marginTop: -16,
                   background: on
-                    ? 'radial-gradient(circle at 38% 30%, #ffbe6a 0%, #ff7a00 52%, #df4800 100%)'
-                    : 'radial-gradient(circle at 38% 30%, #ffa542 0%, #ff6f00 52%, #d64700 100%)',
-                  border: on ? '2px solid rgba(255, 255, 255, 0.95)' : '2px solid rgba(255, 225, 190, 0.75)',
+                    ? 'linear-gradient(145deg, #ffa834 0%, #ff7300 55%, #f25500 100%)'
+                    : 'linear-gradient(145deg, #ff9b20 0%, #ff6a00 55%, #e84e00 100%)',
+                  border: 'none',
+                  outline: 'none',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',

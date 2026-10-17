@@ -376,52 +376,28 @@ button {
   pointer-events: none !important;
 }
 
-/* 7. DJ Play Button: Glowing physical Pioneer CDJ / Rekordbox button */
+/* 7. DJ Play Button: Clean glowing orange button without borders/strokes */
 @keyframes dj-play-glow {
   0%, 100% {
-    box-shadow:
-      0 0 0 2px #181c1a,
-      0 0 14px rgba(255, 122, 0, 0.7),
-      0 0 28px rgba(255, 95, 0, 0.35),
-      inset 0 1px 2px rgba(255, 255, 255, 0.6),
-      inset 0 -2px 4px rgba(0, 0, 0, 0.45);
-    filter: drop-shadow(0 0 6px rgba(255, 122, 0, 0.5));
+    box-shadow: 0 0 16px rgba(255, 122, 0, 0.6), 0 0 32px rgba(255, 100, 0, 0.28);
   }
   50% {
-    box-shadow:
-      0 0 0 2px #181c1a,
-      0 0 22px rgba(255, 145, 0, 0.95),
-      0 0 42px rgba(255, 100, 0, 0.6),
-      inset 0 2px 3px rgba(255, 255, 255, 0.8),
-      inset 0 -2px 4px rgba(0, 0, 0, 0.45);
-    filter: drop-shadow(0 0 10px rgba(255, 145, 0, 0.8));
+    box-shadow: 0 0 24px rgba(255, 140, 0, 0.85), 0 0 46px rgba(255, 110, 0, 0.42);
   }
 }
 
 @keyframes dj-play-glow-active {
   0%, 100% {
-    box-shadow:
-      0 0 0 2px #181c1a,
-      0 0 20px rgba(255, 140, 0, 0.9),
-      0 0 38px rgba(255, 100, 0, 0.55),
-      inset 0 2px 3px rgba(255, 255, 255, 0.75),
-      inset 0 -2px 4px rgba(0, 0, 0, 0.45);
-    filter: drop-shadow(0 0 8px rgba(255, 140, 0, 0.7));
+    box-shadow: 0 0 20px rgba(255, 140, 0, 0.8), 0 0 42px rgba(255, 100, 0, 0.45);
   }
   50% {
-    box-shadow:
-      0 0 0 2px #181c1a,
-      0 0 28px rgba(255, 160, 20, 1),
-      0 0 52px rgba(255, 110, 0, 0.75),
-      inset 0 2px 4px rgba(255, 255, 255, 0.9),
-      inset 0 -2px 4px rgba(0, 0, 0, 0.45);
-    filter: drop-shadow(0 0 14px rgba(255, 160, 20, 0.95));
+    box-shadow: 0 0 30px rgba(255, 155, 15, 0.95), 0 0 56px rgba(255, 110, 0, 0.6);
   }
 }
 
 .dj-play-btn {
   animation: dj-play-glow 2.8s ease-in-out infinite;
-  will-change: box-shadow, filter, transform;
+  will-change: box-shadow, transform;
 }
 
 .dj-play-btn--active {

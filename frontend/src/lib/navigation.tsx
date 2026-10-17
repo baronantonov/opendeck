@@ -63,6 +63,13 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
     } catch {}
 
     const handleBackClick = () => {
+      // 0. Если открыт ExitConfirmModal — полностью блокируем реакцию на повторное нажатие «Назад»
+      // (системной стрелки Telegram или аппаратной кнопки Android), требуя осознанного выбора
+      // пользователя строго через интерфейсные кнопки попапа («Остаться» или «Выйти»)
+      if (isExitModalOpenRef.current) {
+        return;
+      }
+
       // 1. Если открыта внутренняя модалка (из modalStack) — закрываем ее
       if (modalStackRef.current.length > 0) {
         const topModal = modalStackRef.current.pop();
@@ -82,15 +89,8 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      // 3. Пользователь находится на Главной странице:
-      if (isExitModalOpenRef.current) {
-        // Если ExitConfirmModal УЖЕ открыт и пользователь нажимает «Назад» повторно — немедленно выходим
-        haptic('medium');
-        tw.close();
-      } else {
-        // Первый тап «Назад» на Главной — открываем ExitConfirmModal с тактильным предупреждением
-        openExitModal();
-      }
+      // 3. Одиночный тап «Назад» на Главной — открываем ExitConfirmModal с тактильным предупреждением
+      openExitModal();
     };
 
     try {

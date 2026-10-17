@@ -22,6 +22,30 @@ const TABS = [
   },
 ] as const;
 
+function DjPlayGlyph() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="22"
+      height="22"
+      fill="none"
+      style={{
+        display: 'block',
+        overflow: 'visible',
+      }}
+    >
+      {/* Классический треугольник PLAY диджейского пульта */}
+      <path
+        d="M5.5 5.2C5.5 4.5 6.3 4.1 6.9 4.5l8.6 6.1c0.6 0.4 0.6 1.4 0 1.8L6.9 19.5c-0.6 0.4-1.4 0-1.4-0.7V5.2Z"
+        fill="#121514"
+      />
+      {/* Две риски PAUSE справа как на Pioneer CDJ */}
+      <rect x="17" y="5.5" width="2.2" height="13" rx="1.1" fill="#121514" />
+      <rect x="20.8" y="5.5" width="2.2" height="13" rx="1.1" fill="#121514" />
+    </svg>
+  );
+}
+
 export function BottomNav() {
   const nav = useNavigate();
   const loc = useLocation();
@@ -42,6 +66,7 @@ export function BottomNav() {
         bottom: 0,
         marginTop: 'auto',
         display: 'flex',
+        alignItems: 'flex-end',
         background: 'color-mix(in srgb, var(--color-surface) 94%, #000)',
         backdropFilter: 'blur(16px)',
         borderTop: '1px solid color-mix(in srgb, var(--color-text) 10%, transparent)',
@@ -51,6 +76,59 @@ export function BottomNav() {
     >
       {TABS.map((t) => {
         const on = active === t.id;
+        const isCenter = t.id === 'learn';
+
+        if (isCenter) {
+          return (
+            <button
+              key={t.id}
+              onClick={() => {
+                haptic('medium');
+                nav(t.path);
+              }}
+              aria-label={t.label}
+              className="dj-play-container"
+              style={{
+                flex: 1,
+                border: 'none',
+                background: 'transparent',
+                color: on ? '#ff9e3b' : 'rgba(244, 247, 245, 0.72)',
+                padding: '0 0 8px',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'flex-end',
+                gap: 3,
+                fontSize: 11,
+                fontWeight: on ? 800 : 600,
+                cursor: 'pointer',
+                position: 'relative',
+              }}
+            >
+              <div
+                className={`dj-play-btn ${on ? 'dj-play-btn--active' : ''}`}
+                style={{
+                  width: 50,
+                  height: 50,
+                  borderRadius: '50%',
+                  marginTop: -16,
+                  background: on
+                    ? 'radial-gradient(circle at 38% 30%, #ffbe6a 0%, #ff7a00 52%, #df4800 100%)'
+                    : 'radial-gradient(circle at 38% 30%, #ffa542 0%, #ff6f00 52%, #d64700 100%)',
+                  border: on ? '2px solid rgba(255, 255, 255, 0.95)' : '2px solid rgba(255, 225, 190, 0.75)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease',
+                }}
+              >
+                <DjPlayGlyph />
+              </div>
+              <span>{t.label}</span>
+            </button>
+          );
+        }
+
         return (
           <button
             key={t.id}

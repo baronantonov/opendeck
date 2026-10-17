@@ -231,7 +231,7 @@ export function VinylLoader({
       role="progressbar"
       aria-label="Загрузка приложения Open Deck DJ School"
       onClick={handleQuickSkip}
-      className={`fixed inset-0 z-50 flex flex-col items-center justify-center select-none cursor-pointer ${
+      className={`fixed inset-0 z-[200] flex flex-col items-center justify-center select-none cursor-pointer ${
         isExiting ? 'animate-splash-exit' : ''
       }`}
       style={{

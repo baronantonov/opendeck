@@ -61,6 +61,7 @@ export function BottomNav() {
 
   return (
     <nav
+      className="animate-pop"
       style={{
         position: 'sticky',
         bottom: 0,

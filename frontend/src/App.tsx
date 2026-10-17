@@ -27,6 +27,12 @@ function Shell() {
     document.querySelector('.scroll-y')?.scrollTo({ top: 0 });
   }, [active]);
 
+  // Страховочный таймер: гарантирует отображение UI через 2.8с даже при оффлайне
+  useEffect(() => {
+    const t = setTimeout(() => setSplashFinished(true), 2800);
+    return () => clearTimeout(t);
+  }, []);
+
   return (
     <div className="tma-app-shell">
       <VinylLoader
@@ -61,7 +67,8 @@ function Shell() {
       {/* Кастомный попап подтверждения выхода */}
       <ExitConfirmModal open={isExitModalOpen} onClose={closeExitModal} />
 
-      <BottomNav />
+      {/* Навигационное меню: скрыто во время экрана загрузки */}
+      {splashFinished && <BottomNav />}
     </div>
   );
 }

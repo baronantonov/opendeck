@@ -47,8 +47,6 @@ export function HomeScreenBanner({ active = true, splashFinished }: HomeScreenBa
         }`}
         style={{
           willChange: 'transform, opacity',
-          WebkitTransform: 'translateZ(0)',
-          transform: 'translateZ(0)',
         }}
       >
         <div

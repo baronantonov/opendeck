@@ -2,8 +2,12 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { getTelegramWebApp, type HomeScreenStatus } from '../types';
 
 export const DIRECT_LINK = 'http://t.me/OpenDeck_bot/webapp';
-export const STORAGE_PERMANENT_KEY = 'opendeck_hs_installed_v2';
-export const STORAGE_SESSION_DISMISSED_KEY = 'opendeck_banner_dismissed_v2';
+export const STORAGE_PERMANENT_KEY = 'opendeck_hs_added';
+export const STORAGE_SESSION_DISMISSED_KEY = 'opendeck_banner_dismissed';
+
+/** Legacy-ключи для бесшовной миграции без повторного показа */
+const LEGACY_PERMANENT_KEY = 'opendeck_hs_installed_v2';
+const LEGACY_SESSION_KEY = 'opendeck_banner_dismissed_v2';
 
 /**
  * Проверка постоянного статуса установки ярлыка в CloudStorage и localStorage
@@ -12,7 +16,10 @@ async function getStoredAddedFlag(): Promise<boolean> {
   if (typeof window === 'undefined') return false;
 
   try {
-    if (localStorage.getItem(STORAGE_PERMANENT_KEY) === 'true') {
+    if (
+      localStorage.getItem(STORAGE_PERMANENT_KEY) === 'true' ||
+      localStorage.getItem(LEGACY_PERMANENT_KEY) === 'true'
+    ) {
       return true;
     }
   } catch {}
@@ -21,16 +28,32 @@ async function getStoredAddedFlag(): Promise<boolean> {
   const cs = tw?.CloudStorage;
   if (cs && typeof cs.getItem === 'function') {
     return new Promise((resolve) => {
+      let settled = false;
+      const timer = setTimeout(() => {
+        if (!settled) {
+          settled = true;
+          resolve(false);
+        }
+      }, 500);
+
       try {
         cs.getItem(STORAGE_PERMANENT_KEY, (err, val) => {
-          if (!err && val === 'true') {
-            resolve(true);
-          } else {
-            resolve(false);
+          if (!settled) {
+            settled = true;
+            clearTimeout(timer);
+            if (!err && val === 'true') {
+              resolve(true);
+            } else {
+              resolve(false);
+            }
           }
         });
       } catch {
-        resolve(false);
+        if (!settled) {
+          settled = true;
+          clearTimeout(timer);
+          resolve(false);
+        }
       }
     });
   }
@@ -62,7 +85,10 @@ export function setStoredAddedFlag(): void {
 function isSessionDismissed(): boolean {
   if (typeof window === 'undefined') return false;
   try {
-    return sessionStorage.getItem(STORAGE_SESSION_DISMISSED_KEY) === 'true';
+    return (
+      sessionStorage.getItem(STORAGE_SESSION_DISMISSED_KEY) === 'true' ||
+      sessionStorage.getItem(LEGACY_SESSION_KEY) === 'true'
+    );
   } catch {
     return false;
   }

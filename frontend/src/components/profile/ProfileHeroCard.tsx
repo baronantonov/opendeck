@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../../state/store';
 import { getUserRank } from '../../lib/constants';
 import { Star, IconHeadphones, IconSparkles } from '../ui';
@@ -84,6 +84,10 @@ function LargeUserpic({
 }) {
   const [imgError, setImgError] = useState(false);
 
+  useEffect(() => {
+    setImgError(false);
+  }, [photoUrl]);
+
   // Вычисление 1-2 букв инициалов
   const initials = useMemo(() => {
     const parts = (displayName || 'DJ').trim().split(/\s+/).filter(Boolean);
@@ -125,6 +129,8 @@ function LargeUserpic({
           <img
             src={photoUrl}
             alt={displayName}
+            loading="eager"
+            decoding="async"
             referrerPolicy="no-referrer"
             onError={() => setImgError(true)}
             style={{

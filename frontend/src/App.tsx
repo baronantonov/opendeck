@@ -13,19 +13,53 @@ import { Learn } from './screens/Learn';
 import { TribeScreen } from './screens/TribeScreen';
 import { Profile } from './screens/Profile';
 import { VinylLoader } from './components/VinylLoader';
+import { preloadUserpic } from './lib/avatarPreload';
 
 function Shell() {
   useTelegramTheme();
   const { isReady: isTgReady } = useTelegramInit();
-  const { isLoaded: isSessionLoaded, welcomeBonus } = useApp();
+  const { isLoaded: isSessionLoaded, welcomeBonus, user } = useApp();
   const { toast } = useToast();
   const loc = useLocation();
   const { isExitModalOpen, closeExitModal } = useNavigation();
   const [splashFinished, setSplashFinished] = useState(false);
+  const [isAvatarReady, setIsAvatarReady] = useState(false);
   const active = loc.pathname.split('/')[1] || 'home';
 
-  // Комплексный флаг готовности: платформа Telegram + данные пользователя и курса
-  const isAppReady = isTgReady && isSessionLoaded;
+  // Предзагрузка юзерпика Telegram во время окна загрузки приложения (VinylLoader)
+  useEffect(() => {
+    const photo =
+      user.photoUrl ||
+      (window as any).Telegram?.WebApp?.initDataUnsafe?.user?.photo_url ||
+      (window as any).__opendeck_userpic_url;
+
+    if (!photo) {
+      setIsAvatarReady(true);
+      return;
+    }
+
+    let active = true;
+    // Ограничиваем ожидание максимум 850мс, чтобы аватар подгрузился
+    // строго внутри минимального окна показа винила (1350мс) и не задерживал запуск
+    const timer = window.setTimeout(() => {
+      if (active) setIsAvatarReady(true);
+    }, 850);
+
+    preloadUserpic(photo).finally(() => {
+      if (active) {
+        window.clearTimeout(timer);
+        setIsAvatarReady(true);
+      }
+    });
+
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+    };
+  }, [user.photoUrl]);
+
+  // Комплексный флаг готовности: платформа Telegram + данные пользователя и курса + готовность аватара
+  const isAppReady = isTgReady && isSessionLoaded && isAvatarReady;
 
   // Показ приветственного бонуса (рефералка / подарок)
   useEffect(() => {

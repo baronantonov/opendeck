@@ -7,6 +7,7 @@ import {
   loadSecuredProgress,
   saveSecuredProgress,
 } from './securityGuard';
+import { preloadUserpic } from './avatarPreload';
 
 export const USER_SESSION_STORAGE_KEY = 'opendeck_user_session_v1';
 
@@ -46,13 +47,18 @@ function getTelegramBridgeUser(): Partial<User> | null {
   if (typeof window === 'undefined') return null;
   try {
     const tu = (window as any).Telegram?.WebApp?.initDataUnsafe?.user;
-    if (!tu) return null;
+    const earlyPhoto = (window as any).__opendeck_userpic_url || '';
+    if (!tu && !earlyPhoto) return null;
+    const photo = tu?.photo_url || earlyPhoto || '';
+    if (photo) {
+      void preloadUserpic(photo);
+    }
     return {
-      name: tu.first_name || 'DJ',
-      lastName: tu.last_name || '',
-      username: tu.username || '',
-      photoUrl: tu.photo_url || '',
-      isPremium: Boolean(tu.is_premium),
+      name: tu?.first_name || 'DJ',
+      lastName: tu?.last_name || '',
+      username: tu?.username || '',
+      photoUrl: photo,
+      isPremium: Boolean(tu?.is_premium),
     };
   } catch {
     return null;
@@ -67,7 +73,11 @@ function readCachedSession(): CachedSessionData | null {
   try {
     const raw = localStorage.getItem(USER_SESSION_STORAGE_KEY);
     if (!raw) return null;
-    return JSON.parse(raw) as CachedSessionData;
+    const data = JSON.parse(raw) as CachedSessionData;
+    if (data?.user?.photoUrl) {
+      void preloadUserpic(data.user.photoUrl);
+    }
+    return data;
   } catch {
     return null;
   }
@@ -279,6 +289,8 @@ export function useTelegramUserSession(): TelegramUserSession {
       setUserState((prevUser) => {
         let nextUser = prevUser;
         if (init) {
+          const effectivePhoto = tu?.photo_url || init.user.photo_url || prevUser.photoUrl || '';
+          if (effectivePhoto) void preloadUserpic(effectivePhoto);
           nextUser = {
             groovePoints: init.user.groove_points ?? 0,
             referralCode: init.user.referral_code || '',
@@ -289,10 +301,12 @@ export function useTelegramUserSession(): TelegramUserSession {
             name: tu?.first_name || init.user.first_name || prevUser.name,
             lastName: tu?.last_name || '',
             username: tu?.username || init.user.username || '',
-            photoUrl: tu?.photo_url || init.user.photo_url || '',
+            photoUrl: effectivePhoto,
             isPremium: Boolean(tu?.is_premium),
           };
         } else if (profile) {
+          const effectivePhoto = tu?.photo_url || profile.user?.photo_url || prevUser.photoUrl || '';
+          if (effectivePhoto) void preloadUserpic(effectivePhoto);
           nextUser = {
             ...prevUser,
             groovePoints: profile.gp ?? 0,
@@ -304,7 +318,7 @@ export function useTelegramUserSession(): TelegramUserSession {
             name: tu?.first_name || profile.user?.first_name || prevUser.name,
             lastName: tu?.last_name || '',
             username: tu?.username || profile.user?.username || '',
-            photoUrl: tu?.photo_url || profile.user?.photo_url || '',
+            photoUrl: effectivePhoto,
             isPremium: Boolean(tu?.is_premium),
           };
         }
@@ -347,6 +361,7 @@ export function useTelegramUserSession(): TelegramUserSession {
 
       // Сохраняем снимок в localStorage
       setTimeout(() => {
+        const effectivePhoto = tu?.photo_url || init?.user?.photo_url || cached.current?.user?.photoUrl || defaultUser.photoUrl || '';
         const u = tu
           ? {
               groovePoints: init?.user.groove_points ?? 0,
@@ -358,10 +373,13 @@ export function useTelegramUserSession(): TelegramUserSession {
               name: tu?.first_name || 'DJ',
               lastName: tu?.last_name || '',
               username: tu?.username || '',
-              photoUrl: tu?.photo_url || '',
+              photoUrl: effectivePhoto,
               isPremium: Boolean(tu?.is_premium),
             }
-          : defaultUser;
+          : {
+              ...defaultUser,
+              photoUrl: effectivePhoto,
+            };
 
         writeCachedSession({
           user: u,

@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="ru">
   <head>
-    <!--opendeck-version:6350a72-->
+    <!--opendeck-version:d469f32-->
     <meta charset="UTF-8" />
     <meta
       name="viewport"
@@ -39,6 +39,34 @@
     </script>
     <!-- Telegram bridge MUST load before the app bundle (per tma-scaffold) -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script>
+      (function(){
+        try {
+          var p = '';
+          if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initDataUnsafe && window.Telegram.WebApp.initDataUnsafe.user) {
+            p = window.Telegram.WebApp.initDataUnsafe.user.photo_url || '';
+          }
+          if (!p) {
+            var raw = localStorage.getItem('opendeck_user_session');
+            if (raw) {
+              var s = JSON.parse(raw);
+              p = (s && s.user && s.user.photoUrl) || '';
+            }
+          }
+          if (p) {
+            window.__opendeck_userpic_url = p;
+            var l = document.createElement('link');
+            l.rel = 'preload';
+            l.as = 'image';
+            l.href = p;
+            document.head.appendChild(l);
+            var img = new Image();
+            img.referrerPolicy = 'no-referrer';
+            img.src = p;
+          }
+        } catch(e){}
+      })();
+    </script>
     <title>Open Deck — DJ School</title>
   </head>
   <body>

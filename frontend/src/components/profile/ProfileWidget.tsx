@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../../state/store';
 import { getUserRank, type RankDef } from '../../lib/constants';
@@ -132,6 +132,10 @@ function ProfileAvatar({
 }) {
   const [imgError, setImgError] = useState(false);
 
+  useEffect(() => {
+    setImgError(false);
+  }, [photoUrl]);
+
   const initials = (name || 'DJ')
     .trim()
     .split(/\s+/)
@@ -172,6 +176,8 @@ function ProfileAvatar({
           <img
             src={photoUrl}
             alt={name}
+            loading="eager"
+            decoding="async"
             referrerPolicy="no-referrer"
             onError={() => setImgError(true)}
             style={{

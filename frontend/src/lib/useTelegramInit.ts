@@ -59,20 +59,35 @@ export function getCombinedSafeArea(): TelegramSafeAreaInset {
  * 5. Синхронизация системных цветов с брендовым фоном #2b302e
  * 6. Глобальный расчет и реактивное обновление --app-safe-top и --app-safe-bottom
  */
+export function isVersionAtLeast(version: string | undefined, minVersion: string): boolean {
+  if (!version) return false;
+  const v1 = version.split('.').map(Number);
+  const v2 = minVersion.split('.').map(Number);
+  for (let i = 0; i < Math.max(v1.length, v2.length); i++) {
+    const n1 = v1[i] || 0;
+    const n2 = v2[i] || 0;
+    if (n1 > n2) return true;
+    if (n1 < n2) return false;
+  }
+  return true;
+}
+
 /**
  * Надежное применение защиты от случайного сворачивания и закрытия.
- * Вызывается при старте и реактивно при смене режимов fullscreen / viewport.
+ * Проверяет версию Telegram Bot API для предотвращения исключений WebAppMethodUnsupported.
  */
 export function applyTelegramProtection(tw?: TelegramWebApp | null) {
   if (!tw) return;
 
   try {
     // 1. Инициализация готовности и расширение на весь экран
-    tw.ready?.();
-    tw.expand?.();
+    try { tw.ready?.(); } catch {}
+    try { tw.expand?.(); } catch {}
+
+    const version = tw.version;
 
     // 2. Полноэкранный режим Bot API 8.0+
-    if (typeof tw.requestFullscreen === 'function') {
+    if (isVersionAtLeast(version, '8.0') && typeof tw.requestFullscreen === 'function') {
       try {
         tw.requestFullscreen();
       } catch (e) {
@@ -80,37 +95,34 @@ export function applyTelegramProtection(tw?: TelegramWebApp | null) {
       }
     }
 
-    // 3. Блокировка вертикальных свайпов закрытия и запрос подтверждения закрытия
-    tw.disableVerticalSwipes?.();
-    tw.enableClosingConfirmation?.();
-
-    // 4. Прямой bridge-вызов postEvent для 100% гарантии на iOS и Android клиентах
-    const webView = (window as any).Telegram?.WebView;
-    if (webView && typeof webView.postEvent === 'function') {
+    // 3. Блокировка вертикальных свайпов закрытия (Bot API 7.7+)
+    if (isVersionAtLeast(version, '7.7') && typeof tw.disableVerticalSwipes === 'function') {
       try {
-        webView.postEvent('web_app_setup_swipe_behavior', false, { allow_vertical_swipe: false });
-        webView.postEvent('web_app_setup_closing_behavior', false, { need_confirmation: true });
-        webView.postEvent('web_app_request_fullscreen', false);
-        webView.postEvent('web_app_expand', false);
-      } catch (e) {
-        console.warn('[TMA] WebView.postEvent failed:', e);
-      }
+        tw.disableVerticalSwipes();
+      } catch {}
     }
 
-    // 5. Блокировка ориентации (portrait)
-    try {
-      tw.lockOrientation?.();
-    } catch (e) {
-      console.warn('[TMA] lockOrientation failed:', e);
+    // 4. Запрос подтверждения закрытия (Bot API 6.2+)
+    if (isVersionAtLeast(version, '6.2') && typeof tw.enableClosingConfirmation === 'function') {
+      try {
+        tw.enableClosingConfirmation();
+      } catch {}
+    }
+
+    // 5. Блокировка ориентации (portrait) (Bot API 8.0+)
+    if (isVersionAtLeast(version, '8.0') && typeof tw.lockOrientation === 'function') {
+      try {
+        tw.lockOrientation();
+      } catch {}
     }
 
     // 6. Синхронизация системных цветов с брендовой темой #2b302e
-    try {
-      tw.setBackgroundColor?.(BRAND_BG);
-      tw.setHeaderColor?.(BRAND_BG);
-      tw.setBottomBarColor?.(BRAND_BG);
-    } catch (e) {
-      console.warn('[TMA] set system colors failed:', e);
+    if (isVersionAtLeast(version, '6.1')) {
+      try { tw.setBackgroundColor?.(BRAND_BG); } catch {}
+      try { tw.setHeaderColor?.(BRAND_BG); } catch {}
+    }
+    if (isVersionAtLeast(version, '7.10')) {
+      try { tw.setBottomBarColor?.(BRAND_BG); } catch {}
     }
   } catch (err) {
     console.warn('[TMA] applyTelegramProtection error:', err);
@@ -156,11 +168,22 @@ export function useTelegramInit(): TelegramInitState {
       }
     }
 
-    setState((prev) => ({
-      ...prev,
-      isFullscreen: isFs,
-      safeArea: insets,
-    }));
+    setState((prev) => {
+      if (
+        prev.isFullscreen === isFs &&
+        prev.safeArea.top === insets.top &&
+        prev.safeArea.bottom === insets.bottom &&
+        prev.safeArea.left === insets.left &&
+        prev.safeArea.right === insets.right
+      ) {
+        return prev;
+      }
+      return {
+        ...prev,
+        isFullscreen: isFs,
+        safeArea: insets,
+      };
+    });
   }, []);
 
   useEffect(() => {
@@ -174,7 +197,7 @@ export function useTelegramInit(): TelegramInitState {
     const platform = String(tw.platform || '').toLowerCase();
     const isMobile = platform === 'ios' || platform === 'android';
 
-    // 1. Применяем полную защиту от свайпов, закрытия и переход в fullscreen
+    // 1. Применяем защиту строго ОДИН РАЗ при первом монтировании
     applyTelegramProtection(tw);
 
     // Первичная синхронизация safe areas
@@ -187,10 +210,10 @@ export function useTelegramInit(): TelegramInitState {
       safeArea: getCombinedSafeArea(),
     });
 
+    // Обработчик реактивных событий экрана: ТОЛЬКО синхронизация геометрии,
+    // без повторного вызова applyTelegramProtection во избежание бесконечного цикла
     const handleTelegramEvent = () => {
-      // При изменении экрана или полноэкранного режима повторно фиксируем safe area и блокировку свайпов
       syncSafeAreaCss();
-      applyTelegramProtection(tw);
     };
 
     // 2. Подписка на реактивные события Telegram Bot API 8.0+
@@ -198,7 +221,6 @@ export function useTelegramInit(): TelegramInitState {
       'safeAreaChanged',
       'contentSafeAreaChanged',
       'fullscreenChanged',
-      'fullscreenFailed',
       'viewportChanged',
     ];
 
@@ -208,13 +230,11 @@ export function useTelegramInit(): TelegramInitState {
       } catch {}
     });
 
-    // Резервный таймер повторной синхронизации (iOS WebView часто отдает insets с задержкой 100-300ms)
     const t1 = setTimeout(handleTelegramEvent, 150);
     const t2 = setTimeout(handleTelegramEvent, 500);
-
     window.addEventListener('resize', handleTelegramEvent);
 
-    // 3. Touch Guard: предотвращение pull-down жеста от верхней кромки в iOS/Android WebView
+    // 3. Быстрый Touch Guard: предотвращение pull-down жеста от верхней кромки
     let touchStartY = 0;
     const onTouchStart = (e: TouchEvent) => {
       if (e.touches.length === 1) {
@@ -227,27 +247,12 @@ export function useTelegramInit(): TelegramInitState {
       const currentY = e.touches[0].clientY;
       const deltaY = currentY - touchStartY;
 
-      // Пользователь тянет пальцем вниз (pull-down)
+      // Пользователь тянет вниз
       if (deltaY > 0) {
-        let el = e.target as HTMLElement | null;
-        let canScrollUp = false;
+        const el = e.target as HTMLElement | null;
+        const scrollable = el?.closest('.scroll-y') as HTMLElement | null;
+        const canScrollUp = scrollable ? scrollable.scrollTop > 0 : false;
 
-        while (el && el !== document.body && el !== document.documentElement) {
-          const overflowY = window.getComputedStyle(el).overflowY;
-          if (
-            (overflowY === 'auto' || overflowY === 'scroll') &&
-            el.scrollHeight > el.clientHeight
-          ) {
-            if (el.scrollTop > 0) {
-              canScrollUp = true;
-              break;
-            }
-          }
-          el = el.parentElement;
-        }
-
-        // Если контент уже на самом верху или контейнер не скроллится вверх,
-        // блокируем pull-down оттягивание, предотвращая сворачивание Telegram WebView
         if (!canScrollUp && e.cancelable) {
           e.preventDefault();
         }

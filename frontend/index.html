@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="ru">
   <head>
-    <!--opendeck-version:de9e7b4-->
+    <!--opendeck-version:7389327-->
     <meta charset="UTF-8" />
     <meta
       name="viewport"
@@ -19,18 +19,6 @@
           var htmlVer = m ? m[1] : '';
           var activeVer = urlVer || htmlVer;
           var key = 'opendeck_app_version';
-          var stored = localStorage.getItem(key);
-
-          if (activeVer && stored && stored !== activeVer) {
-            localStorage.setItem(key, activeVer);
-            if ('caches' in window) {
-              caches.keys().then(function(keys) {
-                keys.forEach(function(k) { caches.delete(k); });
-              });
-            }
-            window.location.reload();
-            return;
-          }
           if (activeVer) {
             localStorage.setItem(key, activeVer);
           }
@@ -46,13 +34,6 @@
           if (tw) {
             try { tw.ready && tw.ready(); } catch(e){}
             try { tw.expand && tw.expand(); } catch(e){}
-            try {
-              if (typeof tw.requestFullscreen === 'function') {
-                tw.requestFullscreen();
-              }
-            } catch(e){}
-            try { tw.disableVerticalSwipes && tw.disableVerticalSwipes(); } catch(e){}
-            try { tw.enableClosingConfirmation && tw.enableClosingConfirmation(); } catch(e){}
           }
         } catch(e){}
       })();
@@ -90,5 +71,20 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+      setTimeout(function() {
+        try {
+          var loader = document.querySelector('[role="progressbar"]');
+          if (loader) {
+            loader.style.transition = 'opacity 0.3s ease-out';
+            loader.style.opacity = '0';
+            loader.style.pointerEvents = 'none';
+            setTimeout(function() {
+              if (loader && loader.parentNode) loader.parentNode.removeChild(loader);
+            }, 300);
+          }
+        } catch(e){}
+      }, 1400);
+    </script>
   </body>
 </html>

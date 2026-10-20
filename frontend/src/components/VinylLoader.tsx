@@ -193,18 +193,25 @@ export function VinylLoader({
   const isExitingRef = useRef(false);
   const onExitedRef = useRef(onExited);
   onExitedRef.current = onExited;
+  const exitTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (exitTimerRef.current !== null) {
+        window.clearTimeout(exitTimerRef.current);
+      }
+    };
+  }, []);
 
   const triggerExit = useCallback(() => {
     if (isExitingRef.current) return;
     isExitingRef.current = true;
     setIsExiting(true);
 
-    const timer = window.setTimeout(() => {
+    exitTimerRef.current = window.setTimeout(() => {
       setShouldRender(false);
       onExitedRef.current?.();
     }, 300);
-
-    return () => window.clearTimeout(timer);
   }, []);
 
   // 1. Безусловный аварийный таймер выхода (Fail-Safe Exit): ровно 900 мс максимум

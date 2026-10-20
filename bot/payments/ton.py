@@ -32,13 +32,18 @@ class TonProvider(PaymentProvider):
         tx_hash = payload.get("tx_hash")
         if not tx_hash:
             return False
-        async with httpx.AsyncClient() as c:
-            r = await c.post(config.TON_RPC, json={
-                "jsonrpc": "2.0", "id": 1, "method": "getTransactions",
-                "params": {"address": config.TON_MERCHANT_WALLET, "limit": 20},
-            })
-            data = r.json()
-        # Упрощённо: ищем tx_hash среди последних транзакций.
-        # В проде — сверять сумму и from-адрес юзера.
-        txs = data.get("result", [])
-        return any(t.get("transaction_id", {}).get("hash") == tx_hash for t in txs)
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as c:
+                r = await c.post(config.TON_RPC, json={
+                    "jsonrpc": "2.0", "id": 1, "method": "getTransactions",
+                    "params": {"address": config.TON_MERCHANT_WALLET, "limit": 20},
+                })
+                if r.status_code != 200:
+                    return False
+                data = r.json()
+            # Упрощённо: ищем tx_hash среди последних транзакций.
+            # В проде — сверять сумму и from-адрес юзера.
+            txs = data.get("result", [])
+            return any(t.get("transaction_id", {}).get("hash") == tx_hash for t in txs)
+        except Exception:
+            return False

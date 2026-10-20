@@ -101,6 +101,7 @@ export interface TelegramUserSession {
   referralFriends: number;
   referralGpEarned: number;
   startParam: string | null;
+  welcomeBonus: { type: string; amount: number; message: string } | null;
 
   setUser: (patch: Partial<User>) => void;
   setCourse: (
@@ -171,6 +172,7 @@ export function useTelegramUserSession(): TelegramUserSession {
   );
   const [bonusLessonsData] = useState<Lesson[]>(BONUS_LESSONS);
   const [startParam, setStartParam] = useState<string | null>(null);
+  const [welcomeBonus, setWelcomeBonus] = useState<{ type: string; amount: number; message: string } | null>(null);
 
   // Флаг окончания инициализации данных сессии (true строго после выполнения reload / fallback)
   const [isLoaded, setIsLoaded] = useState(false);
@@ -335,6 +337,10 @@ export function useTelegramUserSession(): TelegramUserSession {
         setPaidFull(false);
       }
 
+      if (init?.bonus) {
+        setWelcomeBonus(init.bonus);
+      }
+
       if (bonus?.completed) {
         setBonusDone(bonus.completed.length);
       }
@@ -407,6 +413,7 @@ export function useTelegramUserSession(): TelegramUserSession {
     referralFriends,
     referralGpEarned,
     startParam,
+    welcomeBonus,
     setUser,
     setCourse,
     setPaid,

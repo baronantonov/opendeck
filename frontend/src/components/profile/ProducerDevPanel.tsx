@@ -91,7 +91,7 @@ export function ProducerDevPanel() {
   }
 
   const isSigValid = verifyIntegrity();
-  const displayLessonsCount = isCoursePurchased ? Math.min(10, Math.max(completedLessons.length, 1)) : 2;
+  const displayLessonsCount = isCoursePurchased ? Math.min(10, Math.max(completedLessons.length, 1)) : 1;
 
   const triggerHaptic = (type: 'warning' | 'success' | 'medium') => {
     try {
@@ -128,7 +128,7 @@ export function ProducerDevPanel() {
       } catch {}
     }
 
-    toast('⚡', 'Pocket DJ активирован: Племя и Урок 3 открыты');
+    toast('⚡', 'Pocket DJ активирован: Племя и Урок 2 открыты');
   };
 
   /**

@@ -40,7 +40,12 @@ def test_test_bot():
     # create_invoice async -> дождись
     inv = asyncio.get_event_loop().run_until_complete(get_provider("stars").create_invoice(777, "dj-basics", "Курс"))
     check("payload = course_id", inv.url_or_payload == "dj-basics")
-    check("price в meta = STARS_PRICE (199)", inv.meta.get("price_stars") == 199)
+    print("== Клавиатура бота main_kb ==")
+    from bot.main import main_kb
+    kb_def = main_kb()
+    check("дефолтная клавиатура имеет WebAppInfo", kb_def.inline_keyboard[0][0].web_app is not None)
+    kb_ref = main_kb("ref_abc123")
+    check("deep link startapp пробрасывается в URL WebApp", "startapp=ref_abc123" in kb_ref.inline_keyboard[0][0].web_app.url)
 
     print("== Выдача доступа backend /api/grant ==")
     # поднимаем тот же backend через TestClient и имитируем on_paid

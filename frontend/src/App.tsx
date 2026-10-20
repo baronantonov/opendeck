@@ -1,7 +1,7 @@
 import { Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { AppProvider, useApp } from './state/store';
-import { ToastProvider } from './components/Toast';
+import { ToastProvider, useToast } from './components/Toast';
 import { BottomNav } from './components/BottomNav';
 import { useTelegramTheme } from './lib/theme';
 import { useTelegramInit } from './lib/useTelegramInit';
@@ -17,7 +17,8 @@ import { VinylLoader } from './components/VinylLoader';
 function Shell() {
   useTelegramTheme();
   const { isReady: isTgReady } = useTelegramInit();
-  const { isLoaded: isSessionLoaded } = useApp();
+  const { isLoaded: isSessionLoaded, welcomeBonus } = useApp();
+  const { toast } = useToast();
   const loc = useLocation();
   const { isExitModalOpen, closeExitModal } = useNavigation();
   const [splashFinished, setSplashFinished] = useState(false);
@@ -25,6 +26,13 @@ function Shell() {
 
   // Комплексный флаг готовности: платформа Telegram + данные пользователя и курса
   const isAppReady = isTgReady && isSessionLoaded;
+
+  // Показ приветственного бонуса (рефералка / подарок)
+  useEffect(() => {
+    if (welcomeBonus?.message) {
+      toast('🎁', welcomeBonus.message);
+    }
+  }, [welcomeBonus, toast]);
 
   // Reset scroll on tab change
   useEffect(() => {

@@ -321,11 +321,16 @@ async def api_init(
                     (ref_code, uid),
                 )
             inviter_code = db.apply_referral_signup(uid, inviter["user_id"])
-            if inviter_code:
+    elif sp.startswith("gift_"):
+        target_recipient = sp[5:].strip().lstrip("@").lower()
+        my_username = (username or "").strip().lower()
+        if target_recipient and (target_recipient == my_username or target_recipient == str(uid)):
+            if not db.has_paid(uid, COURSE_ID):
+                db.add_payment(uid, COURSE_ID, provider="gift", status="paid")
                 bonus = {
-                    "type": "referral_signup",
-                    "amount": 100,
-                    "message": "🎁 Подарок от друга! Тебе начислено 100 GP",
+                    "type": "gift_accepted",
+                    "amount": 0,
+                    "message": "🎁 Тебе подарили полный курс Open Deck! Все уроки открыты.",
                 }
 
     return {

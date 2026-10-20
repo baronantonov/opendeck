@@ -309,9 +309,8 @@ export function resetSecuredProgress(userId?: number | string): SecuredProgressS
 
 /**
  * Проверка права доступа к уроку по его индексу (0..9).
- * - Урок 1 (index 0): открыт бесплатно всегда.
- * - Урок 2 (index 1): открыт бесплатно при завершении Урока 1.
- * - Уроки 3–10 (index 2..9): требуют криптографически подтвержденной покупки
+ * - Урок 1 (index 0): открыт бесплатно всегда (FREE_LESSONS = 1).
+ * - Уроки 2–10 (index 1..9): требуют подтвержденной покупки
  *   И завершения предыдущего урока.
  */
 export function guardLessonAccess(
@@ -324,17 +323,21 @@ export function guardLessonAccess(
   if (adminMode) return { allowed: true, reason: 'ok' };
   if (lessonIndex === 0) return { allowed: true, reason: 'ok' };
 
+  // Если сервер подтвердил покупку курса, синхронизируем локальное подписанное состояние
+  if (isPurchased) {
+    const secured = loadSecuredProgress(userId);
+    if (!secured.isCoursePurchased) {
+      saveSecuredProgress(userId, true, completedLessons);
+    }
+  } else {
+    // Без оплаты уроки 2-10 требуют пейволла
+    return { allowed: false, reason: 'needs_paywall' };
+  }
+
   // Проверка целостности хранилища
   const secured = loadSecuredProgress(userId);
   if (secured.isTampered || !secured.isValid) {
     return { allowed: false, reason: 'tampered' };
-  }
-
-  // Для уроков 3–10 (индексы >= 2) обязательна легитимная покупка
-  if (lessonIndex >= 2) {
-    if (!isPurchased || !secured.isCoursePurchased) {
-      return { allowed: false, reason: 'needs_paywall' };
-    }
   }
 
   // Проверка последовательности прохождения
@@ -356,13 +359,18 @@ export function guardTribeAccess(
 ): { allowed: boolean; reason: 'ok' | 'needs_paywall' | 'tampered' } {
   if (adminMode) return { allowed: true, reason: 'ok' };
 
+  if (isPurchased) {
+    const secured = loadSecuredProgress(userId);
+    if (!secured.isCoursePurchased) {
+      saveSecuredProgress(userId, true, [1]);
+    }
+  } else {
+    return { allowed: false, reason: 'needs_paywall' };
+  }
+
   const secured = loadSecuredProgress(userId);
   if (secured.isTampered || !secured.isValid) {
     return { allowed: false, reason: 'tampered' };
-  }
-
-  if (!isPurchased || !secured.isCoursePurchased) {
-    return { allowed: false, reason: 'needs_paywall' };
   }
 
   return { allowed: true, reason: 'ok' };

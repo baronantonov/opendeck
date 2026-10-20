@@ -19,6 +19,7 @@ from aiogram.types import (
 )
 from aiogram.enums import ParseMode
 from aiogram.client.default import DefaultBotProperties
+from aiogram.filters import CommandStart, CommandObject
 
 import httpx
 from bot import config
@@ -26,14 +27,24 @@ from bot import config
 COURSE_ID = "dj-basics"
 
 
-def main_kb() -> InlineKeyboardMarkup:
+def main_kb(start_param: str | None = None) -> InlineKeyboardMarkup:
     # Свежий ?v=<git-hash> при КАЖДОМ нажатии /start — бьём кэш Telegram.
+    url = config.mini_app_url()
+    if start_param:
+        delim = "&" if "?" in url else "?"
+        url = f"{url}{delim}startapp={start_param}"
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🎧 Открыть курс DJ", web_app=WebAppInfo(url=config.mini_app_url()))],
+        [InlineKeyboardButton(text="🎧 Открыть курс DJ", web_app=WebAppInfo(url=url))],
     ])
 
 
-async def cmd_start(msg: Message):
+async def cmd_start(msg: Message, command: CommandObject | None = None):
+    start_arg = command.args if command else None
+    if not start_arg and msg.text and " " in msg.text:
+        parts = msg.text.split(maxsplit=1)
+        if len(parts) > 1:
+            start_arg = parts[1].strip()
+
     # GH: win-back — если вернулся через 30+ дней и не купил, предложить вернуться
     try:
         async with httpx.AsyncClient() as c:
@@ -41,7 +52,7 @@ async def cmd_start(msg: Message):
                 f"{config.BACKEND_URL}/api/init",
                 json={
                     "user_id": msg.from_user.id,
-                    "start_param": None,
+                    "start_param": start_arg,
                 },
                 headers={"Authorization": f"Bearer {config.INTERNAL_API_KEY}"},
             )
@@ -58,7 +69,7 @@ async def cmd_start(msg: Message):
                             await msg.answer(
                                 f"👋 С возвращением! Прошло {days} дней с твоей последней сессии.\n"
                                 "Уроки 2–6 всё ещё ждут тебя. Открой доступ со скидкой 50 ⭐ за возврат:",
-                                reply_markup=main_kb(),
+                                reply_markup=main_kb(start_arg),
                             )
                             return
                     except Exception:
@@ -67,7 +78,7 @@ async def cmd_start(msg: Message):
         pass
     await msg.answer(
         "Привет! Это школа DJing 🎚\nНажми кнопку, чтобы открыть курс:",
-        reply_markup=main_kb(),
+        reply_markup=main_kb(start_arg),
     )
 
 
@@ -189,7 +200,7 @@ async def main():
         raise SystemExit("❌ BOT_TOKEN не задан. Экспортируйте переменную или впишите в bot/config.py")
     bot = Bot(token=config.BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
     dp = Dispatcher()
-    dp.message.register(cmd_start, F.text == "/start")
+    dp.message.register(cmd_start, CommandStart())
     dp.pre_checkout_query.register(on_pre_checkout)
     dp.message.register(on_paid, F.successful_payment)
     dp.inline_query.register(on_inline)

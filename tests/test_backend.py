@@ -26,11 +26,14 @@ from backend.auth import verify_init_data
 import backend.prodamus_sign as prodamus_sign
 
 # --- Локальный генератор валидного init_data (бывшая _build_valid_init_data из auth.py) ---
-def make_init_data(token, user_id, age=60):
+def make_init_data(token, user_id, age=60, username=None):
+    user_dict = {"id": user_id, "first_name": "Tester"}
+    if username:
+        user_dict["username"] = username
     data = {
         "auth_date": str(int(time.time()) - age),
         "query_id": "test_query",
-        "user": f'{{"id":{user_id},"first_name":"Tester"}}',
+        "user": json.dumps(user_dict),
     }
     data_check = "\n".join(f"{k}={v}" for k, v in sorted(data.items()))
     secret = hmac.new(b"WebAppData", token.encode(), hashlib.sha256).digest()
@@ -183,6 +186,20 @@ def test_backend_suite():
                              headers={"X-Init-Data": fr_init}).json()
     check("создание счёта Prodamus для курса возвращает pay_url",
           bool(inv_prod_c.get("pay_url")))
+
+    print("== Подарок курса (startapp=gift_<username>) ==")
+    gift_uid = 930000 + int(time.time()) % 100000
+    gift_init = make_init_data(TOKEN, gift_uid, username="dj_friend")
+    # Другой юзер (не получатель) не должен получить подарок
+    other_uid = 935000 + int(time.time()) % 100000
+    other_init = make_init_data(TOKEN, other_uid, username="stranger")
+    r_bad = client.post("/api/init", json={"init_data": other_init, "start_param": "gift_dj_friend"}).json()
+    check("чужой подарок не активируется", r_bad.get("paid") is False and db.has_paid(other_uid) is False)
+
+    # Правильный получатель активирует подарок
+    r_ok = client.post("/api/init", json={"init_data": gift_init, "start_param": "gift_dj_friend"}).json()
+    check("подарок активирован получателю (paid=true)", r_ok.get("paid") is True and db.has_paid(gift_uid) is True)
+    check("бонус содержит сообщение о подарке", r_ok.get("bonus", {}).get("type") == "gift_accepted")
 
     print(f"\nИтог: {passed} PASS / {failed} FAIL")
     assert failed == 0, f"Backend tests failed: {failed} checks failed"

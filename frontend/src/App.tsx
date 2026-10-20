@@ -91,10 +91,11 @@ function Shell() {
           flex: 1,
           display: isLesson ? 'flex' : undefined,
           flexDirection: isLesson ? 'column' : undefined,
-          paddingTop: isLesson ? 0 : 'var(--app-safe-top, var(--safe-top, 0px))',
+          paddingTop: 'var(--app-safe-top, var(--safe-top, 0px))',
           paddingBottom: isLesson ? 0 : 12,
           overflow: isLesson ? 'hidden' : undefined,
           height: isLesson ? '100dvh' : undefined,
+          boxSizing: 'border-box',
         }}
       >
         <Routes>

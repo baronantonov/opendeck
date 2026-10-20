@@ -165,7 +165,7 @@ export function LessonScreen() {
 
   return (
     <div
-      className="h-[100dvh] max-h-[100dvh] w-full flex flex-col justify-between text-[var(--color-text)] bg-gradient-to-b from-[#1b2220] via-[var(--color-bg,#242b28)] to-[#181d1c] overflow-hidden select-none"
+      className="h-full max-h-full w-full flex flex-col justify-between text-[var(--color-text)] bg-gradient-to-b from-[#1b2220] via-[var(--color-bg,#242b28)] to-[#181d1c] overflow-hidden select-none"
       style={{
         paddingTop: 0,
         paddingBottom: 'calc(var(--app-safe-bottom, var(--safe-bottom, 0px)) + 8px)',

@@ -7,6 +7,11 @@ import {
 import type { CourseProgress, Lesson, User } from '../types';
 import { COURSE_LESSONS } from '../lib/constants';
 import { useTelegramUserSession, type TelegramUserSession } from '../lib/useTelegramUserSession';
+import {
+  CourseProgressProvider,
+  useCourseProgress,
+  type CourseProgressContextValue,
+} from './CourseProgressContext';
 
 export interface AppState extends TelegramUserSession {
   /**
@@ -28,7 +33,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [session],
   );
 
-  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
+  return (
+    <Ctx.Provider value={value}>
+      <CourseProgressProvider>{children}</CourseProgressProvider>
+    </Ctx.Provider>
+  );
 }
 
 export function useApp(): AppState {
@@ -37,5 +46,6 @@ export function useApp(): AppState {
   return ctx;
 }
 
-export { COURSE_LESSONS, useTelegramUserSession };
-export type { TelegramUserSession, CourseProgress, Lesson, User };
+export { COURSE_LESSONS, useTelegramUserSession, CourseProgressProvider, useCourseProgress };
+export type { TelegramUserSession, CourseProgress, Lesson, User, CourseProgressContextValue };
+

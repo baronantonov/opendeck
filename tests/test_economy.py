@@ -104,7 +104,9 @@ def test_test_economy():
     check("daily cooldown 429", r.status_code == 429)
 
     print("== Реф-покупка: инвайтер +500 (+ милестоуны) ==")
-    # friend покупает курс -> бот шлёт /api/referral/purchase с INTERNAL_API_KEY
+    # friend покупает курс: сначала выдаётся доступ (grant), затем бот шлёт /api/referral/purchase
+    client.post("/api/grant", json={"user_id": friend_id, "course_id": "dj-basics", "provider": "stars"},
+                headers={"Authorization": "Bearer TEST_INTERNAL_KEY"})
     before = gp(inviter_id)
     r = client.post("/api/referral/purchase", json={"user_id": friend_id},
                     headers={"Authorization": "Bearer TEST_INTERNAL_KEY"})
@@ -123,6 +125,8 @@ def test_test_economy():
     for i, fid in enumerate([f3, f4], start=1):
         code = (db.get_user(inviter_id) or {}).get("referral_code")
         client.post("/api/init", json={"init_data": sign_init(fid, f"F{i}"), "start_param": f"ref_{code}"})
+        client.post("/api/grant", json={"user_id": fid, "course_id": "dj-basics", "provider": "stars"},
+                    headers={"Authorization": "Bearer TEST_INTERNAL_KEY"})
         client.post("/api/referral/purchase", json={"user_id": fid},
                     headers={"Authorization": "Bearer TEST_INTERNAL_KEY"})
     before = gp(inviter_id)

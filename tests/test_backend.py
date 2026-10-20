@@ -133,8 +133,18 @@ def test_backend_suite():
     # дадим invitee GP напрямую через прогресс урока
     client.post("/api/progress", json={"course_id": "dj-basics", "lesson_id": 1},
                 headers={"X-Init-Data": fr_init})
-    # реф-бонус инвайтеру: вызываем дважды — должен начислиться +500 только один раз
+    # реф-бонус инвайтеру: вызываем ДО оплаты — должен вернуть 0 (защита от накрутки)
     client.get("/api/profile", headers={"X-Init-Data": inv_init})  # upsert
+    r_unpaid = client.post("/api/referral/purchase", json={"user_id": fr_uid},
+                           headers={"Authorization": "Bearer TEST_INTERNAL_KEY"})
+    check("вызов referral/purchase без оплаты НЕ начисляет бонус",
+          r_unpaid.json().get("inviter_bonus") == 0 and db.get_gp(inv_uid) == 100)
+
+    # теперь выдаём доступ (оплата прошла)
+    client.post("/api/grant", json={"user_id": fr_uid, "course_id": "dj-basics", "provider": "stars"},
+                headers={"Authorization": "Bearer TEST_INTERNAL_KEY"})
+
+    # вызываем дважды — должен начислиться +500 только один раз
     r1 = client.post("/api/referral/purchase", json={"user_id": fr_uid},
                      headers={"Authorization": "Bearer TEST_INTERNAL_KEY"})
     r2 = client.post("/api/referral/purchase", json={"user_id": fr_uid},

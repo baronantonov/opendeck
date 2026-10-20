@@ -27,15 +27,19 @@ export interface CourseProgress {
 
 export interface InitResponse {
   user: {
-    groove_points: number;
-    referral_code: string;
-    referral_friends?: number;
-    referral_gp_earned?: number;
-    bonus_lessons?: number;
-    archetype?: string;
+    id?: string;
+    name?: string;
     first_name?: string;
     username?: string;
     photo_url?: string;
+    referral_code: string;
+    referred_by?: string | null;
+    archetype?: string;
+    groove_points: number;
+    bonus_lessons?: number;
+    referral_friends?: number;
+    referral_gp_earned?: number;
+    last_seen?: string;
   };
   course: {
     course_id: string;
@@ -43,9 +47,15 @@ export interface InitResponse {
     total_lessons: number;
     current_lesson_id: number | null;
     free_lessons?: number;
+    bonus_lessons?: number;
+    total_bonus_lessons?: number;
+    bonus_unlocked?: boolean;
   };
+  referral_friends?: number;
+  referral_gp_earned?: number;
   paid?: boolean;
   paid_full?: boolean;
+  paid_tripwire?: boolean;
   bonus?: { type: string; amount: number; message: string } | null;
 }
 

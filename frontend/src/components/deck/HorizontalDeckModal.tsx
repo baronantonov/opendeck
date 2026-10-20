@@ -9,6 +9,7 @@ import type { Lesson } from '../../types';
 import { drawOverview, drawVertical, generateTrack, isKickAt, levelAt, TrackWave } from './waveform';
 import { useRegisterModal } from '../../lib/navigation';
 import { useSafeArea } from '../../lib/safeArea';
+import { apiProgress } from '../../api/client';
 
 interface HorizontalDeckModalProps {
   isOpen: boolean;
@@ -405,11 +406,13 @@ export const HorizontalDeckModal: React.FC<HorizontalDeckModalProps> = ({ isOpen
     setIsMatched(true);
     haptic.success();
     triggerCelebrationConfetti();
-    completeLesson(1);
+    const lessonId = lesson?.id || 1;
+    void apiProgress('dj-basics', lessonId).catch(() => {});
+    completeLesson(lessonId);
     window.setTimeout(() => {
       onClose();
     }, 2500);
-  }, [completeLesson, haptic, onClose]);
+  }, [completeLesson, haptic, lesson, onClose]);
 
   const updateCrossfaderFromPointer = useCallback(
     (clientX: number, clientY: number) => {

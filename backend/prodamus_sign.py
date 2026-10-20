@@ -61,4 +61,4 @@ def verify_webhook(form_data: Mapping, secret: str, signature_header: str | None
         return False
     clean = {k: v for k, v in form_data.items() if k not in ("signature", "Sign")}
     expected = _compute_signature(clean, secret)
-    return hmac.compare_digest(expected, signature_header)
+    return hmac.compare_digest(expected.lower(), signature_header.strip().lower())

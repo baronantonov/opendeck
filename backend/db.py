@@ -186,18 +186,6 @@ def init():
             c.execute("UPDATE users SET referral_code=? WHERE user_id=?",
                       (code, uid))
 
-        # — backfill groove_points из progress для существующих
-        c.execute("""
-            UPDATE users
-            SET groove_points = COALESCE((
-                SELECT SUM(gp_earned) FROM progress
-                WHERE progress.user_id = users.user_id
-            ), 0)
-            WHERE groove_points = 0 AND user_id IN (
-                SELECT user_id FROM progress GROUP BY user_id
-            )
-        """)
-
 
 # ---------------------------------------------------------------------------
 # users CRUD
@@ -269,7 +257,7 @@ def create_user(user_id, first_name=None, username=None, photo_url=None):
             "VALUES (?,?,?,?,?,0,'Куратор Вайба',datetime('now'),datetime('now'))",
             (user_id, first_name, username, photo_url, code),
         )
-        return get_user(user_id)
+    return get_user(user_id)
 
 
 # ---------------------------------------------------------------------------
@@ -421,6 +409,15 @@ def apply_referral_purchase(invitee_id: int) -> Optional[int]:
         ).fetchone()
         if not row or not row["referred_by"]:
             return None
+
+        # Проверка: приглашённый реально совершил покупку
+        paid = c.execute(
+            "SELECT 1 FROM payments WHERE user_id=? AND status='paid' LIMIT 1",
+            (invitee_id,),
+        ).fetchone()
+        if not paid:
+            return None
+
         inviter = c.execute(
             "SELECT user_id FROM users WHERE referral_code=?",
             (row["referred_by"],)
@@ -820,7 +817,7 @@ def crm_set_gp(user_id: int, amount: int, mode: str = "set") -> dict | None:
     if mode == "set":
         new = max(0, int(amount))
     elif mode == "add":
-        new = current + int(amount)
+        new = max(0, current + int(amount))
     elif mode == "subtract":
         new = max(0, current - int(amount))
     else:
@@ -1024,11 +1021,12 @@ def crm_set_lesson(user_id: int, course_id: str, lesson_id: int, completed: bool
             c.execute("DELETE FROM progress WHERE user_id=? AND course_id=? AND lesson_id=?",
                       (user_id, course_id, lesson_id))
             if existing:
+                gp_lost = GP_PER_BONUS if course_id == BONUS_COURSE_ID else GP_PER_LESSON
                 c.execute("UPDATE users SET groove_points = MAX(0, groove_points - ?) WHERE user_id=?",
-                          (GP_PER_LESSON, user_id))
+                          (gp_lost, user_id))
                 c.execute(
                     "INSERT INTO transactions (user_id, amount, action_type) VALUES (?, ?, 'crm_lesson_remove')",
-                    (user_id, -GP_PER_LESSON),
+                    (user_id, -gp_lost),
                 )
         gp = c.execute("SELECT groove_points FROM users WHERE user_id=?", (user_id,)).fetchone()[0]
     return {"groove_points": int(gp), "completed": bool(completed)}

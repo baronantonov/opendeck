@@ -2,8 +2,14 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import type { CourseProgress, Lesson, User } from '../types';
 import { apiInit, apiLessons, apiLessonsBonus, apiProfile } from '../api/client';
 import { BONUS_LESSONS, COURSE_LESSONS } from './constants';
+import {
+  getEffectiveUserId,
+  loadSecuredProgress,
+  saveSecuredProgress,
+} from './securityGuard';
 
 export const USER_SESSION_STORAGE_KEY = 'opendeck_user_session_v1';
+
 
 export interface CachedSessionData {
   user: User;
@@ -129,10 +135,31 @@ export function useTelegramUserSession(): TelegramUserSession {
     return base;
   });
 
-  const [course, setCourseState] = useState<CourseProgress>(
-    () => cached.current?.course || defaultCourse,
-  );
-  const [isPaid, setIsPaid] = useState<boolean>(() => cached.current?.isPaid ?? false);
+  const initialUid = getEffectiveUserId();
+  const securedInitial = useRef(loadSecuredProgress(initialUid));
+
+  const [course, setCourseState] = useState<CourseProgress>(() => {
+    const base = cached.current?.course || defaultCourse;
+    if (securedInitial.current.isTampered) {
+      return { ...base, completedLessons: [1] };
+    }
+    const mergedLessons = securedInitial.current.completedLessons.length > 0
+      ? securedInitial.current.completedLessons
+      : base.completedLessons;
+    return {
+      ...base,
+      completedLessons: mergedLessons,
+    };
+  });
+
+  const [isPaid, setIsPaid] = useState<boolean>(() => {
+    if (securedInitial.current.isTampered) return false;
+    // Статус покупки валиден, только если криптографическая подпись подтверждает покупку
+    const cachePaid = Boolean(cached.current?.isPaid);
+    const securedPaid = Boolean(securedInitial.current.isCoursePurchased);
+    return cachePaid && securedPaid;
+  });
+
   const [paidFull, setPaidFull] = useState<boolean>(() => cached.current?.paidFull ?? false);
   const [adminMode, setAdminMode] = useState(false);
   const [bonusDone, setBonusDone] = useState<number>(() => cached.current?.bonusDone ?? 0);
@@ -164,7 +191,8 @@ export function useTelegramUserSession(): TelegramUserSession {
   const setPaid = useCallback((paid: boolean, full = false) => {
     setIsPaid(paid);
     setPaidFull(full || paid);
-  }, []);
+    saveSecuredProgress(getEffectiveUserId(), paid, course.completedLessons);
+  }, [course.completedLessons]);
 
   const setBonus = useCallback((done: number) => setBonusDone(done), []);
 
@@ -176,10 +204,12 @@ export function useTelegramUserSession(): TelegramUserSession {
   const completeLesson = useCallback((lessonId: number) => {
     setCourseState((s) => {
       if (s.completedLessons.includes(lessonId)) return s;
-      return { ...s, completedLessons: [...s.completedLessons, lessonId] };
+      const next = [...s.completedLessons, lessonId];
+      saveSecuredProgress(getEffectiveUserId(), isPaid, next);
+      return { ...s, completedLessons: next };
     });
     setUserState((u) => ({ ...u, groovePoints: u.groovePoints + 50 }));
-  }, []);
+  }, [isPaid]);
 
   const completeBonusLesson = useCallback((bonusId: number) => {
     setBonusDone((prev) => {
@@ -250,8 +280,8 @@ export function useTelegramUserSession(): TelegramUserSession {
           nextUser = {
             groovePoints: init.user.groove_points ?? 0,
             referralCode: init.user.referral_code || '',
-            referralFriends: init.user.referral_friends ?? 0,
-            referralGpEarned: init.user.referral_gp_earned ?? 0,
+            referralFriends: init.referral_friends ?? init.user.referral_friends ?? 0,
+            referralGpEarned: init.referral_gp_earned ?? init.user.referral_gp_earned ?? 0,
             bonusLessons: init.user.bonus_lessons ?? 0,
             archetype: init.user.archetype || 'Куратор Вайба',
             name: tu?.first_name || init.user.first_name || prevUser.name,
@@ -294,14 +324,17 @@ export function useTelegramUserSession(): TelegramUserSession {
         return nextCourse;
       });
 
-      if (init) {
-        setIsPaid(!!init.paid);
-        setPaidFull(!!init.paid_full);
-      }
-      if (lessons?.paid) {
+      const isActuallyPaid = Boolean(init?.paid || lessons?.paid);
+      if (isActuallyPaid) {
         setIsPaid(true);
         setPaidFull(true);
+        const effectiveLessons = (init?.course.completed_lessons || lessons?.completed || [1]).slice();
+        saveSecuredProgress(getEffectiveUserId(), true, effectiveLessons);
+      } else if (init) {
+        setIsPaid(false);
+        setPaidFull(false);
       }
+
       if (bonus?.completed) {
         setBonusDone(bonus.completed.length);
       }
@@ -312,8 +345,8 @@ export function useTelegramUserSession(): TelegramUserSession {
           ? {
               groovePoints: init?.user.groove_points ?? 0,
               referralCode: init?.user.referral_code || '',
-              referralFriends: init?.user.referral_friends ?? 0,
-              referralGpEarned: init?.user.referral_gp_earned ?? 0,
+              referralFriends: init?.referral_friends ?? init?.user.referral_friends ?? 0,
+              referralGpEarned: init?.referral_gp_earned ?? init?.user.referral_gp_earned ?? 0,
               bonusLessons: init?.user.bonus_lessons ?? 0,
               archetype: init?.user.archetype || 'Куратор Вайба',
               name: tu?.first_name || 'DJ',

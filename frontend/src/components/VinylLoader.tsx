@@ -1,4 +1,4 @@
-import { useEffect, useState, memo } from 'react';
+import { useEffect, useState, useRef, memo } from 'react';
 
 export interface VinylLoaderProps {
   /** Управляет отображением прелоадера */
@@ -199,17 +199,20 @@ export function VinylLoader({
     return () => window.clearTimeout(timer);
   }, []);
 
+  const onExitedRef = useRef(onExited);
+  onExitedRef.current = onExited;
+
   // 2. Логика выхода: только когда данные готовы И прошло минимальное время
   useEffect(() => {
     if (!isLoading && minTimeElapsed && !isExiting) {
       setIsExiting(true);
       const exitTimer = window.setTimeout(() => {
         setShouldRender(false);
-        onExited?.();
+        onExitedRef.current?.();
       }, 380);
       return () => window.clearTimeout(exitTimer);
     }
-  }, [isLoading, minTimeElapsed, isExiting, onExited]);
+  }, [isLoading, minTimeElapsed, isExiting]);
 
   // Возможность тапнуть по экрану для мгновенного пропуска
   const handleQuickSkip = () => {
@@ -217,7 +220,7 @@ export function VinylLoader({
       setIsExiting(true);
       window.setTimeout(() => {
         setShouldRender(false);
-        onExited?.();
+        onExitedRef.current?.();
       }, 200);
     }
   };

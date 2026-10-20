@@ -13,8 +13,10 @@
   POST /webhooks/prodamus       — вебхук оплаты
 """
 from __future__ import annotations
-import os, json, httpx, hmac, time
+import os, json, httpx, hmac, time, logging
 from pathlib import Path
+
+logger = logging.getLogger("opendeck.backend")
 
 try:
     from dotenv import load_dotenv
@@ -83,6 +85,7 @@ COURSE = {
 MAIN_OLD_IDS = [5, 6, 7, 8, 9, 10]
 MAIN_NEW_IDS = [1, 2, 3, 4, 5, 6]
 BONUS_OLD_IDS = [1, 2, 3, 4]
+BONUS_NEW_IDS = [1, 2, 3, 4]
 BONUS_COURSE_ID = "dj-bonus"  # бонусы — отдельный course_id (C3), чтобы не конфликтовали с основным
 OLD_TO_NEW = {old: new for old, new in zip(MAIN_OLD_IDS, MAIN_NEW_IDS)}
 NEW_TO_OLD = {new: old for new, old in zip(MAIN_NEW_IDS, MAIN_OLD_IDS)}
@@ -123,7 +126,8 @@ class Progress(BaseModel):
     bonus: bool = False  # C3: фронт помечает бонусный урок явно
 
 class InitRequest(BaseModel):
-    init_data: str
+    init_data: str | None = None
+    user_id: int | None = None
     start_param: str | None = None
 
 def _user_id_from_init(init_data: str) -> int | None:
@@ -134,6 +138,8 @@ def _user_id_from_init(init_data: str) -> int | None:
     try:
         u = json.loads(data["user"])
         uid = u.get("id")
+        if not uid or not isinstance(uid, int):
+            return None
         db.upsert_user(
             uid,
             first_name=u.get("first_name"),
@@ -200,7 +206,7 @@ def _course_response(uid: int) -> dict:
     current = (max(main_completed) + 1) if main_completed else 1
     if current > main_total:
         current = main_total
-    bonus_completed = len([x for x in raw_completed if x in BONUS_OLD_IDS])
+    bonus_completed = len([x for x in db.get_completed(uid, BONUS_COURSE_ID) if x in BONUS_OLD_IDS])
     bonus_total = len(BONUS_OLD_IDS)
     return {
         "course_id": COURSE_ID,
@@ -239,7 +245,26 @@ async def index():
 # ---- POST /api/init (core PLAY) ----
 
 @app.post("/api/init")
-async def api_init(body: InitRequest):
+async def api_init(
+    body: InitRequest,
+    authorization: str | None = Header(None),
+):
+    if authorization and hmac.compare_digest(authorization, f"Bearer {INTERNAL_API_KEY}") and body.user_id:
+        uid = int(body.user_id)
+        existing = db.get_user(uid)
+        return {
+            "user": _user_response(uid) if existing else {},
+            "course": _course_response(uid),
+            "bonus": None,
+            "referral_friends": db.get_referral_stats(uid)["friends_count"],
+            "referral_gp_earned": db.get_referral_stats(uid)["gp_earned"],
+            "paid_full": db.has_paid(uid, COURSE_ID),
+            "paid_tripwire": db.has_paid(uid, "tripwire"),
+            "paid": db.has_paid(uid, COURSE_ID) or db.has_paid(uid, "tripwire"),
+        }
+
+    if not body.init_data:
+        return JSONResponse({"error": "bad_init_data"}, status_code=401)
     data = verify_init_data(body.init_data, BOT_TOKEN)
     if not data:
         return JSONResponse({"error": "bad_init_data"}, status_code=401)
@@ -407,6 +432,8 @@ async def progress(
     # ---- БОНУСЫ (C3): отдельный course_id, не требует оплаты ----
     if p.course_id == BONUS_COURSE_ID or p.bonus:
         course_id = BONUS_COURSE_ID
+        if p.lesson_id not in BONUS_NEW_IDS and p.lesson_id not in BONUS_OLD_IDS:
+            return JSONResponse({"error": "bad_lesson_id"}, status_code=400)
         old_id = BONUS_NEW_TO_OLD.get(p.lesson_id, p.lesson_id)
         gp = db.complete_lesson(uid, course_id, old_id)
         completed = [
@@ -417,14 +444,18 @@ async def progress(
         return {"gp": gp, "completed": completed, "bonus": True}
 
     # ---- ОСНОВНОЙ КУРС (платный доступ) ----
-    # ВОРОНКА: первые FREE_LESSONS уроков — бесплатно (tripwire-вход),
-    # остальные — после оплаты.
-    if p.course_id == COURSE_ID and p.lesson_id in MAIN_NEW_IDS:
-        is_free_lesson = (p.lesson_id <= FREE_LESSONS)
+    if p.course_id == COURSE_ID:
+        if p.lesson_id not in MAIN_NEW_IDS and p.lesson_id not in MAIN_OLD_IDS:
+            return JSONResponse({"error": "bad_lesson_id"}, status_code=400)
+        new_lesson_id = OLD_TO_NEW.get(p.lesson_id, p.lesson_id)
+        is_free_lesson = (new_lesson_id <= FREE_LESSONS)
         paid_full = db.has_paid(uid, p.course_id)
         paid_tw = db.has_paid(uid, "tripwire")
         if not paid_full and not paid_tw and not is_free_lesson:
             return JSONResponse({"error": "not_paid", "paid": False}, status_code=403)
+    else:
+        return JSONResponse({"error": "bad_course_id"}, status_code=400)
+
     old_id = NEW_TO_OLD.get(p.lesson_id, p.lesson_id)
     gp = db.complete_lesson(uid, p.course_id, old_id)
     completed = [
@@ -839,7 +870,7 @@ async def ab_track(
     Бот вызывает после successful_payment: передаёт user_id + course_id,
     бэкенд резолвит вариант (из ab_assignments) и пишет в transactions.
     """
-    if authorization != f"Bearer {INTERNAL_API_KEY}":
+    if not authorization or not hmac.compare_digest(authorization, f"Bearer {INTERNAL_API_KEY}"):
         return JSONResponse({"error": "unauthorized"}, status_code=403)
     body = {}
     try:
@@ -853,7 +884,7 @@ async def ab_track(
     exp = "price_tripwire" if course_id == "tripwire" else ("price_full" if course_id == COURSE_ID else None)
     variant = db.get_ab_variant(uid, exp) if exp else None
     if variant:
-        db.add_payment(uid, course_id, "ab_track", ab_variant=f"{exp}:{variant}")
+        db.add_payment(uid, course_id, "ab_track", status="ab_track", ab_variant=f"{exp}:{variant}")
     return {"ok": True, "variant": variant}
 
 
@@ -864,7 +895,7 @@ async def grant(
     g: Grant,
     authorization: str | None = Header(None),
 ):
-    if authorization != f"Bearer {INTERNAL_API_KEY}":
+    if not authorization or not hmac.compare_digest(authorization, f"Bearer {INTERNAL_API_KEY}"):
         return JSONResponse({"error": "unauthorized"}, status_code=403)
     db.add_payment(g.user_id, g.course_id, g.provider, status="paid")
     return {"ok": True}
@@ -911,10 +942,11 @@ async def prodamus_webhook(req: Request, sign: str = Header(None, alias="Sign"))
                            raw=json.dumps(form_dict, ensure_ascii=False)[:4000])
             db.apply_referral_purchase(user_id)
             db.mark_webhook_processed(order_id)
-        except Exception:
-            # невалидный order_id — логируем, но отвечаем 200, чтобы Prodamus
-            # не спамил повторами
-            pass
+        except (ValueError, IndexError):
+            logger.warning(f"Invalid Prodamus order_id format: {order_id}")
+        except Exception as e:
+            logger.exception("Error processing Prodamus webhook")
+            return JSONResponse({"error": "internal_error"}, status_code=500)
     return {"ok": True}
 
 
@@ -954,15 +986,23 @@ async def tribute_webhook(req: Request, x_signature: str = Header(None, alias="X
         return {"ok": True, "duplicate": True}
 
     # Курс менторства — единственный Tribute-продукт в этом проекте.
-    user_id = body.get("user_id") or body.get("telegram_id")
+    user_id = (
+        body.get("user_id")
+        or body.get("telegram_id")
+        or (body.get("payload") or {}).get("user", {}).get("telegram_id")
+        or (body.get("payload") or {}).get("telegram_id")
+        or (body.get("customer") or {}).get("telegram_id")
+    )
+    if not user_id:
+        return JSONResponse({"error": "missing_user_id"}, status_code=400)
     course_id = "mentoring"
     try:
-        if user_id:
-            uid = int(user_id)
-            db.add_payment(uid, course_id, "tribute", status="paid",
-                           raw=json.dumps(body, ensure_ascii=False)[:4000])
-            db.apply_referral_purchase(uid)
+        uid = int(user_id)
+        db.add_payment(uid, course_id, "tribute", status="paid",
+                       raw=json.dumps(body, ensure_ascii=False)[:4000])
+        db.apply_referral_purchase(uid)
         db.mark_webhook_processed(purchase_id)
-    except Exception:
-        pass
+    except Exception as e:
+        logger.exception("Error processing Tribute webhook")
+        return JSONResponse({"error": "internal_error"}, status_code=500)
     return {"ok": True}

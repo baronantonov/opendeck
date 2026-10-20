@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useApp } from '../state/store';
 import { ProfileHeroCard } from '../components/profile/ProfileHeroCard';
+import { ProducerDevPanel } from '../components/profile/ProducerDevPanel';
 import {
   Button,
   Card,
@@ -92,16 +93,14 @@ export function Profile() {
   const inviteFriend = async () => {
     haptic('medium');
     const refCode = user.referralCode || 'opendeck';
-    const archetype = user.archetype || 'Куратор Вайба';
     try {
       const tw = (window as any).Telegram?.WebApp;
-      if (tw?.sendData) {
-        tw.sendData(JSON.stringify({ action: 'invite', code: refCode, archetype }));
+      const botUrl = `https://t.me/OpenDeck_bot/app?startapp=ref_${refCode}`;
+      const text = `Привет! Учусь диджеингу в Open Deck DJ School на базе Rekordbox. Лови +100 GP при регистрации в моей команде:`;
+      const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(botUrl)}&text=${encodeURIComponent(text)}`;
+      if (tw?.openTelegramLink) {
+        tw.openTelegramLink(shareUrl);
       } else {
-        // Fallback для тестирования вне Telegram WebView
-        const botUrl = `https://t.me/OpenDeck_bot?start=ref_${refCode}`;
-        const text = `Привет! Учусь диджеингу в Open Deck DJ School на базе Rekordbox. Лови +100 GP при регистрации в моей команде:`;
-        const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(botUrl)}&text=${encodeURIComponent(text)}`;
         window.open(shareUrl, '_blank');
       }
       await earn('invite_team', 'Приглашение в команду');
@@ -161,6 +160,9 @@ export function Profile() {
     <div style={{ padding: '16px 16px 28px', display: 'flex', flexDirection: 'column', gap: 16 }}>
       {/* Two-Column Hero Card (Telegram Userpic + DB Info) */}
       <ProfileHeroCard />
+
+      {/* Эксклюзивный Пульт Продюсера / Dev Mode (строго для @baronantonov / ID 285754501) */}
+      <ProducerDevPanel />
 
       {/* DJ Titles & Ranks Section (Звания) */}
       <Card
@@ -275,7 +277,7 @@ export function Profile() {
           Команда и реферальная программа
         </div>
         <div style={{ fontSize: 12.5, color: 'var(--color-text-dim)', marginBottom: 12, lineHeight: 1.45 }}>
-          Получай <b>+100 GP</b> за каждого приглашённого друга и <b>+200 GP</b> при его покупке курса. Друг получает бонусные +100 GP на старте! Очки дают прямую скидку на созвоны с FREEDA DJ.
+          Получай <b>+100 GP</b> за каждого приглашённого друга и <b>+500 GP</b> при его покупке курса. Друг получает бонусные +100 GP на старте! Очки дают прямую скидку на созвоны с FREEDA DJ.
           {referralGpEarned > 0 && (
             <div style={{ marginTop: 6, color: 'var(--brand-gold)', fontWeight: 700 }}>
               Заработано на рефералах: +{referralGpEarned} GP

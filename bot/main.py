@@ -37,10 +37,14 @@ async def cmd_start(msg: Message):
     # GH: win-back — если вернулся через 30+ дней и не купил, предложить вернуться
     try:
         async with httpx.AsyncClient() as c:
-            r = await c.post(f"{config.BACKEND_URL}/api/init", json={
-                "init_data": msg.from_user.id,  # бот шлёт id, бэкенд вернёт last_seen/paid
-                "start_param": None,
-            }, headers={"X-Init-Data": str(msg.from_user.id)})
+            r = await c.post(
+                f"{config.BACKEND_URL}/api/init",
+                json={
+                    "user_id": msg.from_user.id,
+                    "start_param": None,
+                },
+                headers={"Authorization": f"Bearer {config.INTERNAL_API_KEY}"},
+            )
             if r.status_code == 200:
                 d = r.json()
                 paid = d.get("paid") or d.get("paid_full") or d.get("paid_tripwire")
@@ -104,7 +108,7 @@ async def on_paid(msg: Message):
                             f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendMessage",
                             json={
                                 "chat_id": inv_id,
-                                "text": "🎉 Твой друг купил курс Open Deck!\nНа твой баланс начислено +500 ⭐.",
+                                "text": "🎉 Твой друг купил курс Open Deck!\nНа твой баланс начислено +500 GP.",
                                 "disable_notification": False,
                             },
                         )
@@ -173,8 +177,10 @@ async def on_web_app_data(msg: Message):
     archetype = data.get("archetype", "Куратор Вайба")
     if not code:
         return
-    deep_link = f"https://t.me/OpenDeck_bot/app?startapp=ref_{code}"
-    text = f"{deep_link}\n\n🎧 Мой музыкальный архетип — {archetype}. Залетай в Open Deck, забирай 50 Groove Points на старт и узнай свой вайб!"
+    bot_info = await msg.bot.get_me()
+    bot_username = bot_info.username or "OpenDeck_bot"
+    deep_link = f"https://t.me/{bot_username}/app?startapp=ref_{code}"
+    text = f"{deep_link}\n\n🎧 Мой музыкальный архетип — {archetype}. Залетай в Open Deck, забирай 100 Groove Points на старт и узнай свой вайб!"
     await msg.answer(text)
 
 

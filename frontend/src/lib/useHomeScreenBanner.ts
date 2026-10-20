@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { getTelegramWebApp, type HomeScreenStatus } from '../types';
 
-export const DIRECT_LINK = 'http://t.me/OpenDeck_bot/webapp';
+export const DIRECT_LINK = 'https://t.me/OpenDeck_bot/app';
 export const STORAGE_PERMANENT_KEY = 'opendeck_hs_added';
 export const STORAGE_SESSION_DISMISSED_KEY = 'opendeck_banner_dismissed';
 

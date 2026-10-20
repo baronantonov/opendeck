@@ -63,10 +63,9 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
     } catch {}
 
     const handleBackClick = () => {
-      // 0. Если открыт ExitConfirmModal — полностью блокируем реакцию на повторное нажатие «Назад»
-      // (системной стрелки Telegram или аппаратной кнопки Android), требуя осознанного выбора
-      // пользователя строго через интерфейсные кнопки попапа («Остаться» или «Выйти»)
+      // 0. Если открыт ExitConfirmModal — повторное нажатие «Назад» закрывает попап
       if (isExitModalOpenRef.current) {
+        closeExitModal();
         return;
       }
 

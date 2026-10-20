@@ -32,6 +32,11 @@ export interface GiftRecord {
 }
 
 /**
+ * Строгий формат Telegram Username: от 5 до 32 символов (латиница, цифры, нижнее подчеркивание)
+ */
+export const TELEGRAM_USERNAME_REGEX = /^[a-zA-Z0-9_]{5,32}$/;
+
+/**
  * Нормализатор ввода юзернейма:
  * Извлекает чистый юзернейм из ссылок вида https://t.me/username, @username, или просто username.
  */
@@ -87,8 +92,10 @@ export function GiftCourseModal({
 
   const cleanRecipient = normalizeTelegramUsername(rawInput);
   const isTooShort = cleanRecipient.length > 0 && cleanRecipient.length < 5;
+  const isTooLong = cleanRecipient.length > 32;
+  const isFormatInvalid = cleanRecipient.length >= 5 && !TELEGRAM_USERNAME_REGEX.test(cleanRecipient);
   const isSelfGift = cleanRecipient.length > 0 && cleanRecipient.toLowerCase() === myUsername;
-  const isValid = cleanRecipient.length >= 5 && !isSelfGift;
+  const isValid = TELEGRAM_USERNAME_REGEX.test(cleanRecipient) && !isSelfGift;
 
   const handleClose = () => {
     haptic('light');
@@ -399,6 +406,16 @@ export function GiftCourseModal({
                 <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11.5, color: 'var(--brand-coral)' }}>
                   <AlertCircle size={13} />
                   <span>Минимум 5 символов по стандарту Telegram</span>
+                </div>
+              ) : isTooLong ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11.5, color: 'var(--brand-coral)' }}>
+                  <AlertCircle size={13} />
+                  <span>Максимум 32 символа по стандарту Telegram</span>
+                </div>
+              ) : isFormatInvalid ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11.5, color: 'var(--brand-coral)' }}>
+                  <AlertCircle size={13} />
+                  <span>Допустимы только латиница, цифры и символ _</span>
                 </div>
               ) : isValid ? (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11.5, color: 'var(--brand-mint)' }}>

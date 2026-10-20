@@ -126,7 +126,7 @@ class ProdamusProvider(PaymentProvider):
                 return PaymentInvoice(
                     provider=self.name,
                     url_or_payload=location,  # открыть через openLink
-                    meta={"order_id": order_id, "amount_rub": amount_rub},
+                    meta={"order_id": final_order_id, "amount_rub": amount_rub},
                 )
             # 2) fallback — текстовая ссылка в теле (как описано в мануале)
             text = r.text.strip()
@@ -134,7 +134,7 @@ class ProdamusProvider(PaymentProvider):
                 return PaymentInvoice(
                     provider=self.name,
                     url_or_payload=text,
-                    meta={"order_id": order_id, "amount_rub": amount_rub},
+                    meta={"order_id": final_order_id, "amount_rub": amount_rub},
                 )
             # иначе — ошибка/ненастроенная форма
             return PaymentInvoice(

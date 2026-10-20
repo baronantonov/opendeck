@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useApp, COURSE_LESSONS } from '../state/store';
+import { useCourseProgress } from '../state/CourseProgressContext';
 import { isLessonUnlocked, mentorPrices } from '../lib/constants';
 import { Button, ProgressBar, Star } from '../components/ui';
 import { useToast } from '../components/Toast';
@@ -24,6 +25,7 @@ import { GiftCourseModal } from '../components/GiftCourseModal';
 
 export function Learn() {
   const { user, course, isPaid, adminMode } = useApp();
+  const { guardLessonAccess, verifyIntegrity } = useCourseProgress();
   const { toast } = useToast();
   const { checkoutCourse, busy: checkoutBusy } = useStarsCheckout();
   const [mentorOpen, setMentorOpen] = useState(false);
@@ -47,6 +49,25 @@ export function Learn() {
   const progressPct = Math.round((dc / tc) * 100);
 
   const handleOpenLesson = (index: number) => {
+    // 1. Криптографическая проверка доступа через SecurityGuard
+    const guard = guardLessonAccess(index);
+    if (!guard.allowed) {
+      haptic('warning');
+      if (guard.reason === 'tampered') {
+        toast('🔒', 'Нарушена цифровая подпись. Доступ ограничен');
+        verifyIntegrity();
+        void checkoutCourse('dj-basics');
+        return;
+      }
+      if (guard.reason === 'needs_paywall') {
+        void checkoutCourse('dj-basics');
+        return;
+      }
+      toast('🔒', 'Сначала заверши предыдущий урок');
+      return;
+    }
+
+    // 2. Стандартная проверка разблокировки
     const status = isLessonUnlocked(index, course.completedLessons, isPaid, adminMode);
     if (!status.unlocked) {
       haptic('warning');
@@ -57,13 +78,14 @@ export function Learn() {
       }
       return;
     }
+
     haptic('medium');
     setSelectedLesson(index);
   };
 
   const handleLessonComplete = (completedIndex: number) => {
-    // Авто-вызов пейволла через 500 мс после завершения Урока 2 (индекс 1)
-    if (completedIndex === 1 && !isPaid && !adminMode) {
+    // Авто-вызов пейволла через 500 мс после завершения Урока 1 (индекс 0) или Урока 2 (индекс 1)
+    if ((completedIndex === 0 || completedIndex === 1) && !isPaid && !adminMode) {
       setTimeout(() => {
         setSelectedLesson(null);
         void checkoutCourse('dj-basics');

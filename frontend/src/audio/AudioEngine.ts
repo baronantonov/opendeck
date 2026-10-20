@@ -21,6 +21,7 @@ class AudioEngine {
   private barCount: number = 0;
   private deckActive: Record<DeckId, boolean> = { A: true, B: true };
   private kickMuted: Record<DeckId, boolean> = { A: false, B: false };
+  private cachedNoiseBuffer: AudioBuffer | null = null;
 
   public init() {
     if (!this.ctx) {
@@ -46,9 +47,15 @@ class AudioEngine {
       this.deckBGain = this.ctx.createGain();
       this.deckBGain.gain.setValueAtTime(0.0, this.ctx.currentTime);
       this.deckBGain.connect(this.masterGain);
+
+      // Предрасчитанный буфер белого шума (2 сек) для устранения GC-троттлинга
+      const size = Math.floor(this.ctx.sampleRate * 2.0);
+      this.cachedNoiseBuffer = this.ctx.createBuffer(1, size, this.ctx.sampleRate);
+      const data = this.cachedNoiseBuffer.getChannelData(0);
+      for (let i = 0; i < size; i++) data[i] = Math.random() * 2 - 1;
     }
     if (this.ctx.state === 'suspended') {
-      this.ctx.resume();
+      void this.ctx.resume();
     }
   }
 
@@ -214,11 +221,12 @@ class AudioEngine {
 
   private noiseBuffer(seconds: number): AudioBuffer | null {
     if (!this.ctx) return null;
-    const size = Math.floor(this.ctx.sampleRate * seconds);
-    const buffer = this.ctx.createBuffer(1, size, this.ctx.sampleRate);
-    const data = buffer.getChannelData(0);
+    if (this.cachedNoiseBuffer) return this.cachedNoiseBuffer;
+    const size = Math.floor(this.ctx.sampleRate * Math.max(2.0, seconds));
+    this.cachedNoiseBuffer = this.ctx.createBuffer(1, size, this.ctx.sampleRate);
+    const data = this.cachedNoiseBuffer.getChannelData(0);
     for (let i = 0; i < size; i++) data[i] = Math.random() * 2 - 1;
-    return buffer;
+    return this.cachedNoiseBuffer;
   }
 
   private playNoise(

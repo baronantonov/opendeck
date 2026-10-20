@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../state/store';
+import { useCourseProgress } from '../state/CourseProgressContext';
 import { getTelegramWebApp } from '../types';
 import { haptic } from '../lib/theme';
 import { Button, Card } from '../components/ui';
@@ -192,12 +193,14 @@ function TribeCanvasConfetti({ onComplete }: { onComplete?: () => void }) {
 
 export function TribeScreen() {
   const navigate = useNavigate();
-  const { course, isPaid, adminMode } = useApp();
+  const { course, adminMode } = useApp();
+  const { guardTribeAccess, verifyIntegrity, isCoursePurchased } = useCourseProgress();
   const { checkoutCourse, busy: checkoutBusy } = useStarsCheckout();
   const [showConfetti, setShowConfetti] = useState(false);
 
-  // Доступ в Племя открывается мгновенно при оплате курса (или в режиме админа)
-  const hasAccess = isPaid || adminMode;
+  // Криптографическая проверка доступа в Племя через SecurityGuard
+  const tribeGuard = guardTribeAccess();
+  const hasAccess = tribeGuard.allowed && (isCoursePurchased || adminMode);
   const isLesson1Done = course.completedLessons.includes(1);
   const isLesson2Done = course.completedLessons.includes(2);
 
@@ -254,6 +257,17 @@ export function TribeScreen() {
 
   // Обработчик входа в закрытый Telegram-кэмп
   const handleJoinCamp = () => {
+    // Строгая проверка криптографической подписи перед открытием закрытой ссылки
+    const guard = guardTribeAccess();
+    if (!guard.allowed) {
+      haptic('warning');
+      if (guard.reason === 'tampered') {
+        verifyIntegrity();
+      }
+      void checkoutCourse('dj-basics');
+      return;
+    }
+
     const tg = getTelegramWebApp();
     try {
       if (tg?.HapticFeedback?.notificationOccurred) {

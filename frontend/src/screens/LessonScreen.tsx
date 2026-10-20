@@ -165,137 +165,87 @@ export function LessonScreen() {
 
   return (
     <div
-      className="min-h-screen w-full flex flex-col text-[var(--color-text)] bg-gradient-to-b from-[#1b2220] via-[var(--color-bg,#242b28)] to-[#181d1c]"
+      className="h-[100dvh] max-h-[100dvh] w-full flex flex-col justify-between text-[var(--color-text)] bg-gradient-to-b from-[#1b2220] via-[var(--color-bg,#242b28)] to-[#181d1c] overflow-hidden select-none"
       style={{
-        paddingTop: 'var(--app-safe-top, var(--safe-top, 0px))',
-        paddingBottom: 'calc(var(--app-safe-bottom, var(--safe-bottom, 0px)) + 28px)',
+        paddingTop: 0,
+        paddingBottom: 'calc(var(--app-safe-bottom, var(--safe-bottom, 0px)) + 8px)',
         boxSizing: 'border-box',
       }}
     >
-      {/* ── ВЕРХНИЙ ХЕДЕР ЭКРАНА УРОКА ── */}
-      <header className="px-4 py-3 flex items-center justify-between border-b border-white/[0.07] bg-black/20 backdrop-blur-md sticky top-0 z-30">
+      {/* ── КОМПАКТНЫЙ ВЕРХНИЙ БАР ── */}
+      <div className="flex items-center justify-between px-3 pt-1.5 pb-1 shrink-0">
         <button
           type="button"
           onClick={() => {
             haptic('light');
             navigate('/learn');
           }}
-          className="flex items-center gap-1.5 py-1 px-2.5 -ml-1 rounded-xl text-sm font-semibold text-white/80 hover:text-white bg-white/[0.06] hover:bg-white/[0.12] active:scale-95 transition-all"
+          className="flex items-center gap-1 py-1 px-2.5 rounded-lg text-xs font-semibold text-white/70 hover:text-white bg-white/[0.06] active:scale-95 transition-all"
         >
-          <ArrowLeft size={16} />
+          <ArrowLeft size={13} />
           <span>К урокам</span>
         </button>
 
         <div className="flex items-center gap-2">
-          <span
-            style={{
-              fontSize: 11,
-              fontWeight: 800,
-              color: 'var(--brand-mint)',
-              background: 'rgba(140, 226, 200, 0.12)',
-              border: '1px solid rgba(140, 226, 200, 0.28)',
-              padding: '2px 8px',
-              borderRadius: 99,
-              letterSpacing: '0.04em',
-              textTransform: 'uppercase',
-            }}
-          >
-            Pocket DJ
+          <span className="text-[10.5px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-[var(--brand-mint)]/10 text-[var(--brand-mint)] border border-[var(--brand-mint)]/20 tracking-wider">
+            Pocket DJ · {lesson.id}/10
           </span>
 
           {alreadyCompleted && (
-            <span
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 4,
-                fontSize: 11,
-                fontWeight: 700,
-                color: 'var(--brand-mint)',
-              }}
-            >
-              <CheckCircle2 size={14} />
+            <span className="flex items-center gap-1 text-[11px] font-bold text-[var(--brand-mint)]">
+              <CheckCircle2 size={13} />
               <span>Пройден</span>
             </span>
           )}
         </div>
-      </header>
+      </div>
 
-      {/* ── ОСНОВНОЙ КОНТЕНТ ── */}
-      <main className="flex-1 flex flex-col p-4 max-w-lg mx-auto w-full gap-4">
-        {/* Кастомный брендовый плеер со строгой Anti-Skip защитой */}
-        <div className="w-full">
-          <CustomLessonPlayer
-            src={videoSourceUrl}
-            poster={lesson.poster}
-            lessonId={lesson.id}
-            lessonTitle={lesson.title}
-            isCompleted={alreadyCompleted}
-            onProgress={handleVideoProgress}
-            onEnded={handleVideoEnded}
-          />
-        </div>
+      {/* ── ВИДЕОПЛЕЕР УРОКА ── */}
+      <div className="px-3 shrink-0">
+        <CustomLessonPlayer
+          src={videoSourceUrl}
+          poster={lesson.poster}
+          lessonId={lesson.id}
+          lessonTitle={lesson.title}
+          isCompleted={alreadyCompleted}
+          onProgress={handleVideoProgress}
+          onEnded={handleVideoEnded}
+        />
+      </div>
 
-        {/* Информационная карточка урока */}
-        <div
-          className="rounded-2xl p-4.5 border border-white/[0.08] shadow-lg flex flex-col gap-3.5"
-          style={{
-            background: 'var(--color-surface, #2e3432)',
-          }}
-        >
-          {/* Номер и подзаголовок */}
+      {/* ── КОНТЕНТ УРОКА И ЗАВЕРШЕНИЕ (БЕЗ ПРОКРУТКИ) ── */}
+      <div className="flex-1 min-h-0 flex flex-col justify-between px-3 pt-2 pb-1 overflow-hidden">
+        {/* Информационная карточка */}
+        <div className="rounded-xl p-2.5 sm:p-3 border border-white/[0.08] bg-[var(--color-surface,#2e3432)] flex flex-col gap-1.5 shrink-0 shadow-lg">
+          {/* Подзаголовок и длительность */}
           <div className="flex items-center justify-between">
-            <span
-              style={{
-                fontSize: 11,
-                fontWeight: 800,
-                color: 'var(--brand-coral)',
-                textTransform: 'uppercase',
-                letterSpacing: '0.06em',
-              }}
-            >
-              УРОК {lesson.id} ИЗ 10
+            <span className="text-[10px] font-extrabold uppercase tracking-wider text-[var(--brand-coral)]">
+              {lesson.subtitle || `УРОК ${lesson.id} ИЗ 10`}
             </span>
-
-            <span className="flex items-center gap-1 text-[11px] font-semibold text-white/50">
-              <Clock size={12} />
+            <span className="flex items-center gap-1 text-[10px] font-semibold text-white/50">
+              <Clock size={11} />
               <span>~{Math.round(lesson.durationSeconds / 60)} мин</span>
             </span>
           </div>
 
           {/* Заголовок */}
-          <div>
-            <h1 className="text-lg font-bold text-white leading-tight m-0">
-              {lesson.title}
-            </h1>
-            <p className="text-xs text-white/60 mt-1 m-0">
-              {lesson.subtitle}
-            </p>
-          </div>
+          <h1 className="text-[13.5px] sm:text-[15px] font-bold text-white leading-tight m-0 line-clamp-1">
+            {lesson.title}
+          </h1>
 
           {/* Краткое резюме */}
-          <div
-            className="p-3 rounded-xl border border-white/[0.06] text-xs leading-relaxed text-white/85 font-medium"
-            style={{
-              background: 'rgba(0, 0, 0, 0.22)',
-            }}
-          >
+          <div className="p-2 rounded-lg bg-black/25 border border-white/[0.05] text-[11px] sm:text-[11.5px] leading-snug text-white/80 font-normal line-clamp-2">
             {lesson.summary}
           </div>
 
-          {/* Тезисы и навыки */}
-          <div className="flex flex-col gap-2 pt-1">
-            <span className="text-[11px] font-bold text-white/40 uppercase tracking-wider">
-              Что освоишь в уроке:
-            </span>
-            <ul className="m-0 p-0 pl-4 space-y-1.5 text-xs text-white/75 leading-normal">
-              {lesson.description.map((item, idx) => (
-                <li key={idx} className="marker:text-[var(--brand-mint)]">
-                  {item}
-                </li>
-              ))}
-            </ul>
-          </div>
+          {/* Ключевые тезисы (2 емких пункта) */}
+          <ul className="m-0 p-0 pl-3.5 space-y-0.5 text-[10.5px] sm:text-[11px] text-white/70 leading-tight">
+            {lesson.description.slice(0, 2).map((item, idx) => (
+              <li key={idx} className="marker:text-[var(--brand-mint)] line-clamp-1">
+                {item}
+              </li>
+            ))}
+          </ul>
 
           {/* Интерактивная консоль Rekordbox для Урока 1 */}
           {lesson.id === 1 && (
@@ -305,23 +255,23 @@ export function LessonScreen() {
                 haptic('heavy');
                 setDeckModalOpen(true);
               }}
-              className="mt-1 w-full py-3 px-4 rounded-xl font-bold text-sm text-[#11322a] bg-[var(--brand-mint)] hover:opacity-90 active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-md shadow-[rgba(140,226,200,0.2)]"
+              className="mt-0.5 w-full py-1.5 px-3 rounded-lg font-bold text-[11.5px] text-[#11322a] bg-[var(--brand-mint)] hover:opacity-90 active:scale-[0.98] transition-all flex items-center justify-center gap-1.5 shadow-sm"
             >
-              <Sliders size={18} />
+              <Sliders size={13} />
               <span>Встать за пульт Rekordbox</span>
             </button>
           )}
         </div>
 
         {/* ── БЛОК ЗАВЕРШЕНИЯ УРОКА ── */}
-        <div className="mt-auto pt-2 flex flex-col gap-2">
+        <div className="pt-1.5 flex flex-col gap-1 shrink-0">
           <button
             type="button"
             disabled={!canComplete || isFinishing}
             onClick={handleCompleteClick}
-            className={`w-full py-3.5 px-5 rounded-2xl font-bold text-[15px] transition-all duration-200 flex items-center justify-center gap-2 select-none ${
+            className={`w-full py-2.5 px-4 rounded-xl font-bold text-sm transition-all duration-200 flex items-center justify-center gap-2 select-none ${
               canComplete
-                ? 'bg-gradient-to-r from-[var(--brand-mint)] to-[var(--brand-coral)] text-[#11322a] cursor-pointer shadow-lg shadow-[rgba(140,226,200,0.25)] active:scale-[0.98]'
+                ? 'bg-gradient-to-r from-[var(--brand-mint)] to-[var(--brand-coral)] text-[#11322a] cursor-pointer shadow-md shadow-[rgba(140,226,200,0.2)] active:scale-[0.98]'
                 : 'bg-white/10 text-white/40 cursor-not-allowed opacity-55 border border-white/5'
             }`}
           >
@@ -329,34 +279,34 @@ export function LessonScreen() {
               <span>Сохраняем прогресс...</span>
             ) : alreadyCompleted ? (
               <>
-                <CheckCircle2 size={18} />
+                <CheckCircle2 size={16} />
                 <span>Урок пройден · К списку уроков</span>
               </>
             ) : canComplete ? (
               <>
-                <Sparkles size={18} />
+                <Sparkles size={16} />
                 <span>Закончить урок (+50 GP)</span>
               </>
             ) : (
               <>
-                <Lock size={16} />
+                <Lock size={14} />
                 <span>Закончить урок</span>
               </>
             )}
           </button>
 
           {/* Статус-подсказка под кнопкой */}
-          <div className="text-center text-[11.5px] font-medium text-white/50 min-h-[18px]">
+          <div className="text-center text-[10.5px] font-medium text-white/50 min-h-[14px] leading-none">
             {alreadyCompleted ? (
               <span className="text-[var(--brand-mint)]">Урок уже зачтён в твоём профиле</span>
             ) : canComplete ? (
-              <span className="text-[var(--brand-mint)]">Видео досмотрено! Нажми, чтобы зафиксировать прогресс</span>
+              <span className="text-[var(--brand-mint)]">Видео досмотрено! Зафиксируй прогресс</span>
             ) : (
               <span>Досмотри видео до конца, чтобы завершить урок</span>
             )}
           </div>
         </div>
-      </main>
+      </div>
 
       {/* Интерактивный виртуальный пульт Rekordbox для практики */}
       <HorizontalDeckModal

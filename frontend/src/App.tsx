@@ -74,6 +74,8 @@ function Shell() {
     document.querySelector('.scroll-y')?.scrollTo({ top: 0 });
   }, [active]);
 
+  const isLesson = loc.pathname.startsWith('/lesson');
+
   return (
     <div className="tma-app-shell">
       {/* VinylLoader удерживает оверлей, пока Telegram и сессия не готовы (+ минимальные 1.35с) */}
@@ -84,11 +86,15 @@ function Shell() {
       />
 
       <main
-        className="scroll-y"
+        className={isLesson ? 'flex-1 flex flex-col h-[100dvh] overflow-hidden' : 'scroll-y'}
         style={{
           flex: 1,
-          paddingTop: 'var(--app-safe-top, var(--safe-top, 0px))',
-          paddingBottom: 12,
+          display: isLesson ? 'flex' : undefined,
+          flexDirection: isLesson ? 'column' : undefined,
+          paddingTop: isLesson ? 0 : 'var(--app-safe-top, var(--safe-top, 0px))',
+          paddingBottom: isLesson ? 0 : 12,
+          overflow: isLesson ? 'hidden' : undefined,
+          height: isLesson ? '100dvh' : undefined,
         }}
       >
         <Routes>
@@ -105,8 +111,8 @@ function Shell() {
         </Routes>
       </main>
 
-      {/* Компактный плавающий баннер ярлыка на рабочий стол (активируется после сплэша) */}
-      <HomeScreenBanner splashFinished={splashFinished} />
+      {/* Компактный плавающий баннер ярлыка на рабочий стол (активируется после сплэша, скрыт на уроках) */}
+      <HomeScreenBanner active={!isLesson} splashFinished={splashFinished} />
 
       {/* Кастомный попап подтверждения выхода */}
       <ExitConfirmModal open={isExitModalOpen} onClose={closeExitModal} />

@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, memo } from 'react';
+import { useEffect, useState, useRef, useCallback, memo } from 'react';
 
 export interface VinylLoaderProps {
   /** Управляет отображением прелоадера */
@@ -177,53 +177,56 @@ export const VinylDisk = memo(function VinylDisk({
 
 /**
  * Полноэкранный брендированный экран загрузки (Vinyl Splash Screen).
- * Отображает крутящийся винил с мягким фоновым сиянием и осуществляет
- * бесшовный fade-out + scale-up переход после готовности данных приложения.
- * Гарантирует минимальное время показа (1350ms), чтобы переход был кинематографичным.
+ *
+ * Особенности:
+ * 1. Аппаратное ускорение GPU: вращение пластинки через Tailwind CSS (animate-spin transform-gpu will-change-transform translate-z-0).
+ * 2. Безусловный fail-safe таймер: максимум через 900 мс инициирует плавный fade-out независимо от статуса сети Telegram.
+ * 3. Отсутствие блокировок JS-потока: исключены любые вычисления и таймеры в цикле анимации.
  */
 export function VinylLoader({
   isLoading,
   statusText = 'Синхронизация битов...',
   onExited,
 }: VinylLoaderProps) {
-  // Всегда начинаем с отображения прелоадера при старте приложения
   const [shouldRender, setShouldRender] = useState(true);
-  const [minTimeElapsed, setMinTimeElapsed] = useState(false);
   const [isExiting, setIsExiting] = useState(false);
-
-  // 1. Таймер минимального времени показа винила (1350мс)
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      setMinTimeElapsed(true);
-    }, 1350);
-    return () => window.clearTimeout(timer);
-  }, []);
-
+  const isExitingRef = useRef(false);
   const onExitedRef = useRef(onExited);
   onExitedRef.current = onExited;
 
-  // 2. Логика выхода: только когда данные готовы И прошло минимальное время
-  useEffect(() => {
-    if (!isLoading && minTimeElapsed && !isExiting) {
-      setIsExiting(true);
-      const exitTimer = window.setTimeout(() => {
-        setShouldRender(false);
-        onExitedRef.current?.();
-      }, 380);
-      return () => window.clearTimeout(exitTimer);
-    }
-  }, [isLoading, minTimeElapsed, isExiting]);
+  const triggerExit = useCallback(() => {
+    if (isExitingRef.current) return;
+    isExitingRef.current = true;
+    setIsExiting(true);
 
-  // Возможность тапнуть по экрану для мгновенного пропуска
-  const handleQuickSkip = () => {
-    if (!isExiting) {
-      setIsExiting(true);
-      window.setTimeout(() => {
-        setShouldRender(false);
-        onExitedRef.current?.();
-      }, 200);
+    const timer = window.setTimeout(() => {
+      setShouldRender(false);
+      onExitedRef.current?.();
+    }, 300);
+
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  // 1. Безусловный аварийный таймер выхода (Fail-Safe Exit): ровно 900 мс максимум
+  useEffect(() => {
+    const failSafeTimer = window.setTimeout(() => {
+      triggerExit();
+    }, 900);
+
+    return () => window.clearTimeout(failSafeTimer);
+  }, [triggerExit]);
+
+  // 2. Если данные загрузились раньше 900 мс, выполняем плавный выход
+  useEffect(() => {
+    if (!isLoading) {
+      triggerExit();
     }
-  };
+  }, [isLoading, triggerExit]);
+
+  // Быстрый пропуск по тапу
+  const handleQuickSkip = useCallback(() => {
+    triggerExit();
+  }, [triggerExit]);
 
   if (!shouldRender) {
     return null;
@@ -234,8 +237,8 @@ export function VinylLoader({
       role="progressbar"
       aria-label="Загрузка приложения Open Deck DJ School"
       onClick={handleQuickSkip}
-      className={`fixed inset-0 z-[200] flex flex-col items-center justify-center select-none cursor-pointer ${
-        isExiting ? 'animate-splash-exit' : ''
+      className={`fixed inset-0 z-[200] flex flex-col items-center justify-center select-none cursor-pointer transition-opacity duration-300 ease-out ${
+        isExiting ? 'opacity-0 pointer-events-none' : 'opacity-100'
       }`}
       style={{
         background: 'radial-gradient(circle at 50% 45%, #323835 0%, #202422 65%, #141716 100%)',
@@ -256,8 +259,8 @@ export function VinylLoader({
           }}
         />
 
-        {/* Контейнер непрерывного вращения виниловой пластинки (3s linear infinite) */}
-        <div className="relative z-10 animate-spin-vinyl">
+        {/* Аппаратное непрерывное вращение пластинки на GPU */}
+        <div className="relative z-10 animate-spin transform-gpu will-change-transform translate-z-0">
           <VinylDisk size={230} />
         </div>
 
@@ -293,7 +296,7 @@ export function VinylLoader({
                 height: '100%',
                 background: 'var(--brand-gradient)',
                 borderRadius: 99,
-                animation: 'shimmer 1.35s ease-out forwards',
+                animation: 'shimmer 0.9s ease-out forwards',
                 width: '100%',
                 transformOrigin: 'left',
               }}

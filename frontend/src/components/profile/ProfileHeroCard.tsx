@@ -1,9 +1,9 @@
-import { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../../state/store';
 import { getUserRank } from '../../lib/constants';
 import { Star, IconHeadphones, IconSparkles } from '../ui';
 import { useToast } from '../Toast';
 import { haptic } from '../../lib/theme';
+import { UserAvatar } from '../UserAvatar';
 
 /**
  * Тип пользователя из официального Telegram Web App SDK.
@@ -69,146 +69,6 @@ export function ProfileHeroCardSkeleton() {
 }
 
 /**
- * Крупный круглый юзерпик пользователя Telegram с гарантированным fallback.
- */
-function LargeUserpic({
-  photoUrl,
-  displayName,
-  isPremium,
-  rankTag,
-}: {
-  photoUrl: string;
-  displayName: string;
-  isPremium: boolean;
-  rankTag: string;
-}) {
-  const [imgError, setImgError] = useState(false);
-
-  useEffect(() => {
-    setImgError(false);
-  }, [photoUrl]);
-
-  // Вычисление 1-2 букв инициалов
-  const initials = useMemo(() => {
-    const parts = (displayName || 'DJ').trim().split(/\s+/).filter(Boolean);
-    if (parts.length >= 2) {
-      return (parts[0][0] + parts[1][0]).toUpperCase();
-    }
-    return (parts[0]?.[0] || 'D').toUpperCase();
-  }, [displayName]);
-
-  const hasValidPhoto = Boolean(photoUrl && !imgError);
-
-  return (
-    <div
-      style={{
-        position: 'relative',
-        width: 80,
-        height: 80,
-        flexShrink: 0,
-      }}
-    >
-      {/* Крупный круглый аватар */}
-      <div
-        style={{
-          width: 80,
-          height: 80,
-          borderRadius: '50%',
-          overflow: 'hidden',
-          display: 'grid',
-          placeItems: 'center',
-          background: hasValidPhoto
-            ? '#161817'
-            : 'linear-gradient(135deg, var(--brand-mauve) 0%, color-mix(in srgb, var(--brand-mint) 45%, var(--brand-mauve)) 100%)',
-          border: '2.5px solid color-mix(in srgb, var(--brand-mint) 55%, rgba(255, 255, 255, 0.15))',
-          boxShadow: '0 8px 24px -4px rgba(0, 0, 0, 0.5), 0 0 16px -2px color-mix(in srgb, var(--brand-mint) 25%, transparent)',
-          userSelect: 'none',
-        }}
-      >
-        {hasValidPhoto ? (
-          <img
-            src={photoUrl}
-            alt={displayName}
-            loading="eager"
-            decoding="async"
-            referrerPolicy="no-referrer"
-            onError={() => setImgError(true)}
-            style={{
-              width: '100%',
-              height: '100%',
-              objectFit: 'cover',
-              display: 'block',
-            }}
-          />
-        ) : (
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#1d1f1e',
-              fontWeight: 900,
-              fontSize: initials.length > 1 ? 24 : 28,
-              letterSpacing: '-0.5px',
-            }}
-          >
-            {initials}
-          </div>
-        )}
-      </div>
-
-      {/* Бейдж Telegram Premium (правый верхний угол) */}
-      {isPremium && (
-        <div
-          title="Telegram Premium"
-          style={{
-            position: 'absolute',
-            top: -2,
-            right: -2,
-            width: 22,
-            height: 22,
-            borderRadius: '50%',
-            background: 'linear-gradient(135deg, #8b5cf6 0%, #3b82f6 100%)',
-            border: '2px solid var(--color-surface, #1e201f)',
-            display: 'grid',
-            placeItems: 'center',
-            boxShadow: '0 2px 8px rgba(139, 92, 246, 0.45)',
-          }}
-        >
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="#fff">
-            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-          </svg>
-        </div>
-      )}
-
-      {/* Бейдж уровня DJ (нижний край по центру) */}
-      <div
-        style={{
-          position: 'absolute',
-          bottom: -4,
-          left: '50%',
-          transform: 'translateX(-50%)',
-          background: 'var(--brand-mint)',
-          color: '#11322a',
-          fontSize: 9.5,
-          fontWeight: 800,
-          padding: '2px 7px',
-          borderRadius: 99,
-          border: '1.5px solid var(--color-surface, #1e201f)',
-          boxShadow: '0 2px 6px rgba(0, 0, 0, 0.35)',
-          letterSpacing: '0.04em',
-          textTransform: 'uppercase',
-          whiteSpace: 'nowrap',
-        }}
-      >
-        {rankTag}
-      </div>
-    </div>
-  );
-}
-
-/**
  * Двухколоночный макет карточки «Профиль»:
  * Слева: крупный круглый юзерпик из Telegram (с fallback и Premium-индикатором).
  * Справа: структурированная бизнес-информация из SQLite БД.
@@ -229,8 +89,7 @@ export function ProfileHeroCard() {
   const username = tgUser?.username || user.username || '';
   const usernameDisplay = username ? `@${username}` : tgUser?.id ? `ID: ${tgUser.id}` : '';
 
-  // 4. Аватар (приоритет Telegram SDK -> кэш БД -> пусто)
-  const photoUrl = tgUser?.photo_url || user.photoUrl || '';
+  // 4. Статус Telegram Premium
   const isPremium = Boolean(tgUser?.is_premium || user.isPremium);
 
   // 5. Бизнес-метрики из SQLite БД
@@ -287,13 +146,38 @@ export function ProfileHeroCard() {
         }}
       />
 
-      {/* ──────────────── ЛЕВАЯ КОЛОНКА: Крупный круглый юзерпик ──────────────── */}
-      <LargeUserpic
-        photoUrl={photoUrl}
-        displayName={displayName}
-        isPremium={isPremium}
-        rankTag={rank.tag}
-      />
+      {/* ──────────────── ЛЕВАЯ КОЛОНКА: Крупный круглый юзерпик SWR ──────────────── */}
+      <div className="relative w-20 h-20 flex-shrink-0">
+        <UserAvatar
+          size="lg"
+          alt={displayName}
+          isPremium={isPremium}
+          customName={displayName}
+        />
+        {/* Бейдж уровня DJ (нижний край по центру) */}
+        <div
+          style={{
+            position: 'absolute',
+            bottom: -4,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            background: 'var(--brand-mint)',
+            color: '#11322a',
+            fontSize: 9.5,
+            fontWeight: 800,
+            padding: '2px 7px',
+            borderRadius: 99,
+            border: '1.5px solid var(--color-surface, #1e201f)',
+            boxShadow: '0 2px 6px rgba(0, 0, 0, 0.35)',
+            letterSpacing: '0.04em',
+            textTransform: 'uppercase',
+            whiteSpace: 'nowrap',
+            zIndex: 15,
+          }}
+        >
+          {rank.tag}
+        </div>
+      </div>
 
       {/* ──────────────── ПРАВАЯ КОЛОНКА: Бизнес-информация из БД ──────────────── */}
       <div

@@ -1,5 +1,5 @@
 import { Routes, Route, useLocation, Navigate } from 'react-router-dom';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { AppProvider, useApp } from './state/store';
 import { ToastProvider, useToast } from './components/Toast';
 import { BottomNav } from './components/BottomNav';
@@ -14,53 +14,37 @@ import { TribeScreen } from './screens/TribeScreen';
 import { Profile } from './screens/Profile';
 import { LessonScreen } from './screens/LessonScreen';
 import { VinylLoader } from './components/VinylLoader';
-import { preloadUserpic } from './lib/avatarPreload';
+import { getTelegramWebApp } from './types';
 
 function Shell() {
   useTelegramTheme();
   const { isReady: isTgReady } = useTelegramInit();
-  const { isLoaded: isSessionLoaded, welcomeBonus, user } = useApp();
+  const { isLoaded: isSessionLoaded, welcomeBonus } = useApp();
   const { toast } = useToast();
   const loc = useLocation();
   const { isExitModalOpen, closeExitModal } = useNavigation();
   const [splashFinished, setSplashFinished] = useState(false);
-  const [isAvatarReady, setIsAvatarReady] = useState(false);
   const active = loc.pathname.split('/')[1] || 'home';
 
-  // Предзагрузка юзерпика Telegram во время окна загрузки приложения (VinylLoader)
+  // Гарантия строго однократного вызова ready() и expand() при монтировании
+  const tgReadyCalledRef = useRef(false);
   useEffect(() => {
-    const photo =
-      user.photoUrl ||
-      (window as any).Telegram?.WebApp?.initDataUnsafe?.user?.photo_url ||
-      (window as any).__opendeck_userpic_url;
-
-    if (!photo) {
-      setIsAvatarReady(true);
-      return;
-    }
-
-    let active = true;
-    // Ограничиваем ожидание максимум 850мс, чтобы аватар подгрузился
-    // строго внутри минимального окна показа винила (1350мс) и не задерживал запуск
-    const timer = window.setTimeout(() => {
-      if (active) setIsAvatarReady(true);
-    }, 850);
-
-    preloadUserpic(photo).finally(() => {
-      if (active) {
-        window.clearTimeout(timer);
-        setIsAvatarReady(true);
+    if (tgReadyCalledRef.current) return;
+    tgReadyCalledRef.current = true;
+    try {
+      const tw = getTelegramWebApp();
+      if (tw) {
+        tw.ready?.();
+        tw.expand?.();
       }
-    });
+    } catch (e) {
+      console.warn('[App] Telegram WebApp ready/expand error:', e);
+    }
+  }, []);
 
-    return () => {
-      active = false;
-      window.clearTimeout(timer);
-    };
-  }, [user.photoUrl]);
-
-  // Комплексный флаг готовности: платформа Telegram + данные пользователя и курса + готовность аватара
-  const isAppReady = isTgReady && isSessionLoaded && isAvatarReady;
+  // Неблокирующий запуск: приложение готово сразу по готовности среды и сессии,
+  // аватар пользователя подгружается параллельно по Stale-While-Revalidate без фризов
+  const isAppReady = isTgReady && isSessionLoaded;
 
   // Показ приветственного бонуса (рефералка / подарок)
   useEffect(() => {

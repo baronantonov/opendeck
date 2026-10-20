@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../../state/store';
 import { getUserRank, type RankDef } from '../../lib/constants';
 import { haptic } from '../../lib/theme';
 import { GpGlowBadge } from '../MotionWrappers';
+import { UserAvatar } from '../UserAvatar';
 
 /**
  * Тип данных пользователя, возвращаемый официальным Telegram WebApp SDK.
@@ -119,107 +119,6 @@ export function ProfileWidgetSkeleton() {
 }
 
 /**
- * Аватар с гарантированным фоллбэком и защитой от ошибок загрузки Telegram CDN.
- */
-function ProfileAvatar({
-  photoUrl,
-  name,
-  isPremium,
-}: {
-  photoUrl: string;
-  name: string;
-  isPremium: boolean;
-}) {
-  const [imgError, setImgError] = useState(false);
-
-  useEffect(() => {
-    setImgError(false);
-  }, [photoUrl]);
-
-  const initials = (name || 'DJ')
-    .trim()
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((w) => w[0]?.toUpperCase())
-    .join('') || 'D';
-
-  const showImage = Boolean(photoUrl && !imgError);
-
-  return (
-    <div
-      style={{
-        position: 'relative',
-        width: 48,
-        height: 48,
-        flexShrink: 0,
-      }}
-    >
-      <div
-        style={{
-          width: 48,
-          height: 48,
-          borderRadius: 15,
-          overflow: 'hidden',
-          display: 'grid',
-          placeItems: 'center',
-          background: showImage
-            ? '#161817'
-            : 'linear-gradient(135deg, var(--brand-mauve) 0%, color-mix(in srgb, var(--brand-mint) 50%, var(--brand-mauve)) 100%)',
-          color: '#1d1f1e',
-          fontWeight: 800,
-          fontSize: initials.length > 1 ? 16 : 19,
-          border: '1px solid rgba(255, 255, 255, 0.12)',
-          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.25)',
-        }}
-      >
-        {showImage ? (
-          <img
-            src={photoUrl}
-            alt={name}
-            loading="eager"
-            decoding="async"
-            referrerPolicy="no-referrer"
-            onError={() => setImgError(true)}
-            style={{
-              width: '100%',
-              height: '100%',
-              objectFit: 'cover',
-              display: 'block',
-            }}
-          />
-        ) : (
-          <span>{initials}</span>
-        )}
-      </div>
-
-      {/* Бейдж Telegram Premium */}
-      {isPremium && (
-        <div
-          title="Telegram Premium"
-          style={{
-            position: 'absolute',
-            bottom: -3,
-            right: -3,
-            width: 17,
-            height: 17,
-            borderRadius: '50%',
-            background: 'linear-gradient(135deg, #7c3aed 0%, #2563eb 100%)',
-            border: '2px solid var(--color-bg, #0f1110)',
-            display: 'grid',
-            placeItems: 'center',
-            boxShadow: '0 2px 6px rgba(0,0,0,0.4)',
-          }}
-        >
-          <svg width="9" height="9" viewBox="0 0 24 24" fill="#fff">
-            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-          </svg>
-        </div>
-      )}
-    </div>
-  );
-}
-
-/**
  * Полноценный виджет профиля для главной страницы TMA:
  * Объединяет профиль Telegram с бизнес-метриками SQLite (баланс GP, ранг, статус курса).
  */
@@ -264,11 +163,12 @@ export function ProfileWidget({ onClick }: { onClick?: () => void }) {
       className="profile-widget glow-card-border active:scale-[0.99]"
     >
       <div className="glow-card-ambient" aria-hidden="true" />
-      {/* 1. Аватар Telegram + Fallback */}
-      <ProfileAvatar
-        photoUrl={data.photoUrl}
-        name={data.displayName}
+      {/* 1. Аватар Telegram Stale-While-Revalidate (SWR) */}
+      <UserAvatar
+        size="sm"
+        alt={data.displayName}
         isPremium={data.isPremium}
+        customName={data.displayName}
       />
 
       {/* 2. Пользовательские метаданные (Telegram + DB) */}

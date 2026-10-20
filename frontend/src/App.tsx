@@ -12,6 +12,7 @@ import { Home } from './screens/Home';
 import { Learn } from './screens/Learn';
 import { TribeScreen } from './screens/TribeScreen';
 import { Profile } from './screens/Profile';
+import { LessonScreen } from './screens/LessonScreen';
 import { VinylLoader } from './components/VinylLoader';
 import { preloadUserpic } from './lib/avatarPreload';
 
@@ -97,6 +98,7 @@ function Shell() {
           <Route path="/course" element={<Navigate to="/learn" replace />} />
           <Route path="/bonus" element={<Navigate to="/learn" replace />} />
           <Route path="/mentor" element={<Navigate to="/learn" replace />} />
+          <Route path="/lesson/:id" element={<LessonScreen key={loc.pathname} />} />
           <Route path="/tribe" element={<TribeScreen key={active} />} />
           <Route path="/profile" element={<Profile key={active} />} />
           <Route path="*" element={<Navigate to="/" replace />} />

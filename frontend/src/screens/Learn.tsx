@@ -1,11 +1,11 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useApp, COURSE_LESSONS } from '../state/store';
 import { useCourseProgress } from '../state/CourseProgressContext';
 import { isLessonUnlocked, mentorPrices } from '../lib/constants';
 import { Button, ProgressBar, Star } from '../components/ui';
 import { useToast } from '../components/Toast';
 import { useStarsCheckout, MentorPay } from '../payment/Paywall';
-import { LessonPlayer } from '../components/LessonPlayer';
 import { haptic } from '../lib/theme';
 import {
   ChevronDown,
@@ -24,13 +24,13 @@ import { useRegisterModal } from '../lib/navigation';
 import { GiftCourseModal } from '../components/GiftCourseModal';
 
 export function Learn() {
+  const navigate = useNavigate();
   const { user, course, isPaid, adminMode } = useApp();
   const { guardLessonAccess, verifyIntegrity } = useCourseProgress();
   const { toast } = useToast();
   const { checkoutCourse, busy: checkoutBusy } = useStarsCheckout();
   const [mentorOpen, setMentorOpen] = useState(false);
   const [giftOpen, setGiftOpen] = useState(false);
-  const [selectedLesson, setSelectedLesson] = useState<number | null>(null);
 
   // Состояние открытых карточек-спойлеров (Pocket DJ развернут по умолчанию)
   const [openSections, setOpenSections] = useState<Set<string>>(new Set(['pocket-dj']));
@@ -38,7 +38,6 @@ export function Learn() {
   // Состояние покачивания (shake-эффект) для карточек в разработке
   const [shakingCard, setShakingCard] = useState<string | null>(null);
 
-  useRegisterModal('learn-lesson-modal', selectedLesson !== null, () => setSelectedLesson(null));
   useRegisterModal('learn-mentor-modal', mentorOpen, () => setMentorOpen(false));
 
   const { discountUsd, discountRub, finalUsd, finalRub, cappedGp } = mentorPrices(user.groovePoints);
@@ -80,17 +79,7 @@ export function Learn() {
     }
 
     haptic('medium');
-    setSelectedLesson(index);
-  };
-
-  const handleLessonComplete = (completedIndex: number) => {
-    // Авто-вызов пейволла через 500 мс после завершения Урока 1 (индекс 0) или Урока 2 (индекс 1)
-    if ((completedIndex === 0 || completedIndex === 1) && !isPaid && !adminMode) {
-      setTimeout(() => {
-        setSelectedLesson(null);
-        void checkoutCourse('dj-basics');
-      }, 500);
-    }
+    navigate(`/lesson/${index + 1}`);
   };
 
   // Переключение активных спойлеров
@@ -1015,78 +1004,8 @@ export function Learn() {
         </div>
       </div>
 
-      {/* ──────────────── МОДАЛЬНОЕ ОКНО ПЛЕЕРА УРОКА ──────────────── */}
-      {selectedLesson !== null && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(0,0,0,0.82)',
-            backdropFilter: 'blur(10px)',
-            zIndex: 100,
-            display: 'flex',
-            alignItems: 'flex-end',
-            justifyContent: 'center',
-            boxSizing: 'border-box',
-          }}
-          onClick={() => setSelectedLesson(null)}
-        >
-          <div
-            style={{
-              width: '100%',
-              maxWidth: 480,
-              background: 'var(--color-surface)',
-              borderTopLeftRadius: 24,
-              borderTopRightRadius: 24,
-              padding: '18px 16px 28px',
-              maxHeight: 'calc(100vh - var(--safe-top, 0px) - 20px)',
-              overflowY: 'auto',
-              boxSizing: 'border-box',
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-              <div style={{ fontWeight: 800, fontSize: 16 }}>
-                {`Урок ${selectedLesson + 1}: ${COURSE_LESSONS[selectedLesson]?.t || ''}`}
-              </div>
-              <button
-                type="button"
-                onClick={() => setSelectedLesson(null)}
-                style={{
-                  border: 'none',
-                  background: 'color-mix(in srgb, var(--color-text) 10%, transparent)',
-                  color: 'var(--color-text)',
-                  width: 32,
-                  height: 32,
-                  borderRadius: 16,
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  display: 'grid',
-                  placeItems: 'center',
-                }}
-              >
-                ✕
-              </button>
-            </div>
-
-            <LessonPlayer
-              lesson={COURSE_LESSONS[selectedLesson]}
-              index={selectedLesson}
-              courseId="dj-basics"
-              defaultOpen={true}
-              locked={!isLessonUnlocked(selectedLesson, course.completedLessons, isPaid, adminMode).unlocked}
-              onUnlock={() => {
-                setSelectedLesson(null);
-                void checkoutCourse('dj-basics');
-              }}
-              onLessonComplete={handleLessonComplete}
-            />
-          </div>
-        </div>
-      )}
-
-      {/* Модалка оплаты менторства */}
-      <MentorPay open={mentorOpen} onClose={() => setMentorOpen(false)} />
+              {/* Модалка оплаты менторства */}
+              <MentorPay open={mentorOpen} onClose={() => setMentorOpen(false)} />
 
       {/* Модалка оформления подарка курса */}
       <GiftCourseModal

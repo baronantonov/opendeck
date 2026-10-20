@@ -9,7 +9,7 @@ import { NavigationProvider, useNavigation } from './lib/navigation';
 import { ExitConfirmModal } from './components/ExitConfirmModal';
 import { HomeScreenBanner } from './components/HomeScreenBanner';
 import { Home } from './screens/Home';
-import { Learn } from './screens/Learn';
+import { LearningScreen } from './screens/LearningScreen';
 import { TribeScreen } from './screens/TribeScreen';
 import { Profile } from './screens/Profile';
 import { LessonScreen } from './screens/LessonScreen';
@@ -59,6 +59,7 @@ function Shell() {
   }, [active]);
 
   const isLesson = loc.pathname.startsWith('/lesson');
+  const isLearn = loc.pathname.startsWith('/learn');
 
   return (
     <div className="tma-app-shell">
@@ -76,8 +77,8 @@ function Shell() {
           minHeight: 0,
           display: isLesson ? 'flex' : undefined,
           flexDirection: isLesson ? 'column' : undefined,
-          paddingTop: 'var(--app-safe-top, var(--safe-top, 0px))',
-          paddingBottom: isLesson ? 0 : 20,
+          paddingTop: (isLesson || isLearn) ? 0 : 'var(--app-safe-top, var(--safe-top, 0px))',
+          paddingBottom: (isLesson || isLearn) ? 0 : 20,
           overflowY: isLesson ? 'hidden' : 'auto',
           overflowX: 'hidden',
           WebkitOverflowScrolling: 'touch',
@@ -88,7 +89,7 @@ function Shell() {
         <Routes>
           <Route path="/" element={<Home key={active} />} />
           <Route path="/home" element={<Home key={active} />} />
-          <Route path="/learn" element={<Learn key={active} />} />
+          <Route path="/learn" element={<LearningScreen key={active} />} />
           <Route path="/course" element={<Navigate to="/learn" replace />} />
           <Route path="/bonus" element={<Navigate to="/learn" replace />} />
           <Route path="/mentor" element={<Navigate to="/learn" replace />} />

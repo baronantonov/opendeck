@@ -146,6 +146,14 @@ button {
   display: none;
 }
 
+.scrollbar-none {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
 /* ---- Brand surface helpers ---- */
 .brand-card {
   background: var(--color-surface);

@@ -234,40 +234,10 @@ export function useTelegramInit(): TelegramInitState {
     const t2 = setTimeout(handleTelegramEvent, 500);
     window.addEventListener('resize', handleTelegramEvent);
 
-    // 3. Быстрый Touch Guard: предотвращение pull-down жеста от верхней кромки
-    let touchStartY = 0;
-    const onTouchStart = (e: TouchEvent) => {
-      if (e.touches.length === 1) {
-        touchStartY = e.touches[0].clientY;
-      }
-    };
-
-    const onTouchMove = (e: TouchEvent) => {
-      if (e.touches.length !== 1) return;
-      const currentY = e.touches[0].clientY;
-      const deltaY = currentY - touchStartY;
-
-      // Пользователь тянет вниз
-      if (deltaY > 0) {
-        const el = e.target as HTMLElement | null;
-        const scrollable = el?.closest('.scroll-y') as HTMLElement | null;
-        const canScrollUp = scrollable ? scrollable.scrollTop > 0 : false;
-
-        if (!canScrollUp && e.cancelable) {
-          e.preventDefault();
-        }
-      }
-    };
-
-    window.addEventListener('touchstart', onTouchStart, { passive: true });
-    window.addEventListener('touchmove', onTouchMove, { passive: false });
-
     return () => {
       clearTimeout(t1);
       clearTimeout(t2);
       window.removeEventListener('resize', handleTelegramEvent);
-      window.removeEventListener('touchstart', onTouchStart);
-      window.removeEventListener('touchmove', onTouchMove);
       events.forEach((ev) => {
         try {
           tw.offEvent?.(ev, handleTelegramEvent);

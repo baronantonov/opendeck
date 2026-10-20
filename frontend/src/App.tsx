@@ -72,12 +72,15 @@ function Shell() {
       <main
         className={isLesson ? 'flex-1 flex flex-col h-[100dvh] overflow-hidden' : 'scroll-y'}
         style={{
-          flex: 1,
+          flex: '1 1 0%',
+          minHeight: 0,
           display: isLesson ? 'flex' : undefined,
           flexDirection: isLesson ? 'column' : undefined,
           paddingTop: 'var(--app-safe-top, var(--safe-top, 0px))',
-          paddingBottom: isLesson ? 0 : 12,
-          overflow: isLesson ? 'hidden' : undefined,
+          paddingBottom: isLesson ? 0 : 20,
+          overflowY: isLesson ? 'hidden' : 'auto',
+          overflowX: 'hidden',
+          WebkitOverflowScrolling: 'touch',
           height: isLesson ? '100dvh' : undefined,
           boxSizing: 'border-box',
         }}

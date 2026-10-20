@@ -154,7 +154,8 @@ export interface TelegramWebApp {
   headerColor: string;
   backgroundColor: string;
   bottomBarColor?: string;
-  isClosingConfirmationEnabled: boolean;
+  isClosingConfirmationEnabled?: boolean;
+  isVerticalSwipesEnabled?: boolean;
   isFullscreen?: boolean;
   safeAreaInset?: TelegramSafeAreaInset;
   contentSafeAreaInset?: TelegramSafeAreaInset;

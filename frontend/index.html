@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="ru">
   <head>
-    <!--opendeck-version:4ea5c02-->
+    <!--opendeck-version:5d87d79-->
     <meta charset="UTF-8" />
     <meta
       name="viewport"
@@ -53,14 +53,6 @@
             } catch(e){}
             try { tw.disableVerticalSwipes && tw.disableVerticalSwipes(); } catch(e){}
             try { tw.enableClosingConfirmation && tw.enableClosingConfirmation(); } catch(e){}
-            try {
-              if (window.Telegram && window.Telegram.WebView && window.Telegram.WebView.postEvent) {
-                window.Telegram.WebView.postEvent('web_app_setup_swipe_behavior', false, { allow_vertical_swipe: false });
-                window.Telegram.WebView.postEvent('web_app_setup_closing_behavior', false, { need_confirmation: true });
-                window.Telegram.WebView.postEvent('web_app_request_fullscreen', false);
-                window.Telegram.WebView.postEvent('web_app_expand', false);
-              }
-            } catch(e){}
           }
         } catch(e){}
       })();

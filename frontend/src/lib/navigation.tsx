@@ -33,34 +33,58 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
   const isExitModalOpenRef = useRef(false);
   isExitModalOpenRef.current = isExitModalOpen;
 
-  const registerModal = useCallback((id: string, onClose: () => void) => {
-    // Добавляем модалку в стек, предварительно удаляя дубликат с таким же ID
-    modalStackRef.current = modalStackRef.current.filter((m) => m.id !== id);
-    modalStackRef.current.push({ id, onClose });
+  const syncBackButton = useCallback(() => {
+    const tw = getTelegramWebApp();
+    if (!tw?.BackButton) return;
+    const path = location.pathname;
+    const isHome = path === '/' || path === '/home';
+    const hasModals = modalStackRef.current.length > 0 || isExitModalOpenRef.current;
 
-    return () => {
+    // В полноэкранном приложении Telegram на Главной странице скрываем BackButton,
+    // чтобы отображались нативные кнопки сворачивания и выхода Telegram.
+    // На внутренних экранах и модалках показываем BackButton для возврата.
+    if (isHome && !hasModals) {
+      try {
+        tw.BackButton.hide();
+      } catch {}
+    } else {
+      try {
+        tw.BackButton.show();
+      } catch {}
+    }
+  }, [location.pathname]);
+
+  const registerModal = useCallback(
+    (id: string, onClose: () => void) => {
       modalStackRef.current = modalStackRef.current.filter((m) => m.id !== id);
-    };
-  }, []);
+      modalStackRef.current.push({ id, onClose });
+      syncBackButton();
+
+      return () => {
+        modalStackRef.current = modalStackRef.current.filter((m) => m.id !== id);
+        syncBackButton();
+      };
+    },
+    [syncBackButton]
+  );
 
   const openExitModal = useCallback(() => {
     haptic('warning');
     setIsExitModalOpen(true);
-  }, []);
+    syncBackButton();
+  }, [syncBackButton]);
 
   const closeExitModal = useCallback(() => {
     haptic('light');
     setIsExitModalOpen(false);
-  }, []);
+    syncBackButton();
+  }, [syncBackButton]);
 
   useEffect(() => {
     const tw = getTelegramWebApp();
-    if (!tw) return;
+    if (!tw?.BackButton) return;
 
-    // Включаем нативную кнопку «Назад» Telegram на всех экранах приложения
-    try {
-      tw.BackButton.show();
-    } catch {}
+    syncBackButton();
 
     const handleBackClick = () => {
       // 0. Если открыт ExitConfirmModal — повторное нажатие «Назад» закрывает попап
@@ -75,11 +99,19 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
         if (topModal) {
           haptic('light');
           topModal.onClose();
+          syncBackButton();
           return;
         }
       }
 
-      // 2. Если открыт внутренний экран (не на Главной) — возвращаем на Главную
+      // 2. Если открыт экран урока — возвращаем к списку уроков
+      if (location.pathname.startsWith('/lesson')) {
+        haptic('light');
+        navigate('/learn');
+        return;
+      }
+
+      // 3. Если открыт любой другой внутренний экран (не на Главной) — возвращаем на Главную
       const path = location.pathname;
       const isHome = path === '/' || path === '/home';
       if (!isHome) {
@@ -87,9 +119,6 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
         navigate('/');
         return;
       }
-
-      // 3. Одиночный тап «Назад» на Главной — открываем ExitConfirmModal с тактильным предупреждением
-      openExitModal();
     };
 
     try {
@@ -101,7 +130,7 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
         tw.BackButton.offClick(handleBackClick);
       } catch {}
     };
-  }, [location.pathname, navigate, openExitModal]);
+  }, [location.pathname, navigate, syncBackButton, closeExitModal]);
 
   return (
     <NavigationContext.Provider

@@ -84,7 +84,6 @@ export function LessonScreen() {
     return () => {
       try {
         tw?.BackButton?.offClick?.(handleBack);
-        tw?.enableVerticalSwipes?.();
       } catch {
         /* fallback */
       }

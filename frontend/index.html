@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="ru">
   <head>
-    <!--opendeck-version:c6136da-->
+    <!--opendeck-version:4ea5c02-->
     <meta charset="UTF-8" />
     <meta
       name="viewport"
@@ -39,6 +39,32 @@
     </script>
     <!-- Telegram bridge MUST load before the app bundle (per tma-scaffold) -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script>
+      (function(){
+        try {
+          var tw = window.Telegram && window.Telegram.WebApp;
+          if (tw) {
+            try { tw.ready && tw.ready(); } catch(e){}
+            try { tw.expand && tw.expand(); } catch(e){}
+            try {
+              if (typeof tw.requestFullscreen === 'function') {
+                tw.requestFullscreen();
+              }
+            } catch(e){}
+            try { tw.disableVerticalSwipes && tw.disableVerticalSwipes(); } catch(e){}
+            try { tw.enableClosingConfirmation && tw.enableClosingConfirmation(); } catch(e){}
+            try {
+              if (window.Telegram && window.Telegram.WebView && window.Telegram.WebView.postEvent) {
+                window.Telegram.WebView.postEvent('web_app_setup_swipe_behavior', false, { allow_vertical_swipe: false });
+                window.Telegram.WebView.postEvent('web_app_setup_closing_behavior', false, { need_confirmation: true });
+                window.Telegram.WebView.postEvent('web_app_request_fullscreen', false);
+                window.Telegram.WebView.postEvent('web_app_expand', false);
+              }
+            } catch(e){}
+          }
+        } catch(e){}
+      })();
+    </script>
     <script>
       (function(){
         try {

@@ -36,9 +36,8 @@ def test_test_bot():
     stars = get_provider("stars")
     inv = stars.create_invoice(777, "dj-basics", "Курс")
     import asyncio
-    inv = asyncio.get_event_loop().run_until_complete(inv) if hasattr(inv, "__await__") else inv
-    # create_invoice async -> дождись
-    inv = asyncio.get_event_loop().run_until_complete(get_provider("stars").create_invoice(777, "dj-basics", "Курс"))
+    # Python 3.14: get_event_loop() больше не создаёт loop — используем asyncio.run
+    inv = asyncio.run(inv)
     check("payload = course_id", inv.url_or_payload == "dj-basics")
     print("== Клавиатура бота main_kb ==")
     from bot.main import main_kb

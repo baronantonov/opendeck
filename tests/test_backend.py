@@ -1,7 +1,7 @@
 """Прогон MVP: бэкенд + доступ + init_data + webhook Prodamus.
 Запуск:  python tests/test_backend.py   (из корня проекта)
 """
-import os, sys, hashlib, hmac, json, time, urllib.parse, tempfile
+import os, sys, hashlib, hmac, json, time, urllib.parse, tempfile, secrets
 from pathlib import Path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -188,18 +188,49 @@ def test_backend_suite():
           bool(inv_prod_c.get("pay_url")))
 
     print("== Подарок курса (startapp=gift_<username>) ==")
+    # Без оплаченного подарка активация невозможна (дыра закрыта)
     gift_uid = 930000 + int(time.time()) % 100000
     gift_init = make_init_data(TOKEN, gift_uid, username="dj_friend")
-    # Другой юзер (не получатель) не должен получить подарок
+    r_free = client.post("/api/init", json={"init_data": gift_init, "start_param": "gift_dj_friend"}).json()
+    check("gift-ссылку без оплаты НЕ активирует", r_free.get("paid") is False and db.has_paid(gift_uid) is False)
+
+    # Чужой подарок не активируется
     other_uid = 935000 + int(time.time()) % 100000
     other_init = make_init_data(TOKEN, other_uid, username="stranger")
     r_bad = client.post("/api/init", json={"init_data": other_init, "start_param": "gift_dj_friend"}).json()
     check("чужой подарок не активируется", r_bad.get("paid") is False and db.has_paid(other_uid) is False)
 
-    # Правильный получатель активирует подарок
+    # Полный цикл: даритель регистрирует подарок -> бот подтверждает оплату ->
+    # получатель активирует один раз
+    buyer_uid = 940000 + int(time.time()) % 100000
+    gift_token = secrets.token_urlsafe(24)
+    db.create_gift(buyer_uid, "dj_friend", gift_token)
+    # без активации (pending) получатель ещё не может активировать
+    r_pending = client.post("/api/init", json={"init_data": gift_init, "start_param": "gift_dj_friend"}).json()
+    check("pending-подарок не выдаёт доступ", r_pending.get("paid") is False)
+
+    r_act_noauth = client.post("/api/gift/activate", json={"user_id": buyer_uid, "token": gift_token})
+    check("activate без токена -> 403", r_act_noauth.status_code == 403)
+    r_act = client.post("/api/gift/activate", json={"user_id": buyer_uid, "token": gift_token},
+                        headers={"Authorization": "Bearer TEST_INTERNAL_KEY"})
+    check("activate с токеном -> ok", r_act.status_code == 200 and r_act.json().get("ok") is True)
+
     r_ok = client.post("/api/init", json={"init_data": gift_init, "start_param": "gift_dj_friend"}).json()
-    check("подарок активирован получателю (paid=true)", r_ok.get("paid") is True and db.has_paid(gift_uid) is True)
+    check("оплаченный подарок активирован получателю (paid=true)",
+          r_ok.get("paid") is True and db.has_paid(gift_uid) is True)
     check("бонус содержит сообщение о подарке", r_ok.get("bonus", {}).get("type") == "gift_accepted")
+
+    # Использованный подарок нельзя активировать повторно (другой юзер с тем же username)
+    hijack_uid = 945000 + int(time.time()) % 100000
+    hijack_init = make_init_data(TOKEN, hijack_uid, username="dj_friend")
+    r_hijack = client.post("/api/init", json={"init_data": hijack_init, "start_param": "gift_dj_friend"}).json()
+    check("использованный подарок НЕ активируется повторно",
+          r_hijack.get("paid") is False and db.has_paid(hijack_uid) is False)
+
+    # повторное подтверждение оплаты того же подарка — идемпотентно
+    r_dup = client.post("/api/gift/activate", json={"user_id": buyer_uid, "token": gift_token},
+                        headers={"Authorization": "Bearer TEST_INTERNAL_KEY"}).json()
+    check("повторная активация того же подарка -> duplicate", r_dup.get("duplicate") is True)
 
     print(f"\nИтог: {passed} PASS / {failed} FAIL")
     assert failed == 0, f"Backend tests failed: {failed} checks failed"

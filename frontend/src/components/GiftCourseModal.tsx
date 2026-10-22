@@ -112,10 +112,12 @@ export function GiftCourseModal({
     haptic('medium');
 
     try {
-      // 1. Создаем инвойс на полный курс для подарка
+      // 1. Создаем инвойс на полный курс для подарка (подарок регистрируется
+      //    на сервере; активируется только после реальной оплаты Stars)
       const invoiceData = await apiCreateInvoice({
         course_id: courseId,
         provider: 'stars',
+        gift_recipient: cleanRecipient,
       });
 
       const invoiceLink = invoiceData?.invoice_link;

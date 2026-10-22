@@ -63,6 +63,16 @@ _OLD_SCHEMA = (
     " order_id TEXT PRIMARY KEY,"
     " processed_at TEXT DEFAULT (datetime('now'))"
     ");"
+    "CREATE TABLE IF NOT EXISTS gifts ("
+    " id INTEGER PRIMARY KEY AUTOINCREMENT,"
+    " token_hash TEXT NOT NULL UNIQUE,"
+    " buyer_id INTEGER NOT NULL,"
+    " recipient TEXT NOT NULL,"
+    " status TEXT NOT NULL DEFAULT 'pending',"
+    " created_at TEXT DEFAULT (datetime('now')),"
+    " paid_at TEXT,"
+    " used_at TEXT"
+    ");"
 )
 
 # Колонки, которые добавляем миграцией (ALTER TABLE)
@@ -723,6 +733,69 @@ def mark_webhook_processed(order_id: str):
     with _conn() as c:
         c.execute("INSERT OR IGNORE INTO webhook_processed (order_id) VALUES (?)",
                   (order_id,))
+
+
+# ---------------------------------------------------------------------------
+# Gifts: подарок курса (buyer оплатил Stars -> token в payload инвойса ->
+# бот подтверждает /api/gift/activate -> получатель активирует в /api/init)
+# ---------------------------------------------------------------------------
+
+def _gift_token_hash(token: str) -> str:
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+def create_gift(buyer_id: int, recipient: str, token: str):
+    """Зарегистрировать подарок в статусе pending (до подтверждения оплаты)."""
+    with _conn() as c:
+        c.execute(
+            "INSERT INTO gifts (token_hash, buyer_id, recipient, status) "
+            "VALUES (?,?,?,'pending')",
+            (_gift_token_hash(token), buyer_id, recipient),
+        )
+
+
+def activate_gift(token: str, buyer_id: int) -> dict | None:
+    """Бот подтвердил оплату Stars: pending -> paid. Идемпотентно."""
+    with _conn() as c:
+        row = c.execute(
+            "SELECT id, status FROM gifts WHERE token_hash=?",
+            (_gift_token_hash(token),),
+        ).fetchone()
+        if not row:
+            return None
+        if row["status"] != "pending":
+            # уже подтверждён (paid) или использован (used) — повторное
+            # подтверждение оплаты ботом идемпотентно
+            return {"duplicate": True}
+        c.execute(
+            "UPDATE gifts SET status='paid', paid_at=datetime('now') "
+            "WHERE id=? AND buyer_id=?",
+            (row["id"], buyer_id),
+        )
+        return {"ok": True}
+
+
+def claim_gift(recipient: str) -> dict | None:
+    """Получатель открыл gift-ссылку: paid -> used (один раз).
+
+    Возвращает {"gift_id": ..., "buyer_id": ...} или None.
+    """
+    with _conn() as c:
+        row = c.execute(
+            "SELECT id, buyer_id FROM gifts "
+            "WHERE recipient=? AND status='paid' ORDER BY created_at LIMIT 1",
+            (recipient,),
+        ).fetchone()
+        if not row:
+            return None
+        c.execute(
+            "UPDATE gifts SET status='used', used_at=datetime('now') "
+            "WHERE id=? AND status='paid'",
+            (row["id"],),
+        )
+        if c.total_changes == 0:
+            return None  # гонка: кто-то успел использовать первым
+        return {"gift_id": row["id"], "buyer_id": row["buyer_id"]}
 
 
 # ---------------------------------------------------------------------------

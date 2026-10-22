@@ -136,6 +136,7 @@ export async function apiCreateInvoice(payload: {
   price?: number;
   provider?: string;
   points?: number;
+  gift_recipient?: string;
 }): Promise<InvoiceResponse | null> {
   const r = await withTimeout(
     fetch(`${API_BASE}/api/create-invoice`, {

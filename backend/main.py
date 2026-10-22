@@ -13,7 +13,7 @@
   POST /webhooks/prodamus       — вебхук оплаты
 """
 from __future__ import annotations
-import os, json, httpx, hmac, time, logging
+import os, json, httpx, hmac, time, logging, re, secrets
 from pathlib import Path
 
 logger = logging.getLogger("opendeck.backend")
@@ -44,6 +44,9 @@ if not INTERNAL_API_KEY:
     raise SystemExit("❌ INTERNAL_API_KEY не задан! Без него /api/grant не защищён.")
 MINI_APP_DIR = Path(__file__).resolve().parent.parent  # корень проекта — один index.html
 COURSE_ID = "dj-basics"
+
+# Валидация Telegram username для подарков (совпадает с фронтендом)
+_GIFT_USERNAME_RE = re.compile(r"^[A-Za-z0-9_]{5,32}$")
 
 app = FastAPI(title="DJ School API")
 
@@ -322,16 +325,21 @@ async def api_init(
                 )
             inviter_code = db.apply_referral_signup(uid, inviter["user_id"])
     elif sp.startswith("gift_"):
+        # Подарок курса: активируется ТОЛЬКО если даритель реально оплатил
+        # Stars-инвойс (запись gifts: pending -> paid через /api/gift/activate)
+        # и подарок ещё не использован. Без оплаты — ничего не выдаём.
         target_recipient = sp[5:].strip().lstrip("@").lower()
         my_username = (username or "").strip().lower()
         if target_recipient and (target_recipient == my_username or target_recipient == str(uid)):
             if not db.has_paid(uid, COURSE_ID):
-                db.add_payment(uid, COURSE_ID, provider="gift", status="paid")
-                bonus = {
-                    "type": "gift_accepted",
-                    "amount": 0,
-                    "message": "🎁 Тебе подарили полный курс Open Deck! Все уроки открыты.",
-                }
+                claimed = db.claim_gift(target_recipient)
+                if claimed:
+                    db.add_payment(uid, COURSE_ID, provider="gift", status="paid")
+                    bonus = {
+                        "type": "gift_accepted",
+                        "amount": 0,
+                        "message": "🎁 Тебе подарили полный курс Open Deck! Все уроки открыты.",
+                    }
 
     return {
         "user": _user_response(uid),
@@ -706,6 +714,7 @@ class CreateInvoice(BaseModel):
     price: int | None = None  # если передан — переопределяет цену по-умолчанию
     provider: str = "stars"   # stars | prodamus | ton
     points: int | None = None  # выбор количества списываемых GP (для менторства)
+    gift_recipient: str | None = None  # если задан — это подарок курса (только Stars)
 
 @app.post("/api/create-invoice")
 async def create_invoice(
@@ -755,6 +764,20 @@ async def create_invoice(
         custom_order_id = f"{uid}:mentoring:{capped_gp}:{int(time.time())}"
     else:
         return JSONResponse({"error": "unknown_course"}, status_code=400)
+
+    # --- Подарок курса (только Stars): токен в payload инвойса + запись pending ---
+    gift_payload = None
+    if body.gift_recipient:
+        if body.provider != "stars":
+            return JSONResponse({"error": "gift_stars_only"}, status_code=400)
+        if course_id not in ("tripwire", COURSE_ID):
+            return JSONResponse({"error": "gift_course_only"}, status_code=400)
+        recipient = body.gift_recipient.strip().lstrip("@").lower()
+        if not _GIFT_USERNAME_RE.fullmatch(recipient):
+            return JSONResponse({"error": "bad_gift_recipient"}, status_code=400)
+        gift_token = secrets.token_urlsafe(24)
+        gift_payload = f"gift:{gift_token}"
+        db.create_gift(uid, recipient, gift_token)
 
     # --- Prodamus (карта/СБП РФ): внешний редирект, подтверждение по webhook ---
     if body.provider == "prodamus":
@@ -811,7 +834,7 @@ async def create_invoice(
         }
 
     cache_key = (course_id, price)
-    if cache_key in _STARS_INVOICE_CACHE:
+    if gift_payload is None and cache_key in _STARS_INVOICE_CACHE:
         return {
             "invoice_link": _STARS_INVOICE_CACHE[cache_key],
             "title": label,
@@ -826,7 +849,7 @@ async def create_invoice(
             json={
                 "title": label,
                 "description": "Полный доступ к курсу Open Deck DJ School: уроки 2-6 + все бонусы от FREEDA DJ",
-                "payload": course_id,
+                "payload": gift_payload or course_id,
                 "provider_token": "",
                 "currency": "XTR",
                 "prices": [{"label": label, "amount": price}],
@@ -835,7 +858,8 @@ async def create_invoice(
         data = resp.json()
     if not data.get("ok"):
         return JSONResponse({"error": "telegram_api_error", "detail": data}, status_code=502)
-    _STARS_INVOICE_CACHE[cache_key] = data["result"]
+    if gift_payload is None:
+        _STARS_INVOICE_CACHE[cache_key] = data["result"]
     return {
         "invoice_link": data["result"],
         "title": label,
@@ -904,6 +928,27 @@ async def grant(
         return JSONResponse({"error": "unauthorized"}, status_code=403)
     db.add_payment(g.user_id, g.course_id, g.provider, status="paid")
     return {"ok": True}
+
+
+class GiftActivate(BaseModel):
+    token: str
+    user_id: int
+
+
+# ---- POST /api/gift/activate (internal) ----
+# Бот после successful_payment (payload = "gift:<token>") подтверждает оплату
+# подарка: status pending -> paid. Без этого /api/init не активирует gift-ссылку.
+@app.post("/api/gift/activate")
+async def gift_activate(
+    g: GiftActivate,
+    authorization: str | None = Header(None),
+):
+    if not authorization or not hmac.compare_digest(authorization, f"Bearer {INTERNAL_API_KEY}"):
+        return JSONResponse({"error": "unauthorized"}, status_code=403)
+    result = db.activate_gift(g.token, g.user_id)
+    if result is None:
+        return JSONResponse({"error": "bad_token"}, status_code=400)
+    return result
 
 
 # ---- POST /webhooks/prodamus ----

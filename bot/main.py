@@ -93,6 +93,21 @@ async def on_paid(msg: Message):
     charge_id = payment.telegram_payment_charge_id
     headers = {"Authorization": f"Bearer {config.INTERNAL_API_KEY}"}
     async with httpx.AsyncClient() as c:
+        # 0) подарок курса: payload = "gift:<token>" — подтверждаем оплату подарка
+        #    (pending -> paid), затем выдаём доступ как при обычной покупке курса.
+        if course_id.startswith("gift:"):
+            gift_token = course_id.split(":", 1)[1]
+            try:
+                ga = await c.post(f"{config.BACKEND_URL}/api/gift/activate", json={
+                    "user_id": msg.from_user.id,
+                    "token": gift_token,
+                }, headers=headers)
+                if ga.status_code != 200:
+                    print(f"⚠️ /api/gift/activate failed: {ga.status_code} {ga.text}")
+            except Exception as e:
+                print(f"⚠️ /api/gift/activate error: {e}")
+            course_id = "dj-basics"
+
         # 1) выдать доступ (идемпотентно на стороне бэкенда по course_id+user)
         r = await c.post(f"{config.BACKEND_URL}/api/grant", json={
             "user_id": msg.from_user.id,

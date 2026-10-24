@@ -5,6 +5,7 @@ import { useRegisterModal } from '../lib/navigation';
 import { useToast } from './Toast';
 import { apiCreateInvoice } from '../api/client';
 import { openTelegramStarsInvoice } from '../payment/Paywall';
+import { getTelegramWebApp } from '../types';
 import {
   Gift,
   X,
@@ -15,6 +16,7 @@ import {
 } from 'lucide-react';
 import { Button } from './ui';
 import { ShimmerButton } from './MotionWrappers';
+import { AbstractGeometryBg } from './LiquidGlassGeometry';
 
 export interface GiftCourseModalProps {
   isOpen: boolean;
@@ -29,25 +31,16 @@ export interface GiftRecord {
   recipient: string;
   courseId: string;
   date: number;
+  token?: string;
 }
 
-/**
- * Строгий формат Telegram Username: от 5 до 32 символов (латиница, цифры, нижнее подчеркивание)
- */
 export const TELEGRAM_USERNAME_REGEX = /^[a-zA-Z0-9_]{5,32}$/;
 
-/**
- * Нормализатор ввода юзернейма:
- * Извлекает чистый юзернейм из ссылок вида https://t.me/username, @username, или просто username.
- */
 export function normalizeTelegramUsername(input: string): string {
   if (!input) return '';
   let cleaned = input.trim();
-  // Удаляем префиксы веб-ссылок
   cleaned = cleaned.replace(/^(?:https?:\/\/)?(?:www\.)?(?:t\.me\/|telegram\.me\/)/i, '');
-  // Удаляем начальный символ @
   cleaned = cleaned.replace(/^@+/, '');
-  // Оставляем только допустимые в Telegram символы (латиница, цифры, нижнее подчеркивание)
   cleaned = cleaned.replace(/[^a-zA-Z0-9_]/g, '');
   return cleaned;
 }
@@ -66,14 +59,12 @@ export function GiftCourseModal({
   const inputId = useId();
   const { toast } = useToast();
 
-  // Регистрация в стеке навигации TMA: физический BackButton закрывает модалку
   useRegisterModal('gift-course-modal', isOpen, () => {
     if (!busy) {
       handleClose();
     }
   });
 
-  // Сброс состояния при открытии/закрытии
   useEffect(() => {
     if (isOpen) {
       setStep('input');
@@ -85,10 +76,8 @@ export function GiftCourseModal({
 
   if (!isOpen) return null;
 
-  const tw = (window as any).Telegram?.WebApp;
-  const myUsername = (
-    tw?.initDataUnsafe?.user?.username || ''
-  ).toLowerCase();
+  const tw = getTelegramWebApp();
+  const myUsername = (tw?.initDataUnsafe?.user?.username || '').toLowerCase();
 
   const cleanRecipient = normalizeTelegramUsername(rawInput);
   const isTooShort = cleanRecipient.length > 0 && cleanRecipient.length < 5;
@@ -109,11 +98,9 @@ export function GiftCourseModal({
   const handleCheckoutGift = async () => {
     if (!isValid || busy) return;
     setBusy(true);
-    haptic('medium');
+    haptic('light');
 
     try {
-      // 1. Создаем инвойс на полный курс для подарка (подарок регистрируется
-      //    на сервере; активируется только после реальной оплаты Stars)
       const invoiceData = await apiCreateInvoice({
         course_id: courseId,
         provider: 'stars',
@@ -127,7 +114,6 @@ export function GiftCourseModal({
         return;
       }
 
-      // 2. Открываем официальное окно Telegram Stars
       const status = await openTelegramStarsInvoice(invoiceLink, {
         onPaid: () => {
           haptic('success');
@@ -136,9 +122,9 @@ export function GiftCourseModal({
             recipient: cleanRecipient,
             courseId,
             date: Date.now(),
+            token: invoiceData?.gift_token,
           };
 
-          // 3. Сохраняем в CloudStorage и localStorage
           try {
             const rawStored = localStorage.getItem('opendeck_gifts_history') || '[]';
             const history: GiftRecord[] = JSON.parse(rawStored);
@@ -161,9 +147,7 @@ export function GiftCourseModal({
           haptic('error');
           toast('✕', 'Оплата подарка не прошла.');
         },
-        onCancelled: () => {
-          // Пользователь отменил шторку Stars
-        },
+        onCancelled: () => {},
         onPending: () => {
           toast('ℹ', 'Платёж обрабатывается...');
         },
@@ -182,14 +166,15 @@ export function GiftCourseModal({
 
   const handleSendTelegramInvite = () => {
     if (!giftResult) return;
-    haptic('medium');
+    haptic('light');
 
     const botUsername = 'OpenDeck_bot';
     const recipient = giftResult.recipient;
     const sender = tw?.initDataUnsafe?.user?.first_name || 'Твой друг';
 
-    const shareText = `Привет, @${recipient}! 🎁 ${sender} дарит тебе полный курс «${courseTitle}» в Open Deck DJ School!\n\nТебя ждут 6 практических уроков сведения, виртуальная DJ-дека в телефоне и пропуск в закрытый DJ camp.\n\nЗабирай доступ по ссылке:`;
-    const shareUrl = `https://t.me/${botUsername}/app?startapp=gift_${recipient}`;
+    const shareText = `Привет, @${recipient}! ${sender} дарит тебе полный курс «${courseTitle}» в Open Deck DJ School!\n\nТебя ждут 10 практических уроков сведения, виртуальная DJ-дека в телефоне и пропуск в закрытый DJ camp.\n\nЗабирай доступ по ссылке:`;
+    const giftParam = giftResult.token ? `gift_${recipient}__${giftResult.token}` : `gift_${recipient}`;
+    const shareUrl = `https://t.me/${botUsername}/app?startapp=${giftParam}`;
     const shareLink = `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareText)}`;
 
     if (tw?.openTelegramLink) {
@@ -201,61 +186,40 @@ export function GiftCourseModal({
 
   const modalContent = (
     <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 999,
-        background: 'rgba(0, 0, 0, 0.78)',
-        backdropFilter: 'blur(10px)',
-        WebkitBackdropFilter: 'blur(10px)',
-        display: 'flex',
-        alignItems: 'flex-end',
-        justifyContent: 'center',
-        padding: 0,
-        boxSizing: 'border-box',
-      }}
+      className="fixed inset-0 z-[999] flex items-end justify-center bg-black/72 p-0 backdrop-blur-xl sm:items-center sm:p-4"
       onClick={handleClose}
       aria-modal="true"
       role="dialog"
     >
       <div
-        style={{
-          width: '100%',
-          maxWidth: 480,
-          background: 'var(--color-surface)',
-          borderTopLeftRadius: 24,
-          borderTopRightRadius: 24,
-          border: '1px solid rgba(255, 255, 255, 0.08)',
-          borderBottom: 'none',
-          boxShadow: '0 -8px 32px rgba(0, 0, 0, 0.5)',
-          padding: '20px 18px calc(var(--app-safe-bottom, var(--safe-bottom, 16px)) + 16px)',
-          maxHeight: '90vh',
-          overflowY: 'auto',
-          boxSizing: 'border-box',
-        }}
         onClick={(e) => e.stopPropagation()}
+        className="animate-modal-spring relative w-full max-w-[480px] overflow-y-auto overflow-x-hidden rounded-t-3xl sm:rounded-3xl p-5 pb-[calc(var(--app-safe-bottom,var(--safe-bottom,16px))+20px)] text-[var(--color-text)] backdrop-blur-2xl backdrop-saturate-150 shadow-[inset_0_1px_1px_rgba(255,255,255,0.14),0_-16px_48px_rgba(0,0,0,0.68)] transform-gpu select-none"
+        style={{
+          background: 'color-mix(in srgb, var(--color-surface) 86%, rgba(16, 20, 19, 0.94))',
+          maxHeight: '90dvh',
+        }}
       >
+        <AbstractGeometryBg variant="modal" spheres={1} accent="coral" />
+
+        {/* Индикатор шторки */}
+        <div className="relative z-10 mx-auto mb-4 h-1 w-10 rounded-full bg-white/20" />
+
         {/* Шапка модального окна */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div className="relative z-10 mb-4 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
             <div
+              className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl text-[var(--brand-coral)] shadow-[inset_0_1px_1px_rgba(255,255,255,0.16)]"
               style={{
-                width: 36,
-                height: 36,
-                borderRadius: 10,
-                background: 'color-mix(in srgb, var(--brand-coral) 18%, transparent)',
-                color: 'var(--brand-coral)',
-                display: 'grid',
-                placeItems: 'center',
+                background: 'color-mix(in srgb, var(--brand-coral) 18%, var(--color-surface-2))',
               }}
             >
               <Gift size={20} />
             </div>
             <div>
-              <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--brand-coral)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              <div className="text-[11px] font-extrabold uppercase tracking-wider text-[var(--brand-coral)]">
                 Подарок другу
               </div>
-              <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800 }}>
+              <h3 className="m-0 text-lg font-extrabold text-[var(--color-text)]">
                 {step === 'input' ? `Подарить курс «${courseTitle}»` : 'Подарок оформлен!'}
               </h3>
             </div>
@@ -265,91 +229,75 @@ export function GiftCourseModal({
             type="button"
             onClick={handleClose}
             aria-label="Закрыть"
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-[var(--color-text-dim)] backdrop-blur-xl shadow-[inset_0_1px_1px_rgba(255,255,255,0.14)] active:scale-[0.97] transition-all duration-200 ease-out"
             style={{
-              border: 'none',
-              background: 'rgba(255, 255, 255, 0.06)',
-              color: 'var(--color-text-dim)',
-              width: 32,
-              height: 32,
-              borderRadius: 16,
-              cursor: 'pointer',
-              display: 'grid',
-              placeItems: 'center',
+              background: 'color-mix(in srgb, var(--color-surface-2) 75%, transparent)',
             }}
           >
             <X size={18} />
           </button>
         </div>
 
-        {/* ──────── ЭКРАН 1: ВВОД USERNAME И ПОДТВЕРЖДЕНИЕ ──────── */}
+        {/* ЭКРАН 1: ВВОД USERNAME И ПОДТВЕРЖДЕНИЕ */}
         {step === 'input' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <p style={{ margin: 0, fontSize: 13, color: 'var(--color-text-dim)', lineHeight: 1.45 }}>
-              Укажи Telegram-юзернейм друга. Мы оформим подарочный доступ ко всем 6 урокам, интерактивной деке и закрытому DJ Camp.
+          <div className="relative z-10 flex flex-col gap-4">
+            <p className="m-0 text-[13px] leading-relaxed text-[var(--color-text-dim)]">
+              Укажи Telegram-юзернейм друга. Мы оформим подарочный доступ ко всем 10 урокам, интерактивной деке и закрытому DJ Camp.
             </p>
 
             {/* Карточка состава подарка */}
             <div
+              className="flex flex-col gap-2.5 rounded-2xl p-4 shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]"
               style={{
-                background: 'rgba(0, 0, 0, 0.25)',
-                borderRadius: 16,
-                padding: '12px 14px',
-                border: '1px solid rgba(255, 255, 255, 0.06)',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 8,
+                background: 'color-mix(in srgb, var(--color-surface-2) 55%, rgba(12, 15, 14, 0.65))',
               }}
             >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: 13, fontWeight: 700 }}>Полный курс «{courseTitle}»</span>
-                <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--brand-gold)' }}>
+              <div className="flex items-center justify-between">
+                <span className="text-[13.5px] font-bold text-[var(--color-text)]">
+                  Полный курс «{courseTitle}»
+                </span>
+                <span className="text-[13.5px] font-extrabold text-[var(--brand-gold)]">
                   {priceStars.toLocaleString('ru-RU')} Stars
                 </span>
               </div>
-              <div style={{ fontSize: 11.5, color: 'var(--color-text-dim)', display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <CheckCircle2 size={13} color="var(--brand-mint)" />
-                  <span>6 практических уроков от первого бита до сета</span>
+              <div className="flex flex-col gap-1.5 text-xs text-[var(--color-text-dim)]">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 size={14} className="shrink-0 text-[var(--brand-mint)]" />
+                  <span>10 практических уроков от первого бита до сета</span>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <CheckCircle2 size={13} color="var(--brand-mint)" />
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 size={14} className="shrink-0 text-[var(--brand-mint)]" />
                   <span>Виртуальная DJ-дека Pioneer Rekordbox на телефоне</span>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <CheckCircle2 size={13} color="var(--brand-mint)" />
-                  <span>4 бонуса от FREEDA DJ + доступ в DJ Camp</span>
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 size={14} className="shrink-0 text-[var(--brand-mint)]" />
+                  <span>Мгновенный пропуск в закрытый DJ Camp («Племя»)</span>
                 </div>
               </div>
             </div>
 
             {/* Поле ввода Telegram @username */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <label htmlFor={inputId} style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-text)' }}>
+            <div className="flex flex-col gap-2">
+              <label htmlFor={inputId} className="text-xs font-bold text-[var(--color-text)]">
                 Юзернейм получателя в Telegram:
               </label>
 
               <div
+                className="flex items-center rounded-2xl px-3.5 py-1 shadow-[inset_0_1px_1px_rgba(255,255,255,0.12)] transition-all duration-200"
                 style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  background: 'rgba(0, 0, 0, 0.35)',
-                  borderRadius: 14,
-                  border: isSelfGift || isTooShort
-                    ? '1.5px solid var(--brand-coral)'
-                    : isValid
-                      ? '1.5px solid var(--brand-mint)'
-                      : '1px solid rgba(255, 255, 255, 0.12)',
-                  padding: '4px 12px',
-                  transition: 'border-color 0.2s ease',
+                  background: 'rgba(14, 17, 16, 0.55)',
+                  boxShadow:
+                    isSelfGift || isTooShort
+                      ? 'inset 0 0 0 1.5px var(--brand-coral)'
+                      : isValid
+                        ? 'inset 0 0 0 1.5px var(--brand-mint)'
+                        : 'inset 0 1px 1px rgba(255, 255, 255, 0.14)',
                 }}
               >
                 <span
+                  className="mr-1 select-none text-base font-extrabold"
                   style={{
-                    fontSize: 16,
-                    fontWeight: 800,
                     color: isValid ? 'var(--brand-mint)' : 'var(--color-text-dim)',
-                    marginRight: 4,
-                    userSelect: 'none',
                   }}
                 >
                   @
@@ -364,34 +312,13 @@ export function GiftCourseModal({
                   autoCapitalize="none"
                   autoCorrect="off"
                   spellCheck="false"
-                  style={{
-                    flex: 1,
-                    background: 'transparent',
-                    border: 'none',
-                    outline: 'none',
-                    color: 'var(--color-text)',
-                    fontSize: 15,
-                    fontWeight: 700,
-                    padding: '10px 0',
-                    fontFamily: 'inherit',
-                  }}
+                  className="flex-1 bg-transparent py-2.5 text-[15px] font-bold text-[var(--color-text)] outline-none placeholder:text-[var(--color-text-dim)]/50"
                 />
                 {cleanRecipient && (
                   <button
                     type="button"
                     onClick={() => setRawInput('')}
-                    style={{
-                      border: 'none',
-                      background: 'rgba(255, 255, 255, 0.08)',
-                      color: 'var(--color-text-dim)',
-                      borderRadius: 10,
-                      width: 22,
-                      height: 22,
-                      display: 'grid',
-                      placeItems: 'center',
-                      cursor: 'pointer',
-                      fontSize: 11,
-                    }}
+                    className="grid h-6 w-6 place-items-center rounded-full bg-white/10 text-xs text-[var(--color-text-dim)] active:scale-95"
                   >
                     ✕
                   </button>
@@ -400,43 +327,45 @@ export function GiftCourseModal({
 
               {/* Сообщения валидации */}
               {isSelfGift ? (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11.5, color: 'var(--brand-coral)' }}>
+                <div className="flex items-center gap-1.5 text-xs text-[var(--brand-coral)]">
                   <AlertCircle size={13} />
                   <span>Ты указал собственный юзернейм. Подарок предназначен другу!</span>
                 </div>
               ) : isTooShort ? (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11.5, color: 'var(--brand-coral)' }}>
+                <div className="flex items-center gap-1.5 text-xs text-[var(--brand-coral)]">
                   <AlertCircle size={13} />
                   <span>Минимум 5 символов по стандарту Telegram</span>
                 </div>
               ) : isTooLong ? (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11.5, color: 'var(--brand-coral)' }}>
+                <div className="flex items-center gap-1.5 text-xs text-[var(--brand-coral)]">
                   <AlertCircle size={13} />
                   <span>Максимум 32 символа по стандарту Telegram</span>
                 </div>
               ) : isFormatInvalid ? (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11.5, color: 'var(--brand-coral)' }}>
+                <div className="flex items-center gap-1.5 text-xs text-[var(--brand-coral)]">
                   <AlertCircle size={13} />
                   <span>Допустимы только латиница, цифры и символ _</span>
                 </div>
               ) : isValid ? (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11.5, color: 'var(--brand-mint)' }}>
+                <div className="flex items-center gap-1.5 text-xs text-[var(--brand-mint)]">
                   <CheckCircle2 size={13} />
                   <span>Подарок будет оформлен для @{cleanRecipient}</span>
                 </div>
               ) : (
-                <div style={{ fontSize: 11, color: 'var(--color-text-dim)' }}>
+                <div className="text-[11.5px] text-[var(--color-text-dim)]">
                   Можно вставить ссылку (t.me/username) или ник с @ — мы очистим автоматически.
                 </div>
               )}
             </div>
 
-            {/* Кнопка оформления подарка */}
             <ShimmerButton
               variant="coral"
               block
+              shimmer
+              hapticFeedback="light"
               disabled={!isValid || busy}
               onClick={handleCheckoutGift}
+              className="h-13 py-3.5 rounded-2xl text-base font-bold"
             >
               {busy ? (
                 'Открываем Telegram Stars...'
@@ -450,66 +379,48 @@ export function GiftCourseModal({
           </div>
         )}
 
-        {/* ──────── ЭКРАН 2: УСПЕХ И ОТПРАВКА ИНВАЙТА ДРУГУ ──────── */}
+        {/* ЭКРАН 2: УСПЕХ И ОТПРАВКА ИНВАЙТА ДРУГУ */}
         {step === 'success' && giftResult && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16, textAlign: 'center', padding: '8px 0' }}>
+          <div className="relative z-10 flex flex-col gap-4 py-2 text-center">
             <div
+              className="mx-auto grid h-16 w-16 place-items-center rounded-3xl text-[var(--brand-mint)] shadow-[inset_0_1px_1px_rgba(255,255,255,0.2),0_0_24px_rgba(140,226,200,0.3)]"
               style={{
-                width: 64,
-                height: 64,
-                borderRadius: 20,
-                background: 'color-mix(in srgb, var(--brand-mint) 18%, transparent)',
-                color: 'var(--brand-mint)',
-                display: 'grid',
-                placeItems: 'center',
-                margin: '0 auto',
-                boxShadow: '0 0 24px rgba(140, 226, 200, 0.35)',
+                background: 'color-mix(in srgb, var(--brand-mint) 18%, var(--color-surface-2))',
               }}
             >
               <Sparkles size={32} />
             </div>
 
             <div>
-              <h3 style={{ margin: '0 0 6px', fontSize: 20, fontWeight: 800 }}>
+              <h3 className="m-0 mb-1.5 text-xl font-extrabold text-[var(--color-text)]">
                 Подарок готов к вручению!
               </h3>
-              <p style={{ margin: 0, fontSize: 13, color: 'var(--color-text-dim)', lineHeight: 1.45 }}>
+              <p className="m-0 text-[13px] leading-relaxed text-[var(--color-text-dim)]">
                 Курс «{courseTitle}» успешно оплачен для пользователя{' '}
-                <b style={{ color: 'var(--brand-mint)' }}>@{giftResult.recipient}</b>.
+                <b className="text-[var(--brand-mint)]">@{giftResult.recipient}</b>.
               </p>
             </div>
 
             <div
-              style={{
-                background: 'rgba(0, 0, 0, 0.3)',
-                borderRadius: 14,
-                padding: '12px 14px',
-                border: '1px solid rgba(255, 255, 255, 0.08)',
-                fontSize: 12,
-                color: 'var(--color-text-dim)',
-                textAlign: 'left',
-                lineHeight: 1.4,
-              }}
+              className="rounded-2xl p-3.5 text-left text-xs leading-relaxed text-[var(--color-text-dim)] shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]"
+              style={{ background: 'rgba(14, 17, 16, 0.45)' }}
             >
               Отправь персональный инвайт другу в Telegram — он перейдет по ссылке и сразу получит открытый курс.
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <Button
+            <div className="flex flex-col gap-2.5">
+              <ShimmerButton
                 variant="mint"
                 block
+                shimmer
+                hapticFeedback="light"
                 onClick={handleSendTelegramInvite}
-                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
               >
                 <Send size={18} />
                 <span>Отправить инвайт другу в Telegram</span>
-              </Button>
+              </ShimmerButton>
 
-              <Button
-                variant="ghost"
-                block
-                onClick={handleClose}
-              >
+              <Button variant="ghost" block onClick={handleClose}>
                 Закрыть
               </Button>
             </div>

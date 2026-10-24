@@ -1,47 +1,73 @@
-import type { ButtonHTMLAttributes, ReactNode } from 'react';
+import type { ButtonHTMLAttributes, ReactNode, CSSProperties } from 'react';
+import { haptic } from '../lib/theme';
+import { AbstractGeometryBg } from './LiquidGlassGeometry';
 
 export function Button({
   variant = 'primary',
   block,
   children,
+  onClick,
+  className = '',
+  style,
   ...rest
 }: ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: 'primary' | 'coral' | 'ghost' | 'mint' | 'secondary' | 'gradient';
   block?: boolean;
 }) {
   // primary = brand mauve; gradient = mauve→mint sweep; coral = payment CTA
-  const palette: Record<string, { bg: string; fg: string }> = {
-    primary: { bg: 'var(--brand-mauve)', fg: '#1d1f1e' },
-    gradient: { bg: 'var(--brand-gradient)', fg: '#1d1f1e' },
-    coral: { bg: 'var(--brand-coral)', fg: '#241410' },
-    mint: { bg: 'var(--brand-mint)', fg: '#11322a' },
+  const palette: Record<string, { bg: string; fg: string; shadow?: string }> = {
+    primary: {
+      bg: 'var(--brand-mauve)',
+      fg: '#1d1f1e',
+      shadow: 'inset 0 1px 1px rgba(255,255,255,0.28), 0 8px 20px -6px rgba(192,160,168,0.35)',
+    },
+    gradient: {
+      bg: 'var(--brand-gradient)',
+      fg: '#11322a',
+      shadow: 'inset 0 1px 1px rgba(255,255,255,0.32), 0 8px 24px -6px rgba(140,226,200,0.38)',
+    },
+    coral: {
+      bg: 'var(--brand-coral)',
+      fg: '#241410',
+      shadow: 'inset 0 1px 1px rgba(255,255,255,0.28), 0 8px 20px -6px rgba(245,146,110,0.35)',
+    },
+    mint: {
+      bg: 'var(--brand-mint)',
+      fg: '#11322a',
+      shadow: 'inset 0 1px 1px rgba(255,255,255,0.34), 0 8px 24px -6px rgba(140,226,200,0.42)',
+    },
     ghost: {
-      bg: 'color-mix(in srgb, var(--color-text) 8%, transparent)',
+      bg: 'color-mix(in srgb, var(--color-surface-2) 60%, transparent)',
       fg: 'var(--color-text)',
+      shadow: 'inset 0 1px 1px rgba(255,255,255,0.1)',
     },
     secondary: {
-      bg: 'color-mix(in srgb, var(--color-text) 14%, transparent)',
+      bg: 'color-mix(in srgb, var(--color-surface-2) 82%, transparent)',
       fg: 'var(--color-text)',
+      shadow: 'inset 0 1px 1px rgba(255,255,255,0.14), 0 6px 16px rgba(0,0,0,0.25)',
     },
   };
-  const c = palette[variant];
+  const c = palette[variant] || palette.primary;
+
+  const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+    if (rest.disabled) return;
+    haptic('light');
+    onClick?.(e);
+  };
+
   return (
     <button
       {...rest}
+      onClick={handleClick}
+      className={`h-13 py-3.5 px-5 rounded-2xl text-base font-bold inline-flex items-center justify-center gap-2 select-none active:scale-[0.97] transition-all duration-200 ease-out transform-gpu ${
+        block ? 'w-full' : ''
+      } ${className}`}
       style={{
-        width: block ? '100%' : undefined,
-        border: 'none',
-        borderRadius: 14,
-        padding: '13px 18px',
-        fontSize: 15,
-        fontWeight: 700,
         background: c.bg,
         color: c.fg,
-        display: 'inline-flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 8,
+        boxShadow: c.shadow,
         opacity: rest.disabled ? 0.5 : 1,
+        ...style,
       }}
     >
       {children}
@@ -52,46 +78,43 @@ export function Button({
 export function Card({
   children,
   style,
-  strip,
+  className = '',
 }: {
   children: ReactNode;
-  style?: React.CSSProperties;
+  style?: CSSProperties;
   strip?: boolean;
+  className?: string;
 }) {
   return (
     <div
-      className={`brand-card${strip ? ' brand-strip' : ''}`}
+      className={`relative overflow-hidden rounded-3xl p-5 backdrop-blur-2xl backdrop-saturate-150 shadow-[inset_0_1px_1px_rgba(255,255,255,0.12),0_12px_32px_rgba(0,0,0,0.42)] ${className}`}
       style={{
-        background: 'var(--color-surface)',
-        borderRadius: 18,
-        padding: 16,
-        border: '1px solid color-mix(in srgb, var(--brand-mauve) 14%, transparent)',
-        boxShadow:
-          '0 8px 24px -14px color-mix(in srgb, var(--brand-mauve) 45%, transparent)',
+        background: 'color-mix(in srgb, var(--color-surface) 78%, rgba(20, 24, 23, 0.84))',
         ...style,
       }}
     >
-      {children}
+      <AbstractGeometryBg variant="card" spheres={0} accent="mint" />
+      <div className="relative z-10">{children}</div>
     </div>
   );
 }
 
 export function ProgressBar({ value }: { value: number }) {
+  const clamped = Math.max(0, Math.min(100, value));
   return (
     <div
+      className="relative h-2 w-full overflow-hidden rounded-full"
       style={{
-        height: 8,
-        borderRadius: 99,
         background: 'color-mix(in srgb, var(--color-text) 10%, transparent)',
-        overflow: 'hidden',
+        boxShadow: 'inset 0 1px 2px rgba(0, 0, 0, 0.35)',
       }}
     >
       <div
+        className="h-full rounded-full transition-all duration-500 ease-out"
         style={{
-          height: '100%',
-          width: `${Math.max(0, Math.min(100, value))}%`,
+          width: `${clamped}%`,
           background: 'var(--brand-gradient)',
-          transition: 'width 0.4s ease',
+          boxShadow: '0 0 12px rgba(140, 226, 200, 0.45)',
         }}
       />
     </div>

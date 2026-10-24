@@ -1,13 +1,12 @@
 import { useNavigate } from 'react-router-dom';
-import { useApp } from '../../state/store';
+import { useApp, COURSE_LESSONS } from '../../state/store';
 import { getUserRank, type RankDef } from '../../lib/constants';
 import { haptic } from '../../lib/theme';
+import { getTelegramWebApp } from '../../types';
 import { GpGlowBadge } from '../MotionWrappers';
 import { UserAvatar } from '../UserAvatar';
+import { AbstractGeometryBg } from '../LiquidGlassGeometry';
 
-/**
- * Тип данных пользователя, возвращаемый официальным Telegram WebApp SDK.
- */
 export interface TelegramUser {
   id: number;
   first_name: string;
@@ -18,9 +17,6 @@ export interface TelegramUser {
   photo_url?: string;
 }
 
-/**
- * Безопасное чтение данных пользователя напрямую из Telegram Web App SDK.
- */
 export function getTelegramWebAppData(): {
   user: TelegramUser | null;
   initData: string;
@@ -28,16 +24,12 @@ export function getTelegramWebAppData(): {
   if (typeof window === 'undefined') {
     return { user: null, initData: '' };
   }
-  const tw = (window as any).Telegram?.WebApp;
+  const tw = getTelegramWebApp();
   const initData = tw?.initData || '';
-  const user = (tw?.initDataUnsafe?.user as TelegramUser) || null;
+  const user = (tw?.initDataUnsafe?.user as TelegramUser | undefined) || null;
   return { user, initData };
 }
 
-/**
- * Хук разделения ответственности (Data Hook):
- * Объединяет нативные данные сессии Telegram с проверенными бизнес-метриками из БД.
- */
 export function useProfileWidgetData() {
   const { user, course, isPaid, loading } = useApp();
   const { user: tgUser, initData } = getTelegramWebAppData();
@@ -56,7 +48,7 @@ export function useProfileWidgetData() {
   const rank: RankDef = getUserRank(groovePoints);
 
   const completedCount = course.completedLessons.length;
-  const totalCount = 6;
+  const totalCount = COURSE_LESSONS.length;
 
   return {
     loading,
@@ -76,51 +68,27 @@ export function useProfileWidgetData() {
   };
 }
 
-/**
- * Скелетон загрузки профиля (Zero CLS, плавная пульсация).
- */
 export function ProfileWidgetSkeleton() {
   return (
     <div
-      className="animate-pulse"
+      className="animate-pulse flex items-center gap-3 rounded-3xl px-4 py-3.5 backdrop-blur-2xl backdrop-saturate-150 shadow-[inset_0_1px_1px_rgba(255,255,255,0.12),0_12px_32px_rgba(0,0,0,0.4)]"
       style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 12,
-        padding: '12px 14px',
-        borderRadius: 18,
-        background: 'var(--color-surface)',
-        border: '1px solid rgba(255, 255, 255, 0.06)',
+        background: 'color-mix(in srgb, var(--color-surface) 78%, rgba(20, 24, 23, 0.84))',
       }}
     >
-      <div
-        style={{
-          width: 48,
-          height: 48,
-          borderRadius: 15,
-          background: 'rgba(255, 255, 255, 0.08)',
-          flexShrink: 0,
-        }}
-      />
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
-        <div style={{ width: 110, height: 14, borderRadius: 6, background: 'rgba(255, 255, 255, 0.1)' }} />
-        <div style={{ width: 80, height: 11, borderRadius: 4, background: 'rgba(255, 255, 255, 0.06)' }} />
+      <div className="h-11 w-11 shrink-0 rounded-full bg-white/10" />
+      <div className="flex flex-1 flex-col gap-1.5">
+        <div className="h-3.5 w-28 rounded-md bg-white/10" />
+        <div className="h-3 w-20 rounded-md bg-white/5" />
       </div>
-      <div
-        style={{
-          width: 76,
-          height: 30,
-          borderRadius: 99,
-          background: 'rgba(255, 255, 255, 0.08)',
-        }}
-      />
+      <div className="h-7 w-20 rounded-full bg-white/10" />
     </div>
   );
 }
 
 /**
- * Полноценный виджет профиля для главной страницы TMA:
- * Объединяет профиль Telegram с бизнес-метриками SQLite (баланс GP, ранг, статус курса).
+ * Компактный стеклянный статус-бар пользователя для Главного экрана:
+ * UserAvatar (SWR), приветствие, стеклянный бейдж прогресса X / 10 и баланс GP.
  */
 export function ProfileWidget({ onClick }: { onClick?: () => void }) {
   const nav = useNavigate();
@@ -149,121 +117,71 @@ export function ProfileWidget({ onClick }: { onClick?: () => void }) {
           handleClick();
         }
       }}
+      className="relative flex cursor-pointer items-center gap-3 overflow-hidden rounded-3xl px-4 py-3.5 backdrop-blur-2xl backdrop-saturate-150 shadow-[inset_0_1px_1px_rgba(255,255,255,0.12),0_12px_32px_rgba(0,0,0,0.42)] select-none active:scale-[0.97] transition-all duration-200 ease-out transform-gpu"
       style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 12,
-        padding: '10px 14px',
-        borderRadius: 18,
-        background: 'var(--color-surface)',
-        cursor: 'pointer',
-        transition: 'transform 0.15s ease',
-        userSelect: 'none',
+        background: 'color-mix(in srgb, var(--color-surface) 78%, rgba(20, 24, 23, 0.84))',
       }}
-      className="profile-widget glow-card-border active:scale-[0.99]"
     >
-      <div className="glow-card-ambient" aria-hidden="true" />
+      <AbstractGeometryBg variant="card" spheres={0} accent="mint" />
+
       {/* 1. Аватар Telegram Stale-While-Revalidate (SWR) */}
-      <UserAvatar
-        size="sm"
-        alt={data.displayName}
-        isPremium={data.isPremium}
-        customName={data.displayName}
-      />
+      <div className="relative z-10 shrink-0">
+        <UserAvatar
+          size="sm"
+          alt={data.displayName}
+          isPremium={data.isPremium}
+          customName={data.displayName}
+        />
+      </div>
 
-      {/* 2. Пользовательские метаданные (Telegram + DB) */}
-      <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <div
-            style={{
-              fontWeight: 800,
-              fontSize: 15,
-              lineHeight: 1.25,
-              whiteSpace: 'nowrap',
-              textOverflow: 'ellipsis',
-              overflow: 'hidden',
-              color: 'var(--color-text)',
-            }}
-          >
-            {data.displayName}
-          </div>
-
-          {/* Индикатор Pro / Доступа */}
-          {data.isPaid ? (
+      {/* 2. Приветствие и ранг резидента */}
+      <div className="relative z-10 min-w-0 flex-1 overflow-hidden">
+        <div className="flex items-center gap-1.5">
+          <span className="truncate text-[15px] font-extrabold leading-tight text-[var(--color-text)]">
+            Привет, {data.firstName}
+          </span>
+          {data.isPaid && (
             <span
+              className="shrink-0 rounded-md px-1.5 py-0.5 text-[9.5px] font-extrabold uppercase tracking-wider text-[var(--brand-mint)] shadow-[inset_0_1px_1px_rgba(255,255,255,0.14)]"
               style={{
-                fontSize: 9.5,
-                fontWeight: 800,
-                color: 'var(--brand-mint)',
-                background: 'color-mix(in srgb, var(--brand-mint) 15%, transparent)',
-                padding: '1px 5px',
-                borderRadius: 4,
-                textTransform: 'uppercase',
-                letterSpacing: '0.04em',
-                flexShrink: 0,
+                background: 'color-mix(in srgb, var(--brand-mint) 16%, transparent)',
               }}
             >
               PRO
             </span>
-          ) : (
-            <span
-              style={{
-                fontSize: 9.5,
-                fontWeight: 700,
-                color: 'var(--color-text-dim)',
-                background: 'rgba(255, 255, 255, 0.05)',
-                padding: '1px 5px',
-                borderRadius: 4,
-                letterSpacing: '0.02em',
-                flexShrink: 0,
-              }}
-            >
-              {data.completedCount}/{data.totalCount} ур.
-            </span>
           )}
         </div>
 
-        {/* Вторая строка: username + ранг DJ */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 6,
-            marginTop: 3,
-            fontSize: 11.5,
-            color: 'var(--color-text-dim)',
-            whiteSpace: 'nowrap',
-            textOverflow: 'ellipsis',
-            overflow: 'hidden',
-          }}
-        >
-          {data.usernameDisplay && (
-            <span style={{ color: 'var(--brand-mint)', fontWeight: 600 }}>
-              {data.usernameDisplay}
-            </span>
-          )}
-          {data.usernameDisplay && <span>•</span>}
-          <span style={{ color: 'var(--color-text-dim)', fontWeight: 500 }}>
+        <div className="mt-1 flex items-center gap-1.5 truncate text-xs text-[var(--color-text-dim)]">
+          <span className="font-semibold text-[var(--brand-mint)]">
             {data.rank.title}
           </span>
+          <span>•</span>
+          <span className="truncate">{data.archetype}</span>
         </div>
       </div>
 
-      {/* 3. Бизнес-метрика: Баланс Groove Points (GP) с Ambient Glow */}
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'flex-end',
-          justifyContent: 'center',
-          gap: 2,
-          flexShrink: 0,
-        }}
-      >
-        <GpGlowBadge points={data.groovePoints} />
-        <span style={{ fontSize: 10, color: 'var(--color-text-dim)', paddingRight: 4, fontWeight: 500 }}>
-          {data.archetype}
-        </span>
+      {/* 3. Бейдж прогресса X / 10 + баланс GP */}
+      <div className="relative z-10 flex shrink-0 flex-col items-end justify-center gap-1.5">
+        <div
+          className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-extrabold text-[var(--color-text)] shadow-[inset_0_1px_1px_rgba(255,255,255,0.14)]"
+          style={{
+            background: 'color-mix(in srgb, var(--color-surface-2) 78%, transparent)',
+          }}
+        >
+          <span
+            className="animate-organic-pulse inline-block h-1.5 w-1.5 rounded-full"
+            style={{
+              background: 'var(--brand-mint)',
+              boxShadow: '0 0 8px var(--brand-mint)',
+            }}
+          />
+          <span>
+            {data.completedCount} / {data.totalCount}
+          </span>
+        </div>
+
+        <GpGlowBadge points={data.groovePoints} className="px-2 py-0.5 text-[11px]" />
       </div>
     </div>
   );

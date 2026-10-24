@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useState, type ReactNode } from 'react';
+import { AbstractGeometryBg } from './LiquidGlassGeometry';
 
 interface ToastItem {
   id: number;
@@ -29,41 +30,22 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     <Ctx.Provider value={{ toast }}>
       {children}
       <div
+        className="pointer-events-none fixed left-0 right-0 z-[150] flex flex-col items-center gap-2 px-4"
         style={{
-          position: 'fixed',
-          left: 0,
-          right: 0,
-          bottom: 'calc(76px + var(--safe-bottom))',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: 8,
-          pointerEvents: 'none',
-          zIndex: 100,
-          padding: '0 16px',
+          bottom: 'calc(env(safe-area-inset-bottom, 0px) + 94px)',
         }}
       >
         {items.map((t) => (
           <div
             key={t.id}
-            className="animate-pop"
+            className="animate-modal-spring relative flex max-w-full items-center gap-2.5 overflow-hidden rounded-2xl px-4 py-3 text-[13px] font-bold text-[var(--color-text)] backdrop-blur-2xl backdrop-saturate-150 shadow-[inset_0_1px_1px_rgba(255,255,255,0.14),0_12px_32px_rgba(0,0,0,0.55)] transform-gpu"
             style={{
-              background: 'color-mix(in srgb, var(--color-surface) 96%, #000)',
-              color: 'var(--color-text)',
-              border: '1px solid color-mix(in srgb, var(--color-text) 12%, transparent)',
-              borderRadius: 14,
-              padding: '10px 16px',
-              fontSize: 13,
-              fontWeight: 600,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              maxWidth: '100%',
-              boxShadow: '0 8px 24px rgba(0,0,0,0.35)',
+              background: 'color-mix(in srgb, var(--color-surface) 86%, rgba(16, 20, 19, 0.94))',
             }}
           >
-            <span style={{ fontSize: 16 }}>{t.icon}</span>
-            <span>{t.text}</span>
+            <AbstractGeometryBg variant="modal" spheres={0} accent="mint" />
+            <span className="relative z-10 text-sm text-[var(--brand-mint)]">{t.icon}</span>
+            <span className="relative z-10">{t.text}</span>
           </div>
         ))}
       </div>

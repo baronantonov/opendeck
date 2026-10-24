@@ -127,13 +127,13 @@ export function sha256Sync(ascii: string): string {
  * При запуске вне Telegram возвращает dev-идентификатор владельца (285754501).
  */
 export function getEffectiveUserId(): number | string {
-  if (typeof window === 'undefined') return 285754501;
+  if (typeof window === 'undefined') return 0;
   try {
     const tw = getTelegramWebApp();
     const tu = tw?.initDataUnsafe?.user;
     if (tu?.id) return tu.id;
   } catch {}
-  return 285754501; // Дефолтный ID разработчика (@baronantonov)
+  return import.meta.env.DEV ? 285754501 : 0;
 }
 
 /**
@@ -309,8 +309,9 @@ export function resetSecuredProgress(userId?: number | string): SecuredProgressS
 
 /**
  * Проверка права доступа к уроку по его индексу (0..9).
- * - Урок 1 (index 0): открыт бесплатно всегда (FREE_LESSONS = 1).
- * - Уроки 2–10 (index 1..9): требуют подтвержденной покупки
+ * - Урок 1 (index 0): открыт бесплатно всегда.
+ * - Урок 2 (index 1): открыт бесплатно после прохождения Урока 1.
+ * - Уроки 3–10 (index 2..9): требуют подтвержденной покупки
  *   И завершения предыдущего урока.
  */
 export function guardLessonAccess(
@@ -323,25 +324,31 @@ export function guardLessonAccess(
   if (adminMode) return { allowed: true, reason: 'ok' };
   if (lessonIndex === 0) return { allowed: true, reason: 'ok' };
 
-  // Если сервер подтвердил покупку курса, синхронизируем локальное подписанное состояние
-  if (isPurchased) {
-    const secured = loadSecuredProgress(userId);
-    if (!secured.isCoursePurchased) {
-      saveSecuredProgress(userId, true, completedLessons);
-    }
-  } else {
-    // Без оплаты уроки 2-10 требуют пейволла
-    return { allowed: false, reason: 'needs_paywall' };
-  }
-
   // Проверка целостности хранилища
   const secured = loadSecuredProgress(userId);
   if (secured.isTampered || !secured.isValid) {
     return { allowed: false, reason: 'tampered' };
   }
 
+  // Урок 2 (index 1) бесплатный, открывается последовательно после Урока 1
+  if (lessonIndex === 1) {
+    return completedLessons.includes(1)
+      ? { allowed: true, reason: 'ok' }
+      : { allowed: false, reason: 'needs_prev_lesson' };
+  }
+
+  // Если сервер подтвердил покупку курса, синхронизируем локальное подписанное состояние
+  if (isPurchased) {
+    if (!secured.isCoursePurchased) {
+      saveSecuredProgress(userId, true, completedLessons);
+    }
+  } else {
+    // Без оплаты уроки 3-10 требуют пейволла
+    return { allowed: false, reason: 'needs_paywall' };
+  }
+
   // Проверка последовательности прохождения
-  const prevLessonNumber = lessonIndex; // для урока 2 (index 1) предыдущий номер 1
+  const prevLessonNumber = lessonIndex;
   if (!completedLessons.includes(prevLessonNumber)) {
     return { allowed: false, reason: 'needs_prev_lesson' };
   }

@@ -1,9 +1,13 @@
 import { useApp } from '../../state/store';
+import { useCourseProgress } from '../../state/CourseProgressContext';
 import { getUserRank } from '../../lib/constants';
 import { Star, IconHeadphones, IconSparkles } from '../ui';
 import { useToast } from '../Toast';
 import { haptic } from '../../lib/theme';
 import { UserAvatar } from '../UserAvatar';
+import { AbstractGeometryBg } from '../LiquidGlassGeometry';
+import { getTelegramWebApp } from '../../types';
+import { ShieldCheck } from 'lucide-react';
 
 /**
  * Тип пользователя из официального Telegram Web App SDK.
@@ -22,59 +26,49 @@ export interface TelegramUser {
  * Безопасное чтение данных пользователя напрямую из window.Telegram.WebApp.initDataUnsafe.
  */
 export function getTelegramUser(): TelegramUser | null {
-  if (typeof window === 'undefined') return null;
-  const tw = (window as any).Telegram?.WebApp;
-  return (tw?.initDataUnsafe?.user as TelegramUser) || null;
+  const tw = getTelegramWebApp();
+  const u = tw?.initDataUnsafe?.user;
+  if (!u || typeof u.id !== 'number') return null;
+  return {
+    id: u.id,
+    first_name: u.first_name || 'DJ',
+    last_name: u.last_name,
+    username: u.username,
+    language_code: u.language_code,
+    is_premium: u.is_premium,
+    photo_url: u.photo_url,
+  };
 }
 
 /**
- * Скелетон двухколоночного профиля (Zero CLS, плавная пульсация).
+ * Скелетон паспорта диджея (Zero CLS, плавная пульсация).
  */
 export function ProfileHeroCardSkeleton() {
   return (
-    <div
-      className="animate-pulse"
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 16,
-        padding: '16px 18px',
-        borderRadius: 22,
-        background: 'var(--color-surface)',
-        border: '1px solid rgba(255, 255, 255, 0.08)',
-      }}
-    >
-      {/* Левая колонка: скелетон крупного юзерпика */}
-      <div
-        style={{
-          width: 80,
-          height: 80,
-          borderRadius: '50%',
-          background: 'rgba(255, 255, 255, 0.08)',
-          flexShrink: 0,
-        }}
-      />
-
-      {/* Правая колонка: скелетон текстовых строк и бейджей */}
-      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <div style={{ width: '65%', height: 18, borderRadius: 6, background: 'rgba(255, 255, 255, 0.12)' }} />
-        <div style={{ width: '40%', height: 13, borderRadius: 4, background: 'rgba(255, 255, 255, 0.06)' }} />
-        <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
-          <div style={{ width: 68, height: 24, borderRadius: 99, background: 'rgba(255, 255, 255, 0.08)' }} />
-          <div style={{ width: 84, height: 24, borderRadius: 99, background: 'rgba(255, 255, 255, 0.08)' }} />
+    <div className="liquid-glass-card rounded-3xl p-5 animate-pulse flex flex-col gap-4">
+      <div className="flex items-center gap-4">
+        <div className="w-20 h-20 rounded-full bg-white/[0.08] shrink-0" />
+        <div className="flex-1 min-w-0 flex flex-col gap-2">
+          <div className="w-2/3 h-5 rounded-md bg-white/[0.12]" />
+          <div className="w-2/5 h-3.5 rounded bg-white/[0.06]" />
+          <div className="flex gap-2 mt-1">
+            <div className="w-20 h-6 rounded-full bg-white/[0.08]" />
+            <div className="w-24 h-6 rounded-full bg-white/[0.08]" />
+          </div>
         </div>
       </div>
+      <div className="w-full h-12 rounded-2xl bg-white/[0.05]" />
     </div>
   );
 }
 
 /**
- * Двухколоночный макет карточки «Профиль»:
- * Слева: крупный круглый юзерпик из Telegram (с fallback и Premium-индикатором).
- * Справа: структурированная бизнес-информация из SQLite БД.
+ * Единая стильная Liquid Glass карта резидента OpenDeck («Паспорт диджея»):
+ * Крупный UserAvatar (SWR), статус доступа, шкала прогресса X / 10 и метрики резидента.
  */
 export function ProfileHeroCard() {
   const { user, course, isPaid, loading } = useApp();
+  const { isCoursePurchased, completedLessons } = useCourseProgress();
   const { toast } = useToast();
 
   // 1. Получение нативных данных Telegram SDK
@@ -89,20 +83,21 @@ export function ProfileHeroCard() {
   const username = tgUser?.username || user.username || '';
   const usernameDisplay = username ? `@${username}` : tgUser?.id ? `ID: ${tgUser.id}` : '';
 
-  // 4. Статус Telegram Premium
+  // 4. Статус Telegram Premium и доступ к курсу
   const isPremium = Boolean(tgUser?.is_premium || user.isPremium);
+  const hasProAccess = isPaid || isCoursePurchased;
 
-  // 5. Бизнес-метрики из SQLite БД
+  // 5. Бизнес-метрики и прогресс X / 10
   const groovePoints = user.groovePoints ?? 0;
   const rank = getUserRank(groovePoints);
-  const dc = course.completedLessons.length;
-  const tc = 6;
+  const dc = Math.min(10, Math.max(course.completedLessons.length, completedLessons.length));
+  const tc = 10;
+  const progressPct = Math.round((dc / tc) * 100);
   const archetype = user.archetype || 'Куратор Вайба';
 
-  // Скопировать реферальный код
-  const copyReferral = (e: React.MouseEvent) => {
+  const copyReferral = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
-    haptic('medium');
+    haptic('light');
     const code = user.referralCode || 'opendeck';
     if (navigator.clipboard?.writeText) {
       void navigator.clipboard.writeText(code);
@@ -117,227 +112,114 @@ export function ProfileHeroCard() {
   }
 
   return (
-    <div
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 16,
-        padding: '16px 18px',
-        borderRadius: 22,
-        background: 'var(--color-surface)',
-        border: '1px solid rgba(255, 255, 255, 0.08)',
-        boxShadow: '0 8px 30px -10px rgba(0, 0, 0, 0.35)',
-        position: 'relative',
-        overflow: 'hidden',
-      }}
-    >
-      {/* Декоративный световой блик в углу карточки */}
-      <div
-        aria-hidden="true"
-        style={{
-          position: 'absolute',
-          top: -24,
-          right: -24,
-          width: 90,
-          height: 90,
-          borderRadius: '50%',
-          background: 'radial-gradient(circle, color-mix(in srgb, var(--brand-mint) 15%, transparent) 0%, transparent 70%)',
-          pointerEvents: 'none',
-        }}
+    <div className="liquid-glass-card relative overflow-hidden rounded-3xl p-5 flex flex-col gap-4">
+      <AbstractGeometryBg
+        variant="passport"
+        spheres={1}
+        primaryColor="var(--brand-mint)"
+        secondaryColor="var(--brand-mauve)"
       />
 
-      {/* ──────────────── ЛЕВАЯ КОЛОНКА: Крупный круглый юзерпик SWR ──────────────── */}
-      <div className="relative w-20 h-20 flex-shrink-0">
-        <UserAvatar
-          size="lg"
-          alt={displayName}
-          isPremium={isPremium}
-          customName={displayName}
-        />
-        {/* Бейдж уровня DJ (нижний край по центру) */}
+      {/* Верхняя плашка паспорта резидента */}
+      <div className="relative z-10 flex items-center justify-between gap-2">
+        <span className="text-[10.5px] font-extrabold uppercase tracking-[0.12em] text-[#9aa3a0]">
+          OPENDECK RESIDENT PASSPORT
+        </span>
+
         <div
-          style={{
-            position: 'absolute',
-            bottom: -4,
-            left: '50%',
-            transform: 'translateX(-50%)',
-            background: 'var(--brand-mint)',
-            color: '#11322a',
-            fontSize: 9.5,
-            fontWeight: 800,
-            padding: '2px 7px',
-            borderRadius: 99,
-            border: '1.5px solid var(--color-surface, #1e201f)',
-            boxShadow: '0 2px 6px rgba(0, 0, 0, 0.35)',
-            letterSpacing: '0.04em',
-            textTransform: 'uppercase',
-            whiteSpace: 'nowrap',
-            zIndex: 15,
-          }}
+          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10.5px] font-extrabold uppercase tracking-wider ${
+            hasProAccess
+              ? 'bg-[#8ce2c8]/15 text-[#8ce2c8] shadow-[inset_0_1px_1px_rgba(140,226,200,0.28)]'
+              : 'bg-white/[0.06] text-[#f3c969] shadow-[inset_0_1px_1px_rgba(255,255,255,0.12)]'
+          }`}
         >
-          {rank.tag}
+          <span
+            className="w-1.5 h-1.5 rounded-full animate-organic-pulse"
+            style={{ background: hasProAccess ? 'var(--brand-mint)' : 'var(--brand-gold)' }}
+          />
+          <ShieldCheck size={12} />
+          <span>{hasProAccess ? 'PRO ДОСТУП' : 'БАЗОВЫЙ ДОСТУП'}</span>
         </div>
       </div>
 
-      {/* ──────────────── ПРАВАЯ КОЛОНКА: Бизнес-информация из БД ──────────────── */}
-      <div
-        style={{
-          flex: 1,
-          minWidth: 0,
-          overflow: 'hidden',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 6,
-        }}
-      >
-        {/* Имя пользователя + Статус PRO/Free */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
-          <h2
+      {/* Основной блок: Крупный UserAvatar + Имя и бейджи */}
+      <div className="relative z-10 flex items-center gap-4">
+        <div className="relative w-20 h-20 flex-shrink-0">
+          <UserAvatar
+            size="lg"
+            alt={displayName}
+            isPremium={isPremium}
+            customName={displayName}
+          />
+          <div
+            className="absolute -bottom-1 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-full text-[9.5px] font-extrabold uppercase tracking-wider whitespace-nowrap z-20 shadow-md"
             style={{
-              margin: 0,
-              fontSize: 18,
-              fontWeight: 800,
-              lineHeight: 1.25,
-              color: 'var(--color-text)',
-              whiteSpace: 'nowrap',
-              textOverflow: 'ellipsis',
-              overflow: 'hidden',
+              background: 'var(--brand-mint)',
+              color: '#11322a',
             }}
           >
+            {rank.tag}
+          </div>
+        </div>
+
+        <div className="flex-1 min-w-0 flex flex-col gap-1.5">
+          <h2 className="m-0 text-lg font-extrabold text-[#f4f7f5] leading-tight truncate">
             {displayName}
           </h2>
 
-          {isPaid ? (
-            <span
-              style={{
-                fontSize: 9.5,
-                fontWeight: 800,
-                color: 'var(--brand-mint)',
-                background: 'color-mix(in srgb, var(--brand-mint) 15%, transparent)',
-                padding: '2px 6px',
-                borderRadius: 5,
-                textTransform: 'uppercase',
-                letterSpacing: '0.04em',
-                flexShrink: 0,
-              }}
-            >
-              PRO
-            </span>
-          ) : (
-            <span
-              style={{
-                fontSize: 9.5,
-                fontWeight: 700,
-                color: 'var(--color-text-dim)',
-                background: 'rgba(255, 255, 255, 0.06)',
-                padding: '2px 6px',
-                borderRadius: 5,
-                letterSpacing: '0.02em',
-                flexShrink: 0,
-              }}
-            >
-              {dc}/{tc} ур.
-            </span>
-          )}
-        </div>
+          <div className="flex items-center gap-1.5 text-xs text-[#9aa3a0] truncate">
+            {usernameDisplay ? (
+              <span className="text-[#8ce2c8] font-semibold">{usernameDisplay}</span>
+            ) : (
+              <span>Резидент школы</span>
+            )}
+            <span>•</span>
+            <span className="truncate">{archetype}</span>
+          </div>
 
-        {/* Telegram @username + Архетип */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 6,
-            fontSize: 12,
-            color: 'var(--color-text-dim)',
-            whiteSpace: 'nowrap',
-            textOverflow: 'ellipsis',
-            overflow: 'hidden',
-          }}
-        >
-          {usernameDisplay ? (
-            <span style={{ color: 'var(--brand-mint)', fontWeight: 600 }}>
-              {usernameDisplay}
-            </span>
-          ) : (
-            <span>Резидент школы</span>
-          )}
-          <span>•</span>
-          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {archetype}
+          {/* Бейджи метрик */}
+          <div className="flex items-center flex-wrap gap-1.5 mt-1">
+            <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#f3c969]/12 shadow-[inset_0_1px_1px_rgba(243,201,105,0.25)]">
+              <Star size={12} />
+              <b className="text-xs text-[#f3c969]">{groovePoints} GP</b>
+            </div>
+
+            <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-white/[0.06] shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)] text-[11px] font-semibold text-[#f4f7f5]">
+              <IconHeadphones size={12} color="var(--brand-mauve)" />
+              <span>{rank.title}</span>
+            </div>
+
+            {user.referralCode && (
+              <button
+                type="button"
+                onClick={copyReferral}
+                title="Скопировать реферальный код"
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-white/[0.05] shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)] text-[10.5px] font-bold text-[#8ce2c8] active:scale-[0.97] transition-all duration-200 ease-out cursor-pointer border-0"
+              >
+                <IconSparkles size={11} color="var(--brand-mint)" />
+                <span>{user.referralCode}</span>
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Интегрированная шкала прогресса курса Pocket DJ (X / 10) */}
+      <div className="relative z-10 rounded-2xl p-3.5 bg-[#2b302e]/65 shadow-[inset_0_1px_1px_rgba(255,255,255,0.08)] flex flex-col gap-2">
+        <div className="flex items-center justify-between text-xs">
+          <span className="font-bold text-[#f4f7f5]">Прогресс курса «Pocket DJ»</span>
+          <span className="font-extrabold text-[#8ce2c8]">
+            {dc} / {tc} уроков ({progressPct}%)
           </span>
         </div>
-
-        {/* Сетка бизнес-метрик (Бейджи из SQLite БД) */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            flexWrap: 'wrap',
-            gap: 6,
-            marginTop: 2,
-          }}
-        >
-          {/* 1. Баланс Groove Points (GP) */}
+        <div className="w-full h-2 rounded-full bg-black/30 overflow-hidden">
           <div
+            className="h-full rounded-full transition-all duration-500 ease-out"
             style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 4,
-              background: 'color-mix(in srgb, var(--brand-gold) 14%, var(--color-surface))',
-              border: '1px solid color-mix(in srgb, var(--brand-gold) 28%, transparent)',
-              padding: '3px 8px',
-              borderRadius: 99,
+              width: `${Math.max(4, progressPct)}%`,
+              background: 'linear-gradient(90deg, var(--brand-mint) 0%, var(--brand-coral) 100%)',
             }}
-          >
-            <Star size={12} />
-            <b style={{ fontSize: 12, color: 'var(--brand-gold)' }}>
-              {groovePoints} GP
-            </b>
-          </div>
-
-          {/* 2. Ранг в школе диджеинга */}
-          <div
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 4,
-              background: 'rgba(255, 255, 255, 0.05)',
-              border: '1px solid rgba(255, 255, 255, 0.08)',
-              padding: '3px 8px',
-              borderRadius: 99,
-              fontSize: 11,
-              fontWeight: 600,
-              color: 'var(--color-text)',
-            }}
-          >
-            <IconHeadphones size={12} color="var(--brand-mauve)" />
-            <span>{rank.title}</span>
-          </div>
-
-          {/* 3. Реферальный код (быстрый тап для копирования) */}
-          {user.referralCode && (
-            <button
-              type="button"
-              onClick={copyReferral}
-              title="Нажми, чтобы скопировать код"
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 4,
-                background: 'rgba(255, 255, 255, 0.04)',
-                border: '1px solid rgba(255, 255, 255, 0.07)',
-                padding: '3px 8px',
-                borderRadius: 99,
-                fontSize: 10.5,
-                fontWeight: 600,
-                color: 'var(--brand-mint)',
-                cursor: 'pointer',
-              }}
-            >
-              <IconSparkles size={11} color="var(--brand-mint)" />
-              <span>{user.referralCode}</span>
-            </button>
-          )}
+          />
         </div>
       </div>
     </div>

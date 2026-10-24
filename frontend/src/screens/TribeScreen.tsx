@@ -4,13 +4,14 @@ import { useApp } from '../state/store';
 import { useCourseProgress } from '../state/CourseProgressContext';
 import { getTelegramWebApp } from '../types';
 import { haptic } from '../lib/theme';
-import { Button, Card } from '../components/ui';
 import { useStarsCheckout } from '../payment/Paywall';
+import { PaywallModal } from '../components/PaywallModal';
 import {
   StaggerContainer,
   StaggerItem,
-  GlowCard,
+  ShimmerButton,
 } from '../components/MotionWrappers';
+import { AbstractGeometryBg } from '../components/LiquidGlassGeometry';
 import {
   Lock,
   Unlock,
@@ -24,14 +25,9 @@ import {
   HelpCircle,
   Headphones,
 } from 'lucide-react';
+import { apiLessons } from '../api/client';
 
-const TRIBE_INVITE_LINK = 'https://t.me/+S9cLCiFHbWQzY2Iy';
 const CONFETTI_SHOWN_KEY = 'opendeck_tribe_confetti_shown';
-
-/**
- * Брендовые цвета конфетти Open Deck:
- * Mint (#8ce2c8), Dawn Coral (#f5926e), Mauve (#c0a0a8), Gold (#f3c969), White (#ffffff)
- */
 const CONFETTI_COLORS = ['#8ce2c8', '#f5926e', '#c0a0a8', '#f3c969', '#ffffff'];
 
 interface ConfettiParticle {
@@ -49,10 +45,6 @@ interface ConfettiParticle {
   shape: 'rect' | 'circle';
 }
 
-/**
- * Автономный легковесный Canvas-компонент салюта конфетти без внешних зависимостей.
- * Самостоятельно очищает canvas, запускает 60fps анимацию на 3.8с и завершается.
- */
 function TribeCanvasConfetti({ onComplete }: { onComplete?: () => void }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
@@ -76,14 +68,13 @@ function TribeCanvasConfetti({ onComplete }: { onComplete?: () => void }) {
 
     updateSize();
 
-    // Генерируем залп конфетти (100 частиц) из двух нижних углов и центра
     const particles: ConfettiParticle[] = [];
     const count = 100;
     const w = window.innerWidth;
     const h = window.innerHeight;
 
     for (let i = 0; i < count; i++) {
-      const side = i % 3; // 0 = слева снизу, 1 = справа снизу, 2 = из центра
+      const side = i % 3;
       let originX = w * 0.5;
       let originY = h * 0.45;
       let angle = -Math.PI / 2 + (Math.random() - 0.5) * 1.2;
@@ -131,8 +122,8 @@ function TribeCanvasConfetti({ onComplete }: { onComplete?: () => void }) {
         const p = particles[i];
         p.x += p.vx;
         p.y += p.vy;
-        p.vy += 0.32; // Гравитация
-        p.vx *= 0.982; // Аэродинамическое сопротивление
+        p.vy += 0.32;
+        p.vx *= 0.982;
         p.rotation += p.vRotation;
         p.tilt += p.vTilt;
 
@@ -179,32 +170,29 @@ function TribeCanvasConfetti({ onComplete }: { onComplete?: () => void }) {
   return (
     <canvas
       ref={canvasRef}
-      style={{
-        position: 'fixed',
-        inset: 0,
-        width: '100vw',
-        height: '100vh',
-        pointerEvents: 'none',
-        zIndex: 9999,
-      }}
+      className="pointer-events-none fixed inset-0 z-[9999] h-screen w-screen"
     />
   );
 }
 
+/**
+ * Экран «ПЛЕМЯ» (TribeScreen.tsx — VIP Pass):
+ * Оформлен как эксклюзивный клубный пропуск в стиле Liquid Glass
+ * с абстрактной геометрией и мощной акцентной кнопкой.
+ */
 export function TribeScreen() {
   const navigate = useNavigate();
   const { course, adminMode } = useApp();
   const { guardTribeAccess, verifyIntegrity, isCoursePurchased } = useCourseProgress();
-  const { checkoutCourse, busy: checkoutBusy } = useStarsCheckout();
+  const { checkoutCourse } = useStarsCheckout();
   const [showConfetti, setShowConfetti] = useState(false);
+  const [paywallOpen, setPaywallOpen] = useState(false);
 
-  // Криптографическая проверка доступа в Племя через SecurityGuard
   const tribeGuard = guardTribeAccess();
   const hasAccess = tribeGuard.allowed && (isCoursePurchased || adminMode);
   const isLesson1Done = course.completedLessons.includes(1);
   const isLesson2Done = course.completedLessons.includes(2);
 
-  // Однократный запуск конфетти при первом входе после получения доступа
   useEffect(() => {
     if (!hasAccess) return;
 
@@ -216,15 +204,13 @@ export function TribeScreen() {
     const tg = getTelegramWebApp();
 
     const triggerConfettiSuccess = () => {
-      // Сохраняем флаг локально и в Telegram CloudStorage
       localStorage.setItem(CONFETTI_SHOWN_KEY, 'true');
       try {
         tg?.CloudStorage?.setItem?.(CONFETTI_SHOWN_KEY, 'true');
       } catch {
-        /* игнорируем ошибку хранилища */
+        /* ignore */
       }
 
-      // Тактильный победный отклик
       try {
         if (tg?.HapticFeedback?.notificationOccurred) {
           tg.HapticFeedback.notificationOccurred('success');
@@ -255,15 +241,28 @@ export function TribeScreen() {
     }
   }, [hasAccess]);
 
-  // Обработчик входа в закрытый Telegram-кэмп
-  const handleJoinCamp = () => {
-    // Строгая проверка криптографической подписи перед открытием закрытой ссылки
+  const handleJoinCamp = async () => {
+    haptic('light');
     const guard = guardTribeAccess();
     if (!guard.allowed) {
-      haptic('warning');
       if (guard.reason === 'tampered') {
         verifyIntegrity();
       }
+      void checkoutCourse('dj-basics');
+      return;
+    }
+
+    let inviteUrl = sessionStorage.getItem('opendeck_tribe_link') || '';
+    if (!inviteUrl) {
+      const res = await apiLessons('dj-basics').catch(() => null);
+      if (res?.tribe_invite_link) {
+        inviteUrl = res.tribe_invite_link;
+        try {
+          sessionStorage.setItem('opendeck_tribe_link', inviteUrl);
+        } catch {}
+      }
+    }
+    if (!inviteUrl) {
       void checkoutCourse('dj-basics');
       return;
     }
@@ -272,8 +271,6 @@ export function TribeScreen() {
     try {
       if (tg?.HapticFeedback?.notificationOccurred) {
         tg.HapticFeedback.notificationOccurred('success');
-      } else {
-        haptic('medium');
       }
     } catch {
       /* fallback */
@@ -281,605 +278,432 @@ export function TribeScreen() {
 
     try {
       if (tg?.openTelegramLink) {
-        tg.openTelegramLink(TRIBE_INVITE_LINK);
+        tg.openTelegramLink(inviteUrl);
         return;
       }
     } catch {
       /* fallback */
     }
 
-    window.open(TRIBE_INVITE_LINK, '_blank', 'noopener,noreferrer');
+    window.open(inviteUrl, '_blank', 'noopener,noreferrer');
   };
 
   const handleGoToLearn = () => {
-    haptic('medium');
+    haptic('light');
     navigate('/learn');
   };
 
   return (
-    <div style={{ padding: '16px 16px 28px', minHeight: '100%' }}>
+    <div className="flex w-full max-w-full flex-col gap-4 px-4 pt-4 pb-[calc(env(safe-area-inset-bottom,0px)+96px)] select-none">
       {showConfetti && <TribeCanvasConfetti onComplete={() => setShowConfetti(false)} />}
 
-      <StaggerContainer stepMs={65}>
-        {/* Состояние Б: Доступ в Племя ОТКРЫТ (курс оплачен или adminMode) */}
+      <StaggerContainer stepMs={60} className="gap-4">
         {hasAccess ? (
           <>
-            {/* 1. Главная карточка с сиянием и бейджем доступа */}
+            {/* 1. VIP PASS: ДОСТУП ОТКРЫТ */}
             <StaggerItem index={0}>
-              <GlowCard ambientGlow animatedBorder strip>
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    marginBottom: 12,
-                  }}
-                >
-                  <span
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 6,
-                      fontSize: 11,
-                      fontWeight: 700,
-                      color: 'var(--brand-mint)',
-                      background: 'rgba(140, 226, 200, 0.12)',
-                      border: '1px solid rgba(140, 226, 200, 0.28)',
-                      padding: '4px 10px',
-                      borderRadius: 99,
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.05em',
-                    }}
-                  >
+              <div
+                className="relative overflow-hidden rounded-3xl p-5 backdrop-blur-2xl backdrop-saturate-150 shadow-[inset_0_1px_1px_rgba(255,255,255,0.14),0_16px_42px_rgba(0,0,0,0.48)]"
+                style={{
+                  background: 'color-mix(in srgb, var(--color-surface) 80%, rgba(18, 22, 21, 0.86))',
+                }}
+              >
+                <AbstractGeometryBg variant="vip" spheres={2} accent="mint" />
+
+                <div className="relative z-10 flex flex-col gap-4">
+                  {/* Шапка VIP Pass */}
+                  <div className="flex items-center justify-between gap-2">
                     <span
+                      className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-[10.5px] font-extrabold uppercase tracking-wider text-[var(--brand-mint)] shadow-[inset_0_1px_1px_rgba(255,255,255,0.14)]"
                       style={{
-                        width: 7,
-                        height: 7,
-                        borderRadius: '50%',
-                        background: 'var(--brand-mint)',
-                        boxShadow: '0 0 8px var(--brand-mint)',
+                        background: 'color-mix(in srgb, var(--brand-mint) 15%, var(--color-surface-2))',
                       }}
-                    />
-                    Доступ открыт
-                  </span>
+                    >
+                      <span
+                        className="animate-organic-pulse inline-block h-2 w-2 rounded-full"
+                        style={{
+                          background: 'var(--brand-mint)',
+                          boxShadow: '0 0 8px var(--brand-mint)',
+                        }}
+                      />
+                      <span>VIP PASS · АКТИВЕН</span>
+                    </span>
 
-                  <span
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 4,
-                      fontSize: 11,
-                      color: 'var(--color-text-dim)',
-                      background: 'rgba(255, 255, 255, 0.05)',
-                      padding: '4px 10px',
-                      borderRadius: 99,
-                    }}
-                  >
-                    <Users size={13} color="var(--brand-mint)" />
-                    Open Deck Camp
-                  </span>
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 16 }}>
-                  <div
-                    style={{
-                      width: 58,
-                      height: 58,
-                      borderRadius: 18,
-                      background: 'radial-gradient(circle at 35% 30%, rgba(140, 226, 200, 0.28) 0%, rgba(17, 50, 42, 0.6) 100%)',
-                      border: '1px solid rgba(140, 226, 200, 0.4)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: 'var(--brand-mint)',
-                      boxShadow: '0 0 24px rgba(140, 226, 200, 0.25)',
-                      flexShrink: 0,
-                    }}
-                  >
-                    <Unlock size={28} />
+                    <span
+                      className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold text-[var(--color-text-dim)] shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]"
+                      style={{
+                        background: 'color-mix(in srgb, var(--color-surface-2) 65%, transparent)',
+                      }}
+                    >
+                      <Users size={13} className="text-[var(--brand-mint)]" />
+                      <span>Open Deck Camp</span>
+                    </span>
                   </div>
-                  <div>
-                    <h1
-                      className="brand-text"
+
+                  {/* Титульный блок пропуска */}
+                  <div className="flex items-center gap-3.5">
+                    <div
+                      className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl text-[var(--brand-mint)] shadow-[inset_0_1px_1px_rgba(255,255,255,0.2),0_0_24px_rgba(140,226,200,0.22)]"
                       style={{
-                        fontSize: 22,
-                        margin: '0 0 4px',
-                        lineHeight: 1.2,
-                        color: 'var(--color-text)',
+                        background: 'color-mix(in srgb, var(--brand-mint) 18%, var(--color-surface-2))',
                       }}
                     >
-                      ТВОЁ ПЛЕМЯ
-                    </h1>
-                    <p
-                      style={{
-                        margin: 0,
-                        fontSize: 12,
-                        color: 'var(--brand-mint)',
-                        fontWeight: 600,
-                        letterSpacing: '0.02em',
-                      }}
-                    >
-                      Закрытое комьюнити диджеев
+                      <Unlock size={26} />
+                    </div>
+                    <div>
+                      <h1 className="brand-text m-0 text-2xl font-extrabold tracking-tight">
+                        ТВОЁ ПЛЕМЯ
+                      </h1>
+                      <p className="m-0 mt-1 text-xs font-semibold text-[var(--brand-mint)]">
+                        Закрытый клуб резидентов Open Deck
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Поздравительное сообщение */}
+                  <div
+                    className="rounded-2xl p-4 shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]"
+                    style={{
+                      background: 'color-mix(in srgb, var(--color-surface-2) 52%, rgba(12, 15, 14, 0.6))',
+                    }}
+                  >
+                    <p className="m-0 text-[13.5px] font-medium leading-relaxed text-[var(--color-text)]">
+                      Добро пожаловать в племя! Ты сделал первый шаг, и теперь двери нашего кэмпа открыты для тебя. Здесь нет «глупых» вопросов, только поддержка и общая любовь к музыке. Заходи, мы тебя ждем!
                     </p>
                   </div>
-                </div>
 
-                {/* Поздравительный текст согласно ТЗ */}
-                <div
-                  style={{
-                    background: 'rgba(0, 0, 0, 0.25)',
-                    borderRadius: 14,
-                    padding: '14px 16px',
-                    border: '1px solid rgba(255, 255, 255, 0.06)',
-                    marginBottom: 18,
-                  }}
-                >
-                  <p
-                    style={{
-                      margin: 0,
-                      fontSize: 14,
-                      lineHeight: 1.55,
-                      color: 'var(--color-text)',
-                      fontWeight: 500,
-                    }}
+                  {/* Мощная акцентная кнопка входа в Camp */}
+                  <ShimmerButton
+                    variant="mint"
+                    block
+                    shimmer
+                    hapticFeedback="light"
+                    onClick={handleJoinCamp}
+                    className="button-glow-pulse h-13 py-3.5 rounded-2xl text-base font-bold"
                   >
-                    Добро пожаловать в племя! Ты сделал первый шаг, и теперь двери нашего кэмпа открыты для тебя. Здесь нет 'глупых' вопросов, только поддержка и общая любовь к музыке. Заходи, мы тебя ждем!
-                  </p>
+                    <Sparkles size={18} />
+                    <span>Войти в закрытый Camp</span>
+                    <ExternalLink size={18} />
+                  </ShimmerButton>
                 </div>
-
-                {/* Крупная акцентная брендовая кнопка [ Войти в Camp ] */}
-                <Button
-                  variant="mint"
-                  block
-                  onClick={handleJoinCamp}
-                  style={{
-                    padding: '15px 20px',
-                    fontSize: 16,
-                    fontWeight: 800,
-                    letterSpacing: '0.02em',
-                    boxShadow: '0 8px 24px -6px rgba(140, 226, 200, 0.55)',
-                    cursor: 'pointer',
-                  }}
-                >
-                  <Sparkles size={18} />
-                  <span>Войти в Camp</span>
-                  <ExternalLink size={18} />
-                </Button>
-              </GlowCard>
+              </div>
             </StaggerItem>
 
-            {/* 2. Карточка преимуществ закрытого чата */}
+            {/* 2. ЧТО ВНУТРИ КЭМПА */}
             <StaggerItem index={1}>
-              <Card style={{ marginTop: 14, background: 'var(--color-surface)' }}>
-                <h3
-                  style={{
-                    fontSize: 14,
-                    fontWeight: 700,
-                    color: 'var(--color-text)',
-                    margin: '0 0 12px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 8,
-                  }}
-                >
-                  <Flame size={16} color="var(--brand-coral)" />
-                  Что ждет тебя внутри кэмпа
-                </h3>
+              <div
+                className="relative overflow-hidden rounded-3xl p-5 backdrop-blur-2xl backdrop-saturate-150 shadow-[inset_0_1px_1px_rgba(255,255,255,0.12),0_12px_32px_rgba(0,0,0,0.4)]"
+                style={{
+                  background: 'color-mix(in srgb, var(--color-surface) 78%, rgba(20, 24, 23, 0.84))',
+                }}
+              >
+                <AbstractGeometryBg variant="card" spheres={0} accent="coral" />
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'flex-start',
-                      gap: 12,
-                      background: 'rgba(0, 0, 0, 0.2)',
-                      padding: '10px 12px',
-                      borderRadius: 12,
-                    }}
-                  >
+                <div className="relative z-10 flex flex-col gap-3.5">
+                  <h3 className="m-0 flex items-center gap-2 text-sm font-extrabold text-[var(--color-text)]">
+                    <Flame size={16} className="text-[var(--brand-coral)]" />
+                    <span>Привилегии резидента кэмпа</span>
+                  </h3>
+
+                  <div className="flex flex-col gap-2.5">
                     <div
+                      className="flex items-start gap-3 rounded-2xl p-3.5 shadow-[inset_0_1px_1px_rgba(255,255,255,0.08)]"
                       style={{
-                        width: 28,
-                        height: 28,
-                        borderRadius: 8,
-                        background: 'rgba(140, 226, 200, 0.14)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: 'var(--brand-mint)',
-                        flexShrink: 0,
+                        background: 'color-mix(in srgb, var(--color-surface-2) 55%, rgba(14, 17, 16, 0.5))',
                       }}
                     >
-                      <MessageCircle size={15} />
-                    </div>
-                    <div>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-text)' }}>
-                        Закрытый чат единомышленников
+                      <div
+                        className="grid h-8 w-8 shrink-0 place-items-center rounded-xl text-[var(--brand-mint)]"
+                        style={{ background: 'color-mix(in srgb, var(--brand-mint) 15%, transparent)' }}
+                      >
+                        <MessageCircle size={15} />
                       </div>
-                      <div style={{ fontSize: 11, color: 'var(--color-text-dim)', marginTop: 2 }}>
-                        Общение с такими же увлеченными студентами и выпускниками школы.
+                      <div>
+                        <div className="text-[13px] font-bold text-[var(--color-text)]">
+                          Закрытый чат единомышленников
+                        </div>
+                        <div className="mt-0.5 text-xs text-[var(--color-text-dim)]">
+                          Общение с такими же увлеченными студентами и выпускниками школы.
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'flex-start',
-                      gap: 12,
-                      background: 'rgba(0, 0, 0, 0.2)',
-                      padding: '10px 12px',
-                      borderRadius: 12,
-                    }}
-                  >
                     <div
+                      className="flex items-start gap-3 rounded-2xl p-3.5 shadow-[inset_0_1px_1px_rgba(255,255,255,0.08)]"
                       style={{
-                        width: 28,
-                        height: 28,
-                        borderRadius: 8,
-                        background: 'rgba(245, 146, 110, 0.14)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: 'var(--brand-coral)',
-                        flexShrink: 0,
+                        background: 'color-mix(in srgb, var(--color-surface-2) 55%, rgba(14, 17, 16, 0.5))',
                       }}
                     >
-                      <HelpCircle size={15} />
-                    </div>
-                    <div>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-text)' }}>
-                        Ответы на любые вопросы
+                      <div
+                        className="grid h-8 w-8 shrink-0 place-items-center rounded-xl text-[var(--brand-coral)]"
+                        style={{ background: 'color-mix(in srgb, var(--brand-coral) 15%, transparent)' }}
+                      >
+                        <HelpCircle size={15} />
                       </div>
-                      <div style={{ fontSize: 11, color: 'var(--color-text-dim)', marginTop: 2 }}>
-                        Разбор трудностей по урокам Pocket DJ, технике сведения и софту.
+                      <div>
+                        <div className="text-[13px] font-bold text-[var(--color-text)]">
+                          Ответы на любые вопросы
+                        </div>
+                        <div className="mt-0.5 text-xs text-[var(--color-text-dim)]">
+                          Разбор трудностей по урокам Pocket DJ, технике сведения и софту.
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'flex-start',
-                      gap: 12,
-                      background: 'rgba(0, 0, 0, 0.2)',
-                      padding: '10px 12px',
-                      borderRadius: 12,
-                    }}
-                  >
                     <div
+                      className="flex items-start gap-3 rounded-2xl p-3.5 shadow-[inset_0_1px_1px_rgba(255,255,255,0.08)]"
                       style={{
-                        width: 28,
-                        height: 28,
-                        borderRadius: 8,
-                        background: 'rgba(192, 160, 168, 0.16)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: 'var(--brand-mauve)',
-                        flexShrink: 0,
+                        background: 'color-mix(in srgb, var(--color-surface-2) 55%, rgba(14, 17, 16, 0.5))',
                       }}
                     >
-                      <Headphones size={15} />
-                    </div>
-                    <div>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-text)' }}>
-                        Фидбек по твоим первым миксам
+                      <div
+                        className="grid h-8 w-8 shrink-0 place-items-center rounded-xl text-[var(--brand-mauve)]"
+                        style={{ background: 'color-mix(in srgb, var(--brand-mauve) 16%, transparent)' }}
+                      >
+                        <Headphones size={15} />
                       </div>
-                      <div style={{ fontSize: 11, color: 'var(--color-text-dim)', marginTop: 2 }}>
-                        Делись записями своих сетов и получай конструктивную обратную связь.
+                      <div>
+                        <div className="text-[13px] font-bold text-[var(--color-text)]">
+                          Фидбек по твоим первым миксам
+                        </div>
+                        <div className="mt-0.5 text-xs text-[var(--color-text-dim)]">
+                          Делись записями своих сетов и получай конструктивную обратную связь.
+                        </div>
                       </div>
                     </div>
                   </div>
                 </div>
-              </Card>
+              </div>
             </StaggerItem>
           </>
         ) : (
-          /* Состояние А: Урок 2 НЕ пройден — Заглушка закрытого клуба */
+          /* СОСТОЯНИЕ VIP PASS: ЗАКРЫТ ДО ПОКУПКИ КУРСА */
           <>
-            {/* 1. Главный баннер с иконкой замка и закрытым статусом */}
             <StaggerItem index={0}>
-              <GlowCard ambientGlow strip>
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    marginBottom: 12,
-                  }}
-                >
-                  <span
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 6,
-                      fontSize: 11,
-                      fontWeight: 700,
-                      color: 'var(--brand-coral)',
-                      background: 'rgba(245, 146, 110, 0.12)',
-                      border: '1px solid rgba(245, 146, 110, 0.28)',
-                      padding: '4px 10px',
-                      borderRadius: 99,
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.05em',
-                    }}
-                  >
-                    <Lock size={12} />
-                    Доступ закрыт
-                  </span>
+              <div
+                className="relative overflow-hidden rounded-3xl p-5 backdrop-blur-2xl backdrop-saturate-150 shadow-[inset_0_1px_1px_rgba(255,255,255,0.14),0_16px_42px_rgba(0,0,0,0.48)]"
+                style={{
+                  background: 'color-mix(in srgb, var(--color-surface) 80%, rgba(18, 22, 21, 0.86))',
+                }}
+              >
+                <AbstractGeometryBg variant="vip" spheres={2} accent="coral" />
 
-                  <span
-                    style={{
-                      fontSize: 11,
-                      color: 'var(--color-text-dim)',
-                      background: 'rgba(255, 255, 255, 0.05)',
-                      padding: '4px 10px',
-                      borderRadius: 99,
-                    }}
-                  >
-                    Требуется Pocket DJ
-                  </span>
-                </div>
+                <div className="relative z-10 flex flex-col gap-4">
+                  <div className="flex items-center justify-between gap-2">
+                    <span
+                      className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[10.5px] font-extrabold uppercase tracking-wider text-[var(--brand-coral)] shadow-[inset_0_1px_1px_rgba(255,255,255,0.14)]"
+                      style={{
+                        background: 'color-mix(in srgb, var(--brand-coral) 15%, var(--color-surface-2))',
+                      }}
+                    >
+                      <Lock size={12} />
+                      <span>VIP PASS · ЗАКРЫТ</span>
+                    </span>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 16 }}>
-                  <div
-                    style={{
-                      width: 58,
-                      height: 58,
-                      borderRadius: 18,
-                      background: 'radial-gradient(circle at 35% 30%, rgba(245, 146, 110, 0.24) 0%, rgba(36, 20, 16, 0.7) 100%)',
-                      border: '1px solid rgba(245, 146, 110, 0.35)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: 'var(--brand-coral)',
-                      boxShadow: '0 0 24px rgba(245, 146, 110, 0.2)',
-                      flexShrink: 0,
-                    }}
-                  >
-                    <Lock size={26} />
+                    <span
+                      className="rounded-full px-3 py-1 text-xs font-bold text-[var(--color-text-dim)] shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]"
+                      style={{
+                        background: 'color-mix(in srgb, var(--color-surface-2) 65%, transparent)',
+                      }}
+                    >
+                      Требуется Pocket DJ
+                    </span>
                   </div>
-                  <div>
-                    <h1
-                      className="brand-text"
+
+                  <div className="flex items-center gap-3.5">
+                    <div
+                      className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl text-[var(--brand-coral)] shadow-[inset_0_1px_1px_rgba(255,255,255,0.18),0_0_24px_rgba(245,146,110,0.18)]"
                       style={{
-                        fontSize: 22,
-                        margin: '0 0 4px',
-                        lineHeight: 1.2,
-                        color: 'var(--color-text)',
+                        background: 'color-mix(in srgb, var(--brand-coral) 16%, var(--color-surface-2))',
                       }}
                     >
-                      ЗАКРЫТЫЙ DJ CAMP
-                    </h1>
-                    <p
-                      style={{
-                        margin: 0,
-                        fontSize: 12,
-                        color: 'var(--color-text-dim)',
-                        fontWeight: 600,
-                        letterSpacing: '0.02em',
-                      }}
-                    >
-                      Твой билет в сообщество
+                      <Lock size={26} />
+                    </div>
+                    <div>
+                      <h1 className="brand-text m-0 text-2xl font-extrabold tracking-tight">
+                        ЗАКРЫТЫЙ DJ CAMP
+                      </h1>
+                      <p className="m-0 mt-1 text-xs font-semibold text-[var(--color-text-dim)]">
+                        Клубный пропуск резидента Open Deck
+                      </p>
+                    </div>
+                  </div>
+
+                  <div
+                    className="rounded-2xl p-4 shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]"
+                    style={{
+                      background: 'color-mix(in srgb, var(--color-surface-2) 52%, rgba(12, 15, 14, 0.6))',
+                    }}
+                  >
+                    <p className="m-0 text-[13.5px] font-medium leading-relaxed text-[var(--color-text)]">
+                      Твой эксклюзивный пропуск в закрытый «Open Deck DJ Camp» ждет тебя. Доступ к комьюнити открывается мгновенно при покупке курса Pocket DJ. Внутри — закрытый чат студентов, разборы миксов и поддержка кураторов.
                     </p>
                   </div>
+
+                  <div className="flex flex-col gap-2.5">
+                    <ShimmerButton
+                      variant="mint"
+                      block
+                      shimmer
+                      hapticFeedback="light"
+                      onClick={() => {
+                        haptic('light');
+                        setPaywallOpen(true);
+                      }}
+                      className="button-glow-pulse h-13 py-3.5 rounded-2xl text-base font-bold"
+                    >
+                      <Sparkles size={18} />
+                      <span>Открыть Pocket DJ · 2 500 Stars</span>
+                    </ShimmerButton>
+
+                    <button
+                      type="button"
+                      onClick={handleGoToLearn}
+                      className="inline-flex h-13 w-full cursor-pointer items-center justify-center gap-2 rounded-2xl py-3.5 text-base font-bold text-[var(--color-text)] shadow-[inset_0_1px_1px_rgba(255,255,255,0.14)] active:scale-[0.97] transition-all duration-200 ease-out transform-gpu"
+                      style={{
+                        background: 'color-mix(in srgb, var(--color-surface-2) 78%, transparent)',
+                      }}
+                    >
+                      <span>Бесплатные вводные уроки</span>
+                      <ArrowRight size={17} />
+                    </button>
+                  </div>
                 </div>
-
-                {/* Интригующий продающий текст */}
-                <div
-                  style={{
-                    background: 'rgba(0, 0, 0, 0.28)',
-                    borderRadius: 14,
-                    padding: '14px 16px',
-                    border: '1px solid rgba(255, 255, 255, 0.06)',
-                    marginBottom: 16,
-                  }}
-                >
-                  <p
-                    style={{
-                      margin: 0,
-                      fontSize: 13.5,
-                      lineHeight: 1.55,
-                      color: 'var(--color-text)',
-                      fontWeight: 500,
-                    }}
-                  >
-                    Твой пропуск в наш закрытый 'Open Deck DJ camp' ждет тебя. Доступ к комьюнити открывается мгновенно при оплате курса Pocket DJ. Внутри — закрытый чат студентов, разборы миксов и поддержка кураторов.
-                  </p>
-                </div>
-
-                {/* Кнопка покупки курса */}
-                <Button
-                  variant="gradient"
-                  block
-                  disabled={checkoutBusy}
-                  onClick={() => {
-                    haptic('medium');
-                    void checkoutCourse('dj-basics');
-                  }}
-                  style={{
-                    padding: '14px 18px',
-                    fontSize: 15,
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: 8,
-                  }}
-                >
-                  <Sparkles size={18} />
-                  <span>{checkoutBusy ? 'Открываем Telegram Stars...' : 'Открыть Pocket DJ · 2 500 Stars'}</span>
-                </Button>
-
-                {/* Вторичная кнопка «Бесплатные уроки курса» */}
-                <Button
-                  variant="secondary"
-                  block
-                  onClick={handleGoToLearn}
-                  style={{
-                    marginTop: 8,
-                    padding: '12px 18px',
-                    fontSize: 14,
-                    cursor: 'pointer',
-                  }}
-                >
-                  <span>Бесплатные вводные уроки</span>
-                  <ArrowRight size={16} />
-                </Button>
-              </GlowCard>
+              </div>
             </StaggerItem>
 
-            {/* 2. Индикатор прогресса шагов до открытия Племени */}
+            {/* 2. ТРАЕКТОРИЯ ДОСТУПА */}
             <StaggerItem index={1}>
-              <Card style={{ marginTop: 14, background: 'var(--color-surface)' }}>
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    marginBottom: 12,
-                  }}
-                >
-                  <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-text)' }}>
-                    Допуск в закрытый Camp
-                  </span>
-                  <span style={{ fontSize: 12, color: 'var(--brand-gold)', fontWeight: 700 }}>
-                    Покупка курса
-                  </span>
-                </div>
+              <div
+                className="relative overflow-hidden rounded-3xl p-5 backdrop-blur-2xl backdrop-saturate-150 shadow-[inset_0_1px_1px_rgba(255,255,255,0.12),0_12px_32px_rgba(0,0,0,0.4)]"
+                style={{
+                  background: 'color-mix(in srgb, var(--color-surface) 78%, rgba(20, 24, 23, 0.84))',
+                }}
+              >
+                <AbstractGeometryBg variant="card" spheres={0} accent="mint" />
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 4 }}>
-                  {/* Шаг 1 */}
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      padding: '10px 12px',
-                      background: isLesson1Done ? 'rgba(140, 226, 200, 0.08)' : 'rgba(0, 0, 0, 0.2)',
-                      borderRadius: 12,
-                      border: isLesson1Done
-                        ? '1px solid rgba(140, 226, 200, 0.2)'
-                        : '1px solid rgba(255, 255, 255, 0.04)',
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <div
-                        style={{
-                          width: 24,
-                          height: 24,
-                          borderRadius: '50%',
-                          background: isLesson1Done ? 'var(--brand-mint)' : 'rgba(255, 255, 255, 0.08)',
-                          color: isLesson1Done ? '#11322a' : 'var(--color-text-dim)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontSize: 12,
-                          fontWeight: 800,
-                        }}
-                      >
-                        {isLesson1Done ? <CheckCircle2 size={16} /> : '1'}
-                      </div>
-                      <div>
-                        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-text)' }}>
-                          Урок 1: Первый контроллер
+                <div className="relative z-10 flex flex-col gap-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-extrabold uppercase tracking-wider text-[var(--color-text-dim)]">
+                      Активация клубного пропуска
+                    </span>
+                    <span className="text-xs font-extrabold text-[var(--brand-gold)]">
+                      Pocket DJ
+                    </span>
+                  </div>
+
+                  <div className="flex flex-col gap-2.5">
+                    {/* Шаг 1 */}
+                    <div
+                      className="flex items-center justify-between rounded-2xl p-3.5 shadow-[inset_0_1px_1px_rgba(255,255,255,0.08)]"
+                      style={{
+                        background: isLesson1Done
+                          ? 'color-mix(in srgb, var(--brand-mint) 10%, var(--color-surface-2))'
+                          : 'color-mix(in srgb, var(--color-surface-2) 55%, rgba(14, 17, 16, 0.5))',
+                      }}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div
+                          className="grid h-7 w-7 place-items-center rounded-full text-xs font-extrabold"
+                          style={{
+                            background: isLesson1Done ? 'var(--brand-mint)' : 'rgba(255,255,255,0.08)',
+                            color: isLesson1Done ? '#11322a' : 'var(--color-text-dim)',
+                          }}
+                        >
+                          {isLesson1Done ? <CheckCircle2 size={15} /> : '1'}
                         </div>
-                        <div style={{ fontSize: 11, color: isLesson1Done ? 'var(--brand-mint)' : 'var(--color-text-dim)' }}>
-                          {isLesson1Done ? 'Пройден ✓' : 'Бесплатный вводный урок'}
+                        <div>
+                          <div className="text-[13px] font-bold text-[var(--color-text)]">
+                            Урок 1: Первый контроллер
+                          </div>
+                          <div
+                            className="text-[11px]"
+                            style={{
+                              color: isLesson1Done ? 'var(--brand-mint)' : 'var(--color-text-dim)',
+                            }}
+                          >
+                            {isLesson1Done ? 'Пройден ✓' : 'Бесплатный вводный урок'}
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
 
-                  {/* Шаг 2 */}
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      padding: '10px 12px',
-                      background: isLesson2Done ? 'rgba(140, 226, 200, 0.08)' : 'rgba(0, 0, 0, 0.2)',
-                      borderRadius: 12,
-                      border: isLesson2Done
-                        ? '1px solid rgba(140, 226, 200, 0.2)'
-                        : '1px solid rgba(255, 255, 255, 0.04)',
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <div
-                        style={{
-                          width: 24,
-                          height: 24,
-                          borderRadius: '50%',
-                          background: isLesson2Done ? 'var(--brand-mint)' : 'rgba(255, 255, 255, 0.08)',
-                          color: isLesson2Done ? '#11322a' : 'var(--color-text-dim)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontSize: 12,
-                          fontWeight: 800,
-                        }}
-                      >
-                        {isLesson2Done ? <CheckCircle2 size={16} /> : '2'}
-                      </div>
-                      <div>
-                        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-text)' }}>
-                          Урок 2: Знакомство с FREEDA
+                    {/* Шаг 2 */}
+                    <div
+                      className="flex items-center justify-between rounded-2xl p-3.5 shadow-[inset_0_1px_1px_rgba(255,255,255,0.08)]"
+                      style={{
+                        background: isLesson2Done
+                          ? 'color-mix(in srgb, var(--brand-mint) 10%, var(--color-surface-2))'
+                          : 'color-mix(in srgb, var(--color-surface-2) 55%, rgba(14, 17, 16, 0.5))',
+                      }}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div
+                          className="grid h-7 w-7 place-items-center rounded-full text-xs font-extrabold"
+                          style={{
+                            background: isLesson2Done ? 'var(--brand-mint)' : 'rgba(255,255,255,0.08)',
+                            color: isLesson2Done ? '#11322a' : 'var(--color-text-dim)',
+                          }}
+                        >
+                          {isLesson2Done ? <CheckCircle2 size={15} /> : '2'}
                         </div>
-                        <div style={{ fontSize: 11, color: isLesson2Done ? 'var(--brand-mint)' : 'var(--color-text-dim)' }}>
-                          {isLesson2Done ? 'Пройден ✓' : 'Бесплатный практический урок'}
+                        <div>
+                          <div className="text-[13px] font-bold text-[var(--color-text)]">
+                            Урок 2: Знакомство с FREEDA
+                          </div>
+                          <div
+                            className="text-[11px]"
+                            style={{
+                              color: isLesson2Done ? 'var(--brand-mint)' : 'var(--color-text-dim)',
+                            }}
+                          >
+                            {isLesson2Done ? 'Пройден ✓' : 'Бесплатный практический урок'}
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
 
-                  {/* Шаг 3 (Ключевой) */}
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      padding: '10px 12px',
-                      background: 'rgba(245, 146, 110, 0.08)',
-                      borderRadius: 12,
-                      border: '1px solid rgba(245, 146, 110, 0.28)',
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <div
-                        style={{
-                          width: 24,
-                          height: 24,
-                          borderRadius: '50%',
-                          background: 'rgba(245, 146, 110, 0.2)',
-                          color: 'var(--brand-coral)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontSize: 12,
-                          fontWeight: 800,
-                        }}
-                      >
-                        <Lock size={13} />
-                      </div>
-                      <div>
-                        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-text)' }}>
-                          Курс Pocket DJ + Open Deck Camp
+                    {/* Шаг 3 */}
+                    <div
+                      className="flex items-center justify-between rounded-2xl p-3.5 shadow-[inset_0_1px_1px_rgba(255,255,255,0.12)]"
+                      style={{
+                        background: 'color-mix(in srgb, var(--brand-coral) 12%, var(--color-surface-2))',
+                      }}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div
+                          className="grid h-7 w-7 place-items-center rounded-full text-xs font-extrabold text-[var(--brand-coral)]"
+                          style={{
+                            background: 'color-mix(in srgb, var(--brand-coral) 20%, transparent)',
+                          }}
+                        >
+                          <Lock size={13} />
                         </div>
-                        <div style={{ fontSize: 11, color: 'var(--brand-coral)', fontWeight: 600 }}>
-                          Ключ к разблокировке Племени 🔑
+                        <div>
+                          <div className="text-[13px] font-bold text-[var(--color-text)]">
+                            Курс Pocket DJ + Open Deck Camp
+                          </div>
+                          <div className="text-[11px] font-semibold text-[var(--brand-coral)]">
+                            Мгновенная активация VIP Pass
+                          </div>
                         </div>
                       </div>
                     </div>
                   </div>
                 </div>
-              </Card>
+              </div>
             </StaggerItem>
           </>
         )}
       </StaggerContainer>
+
+      <PaywallModal
+        open={paywallOpen}
+        onClose={() => setPaywallOpen(false)}
+        courseId="dj-basics"
+      />
     </div>
   );
 }
+
+export default TribeScreen;

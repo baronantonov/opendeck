@@ -2,15 +2,17 @@ import {
   type ReactNode,
   type CSSProperties,
   type ButtonHTMLAttributes,
+  type ReactElement,
   Children,
   isValidElement,
   cloneElement,
   memo,
 } from 'react';
 import { haptic } from '../lib/theme';
+import { AbstractGeometryBg } from './LiquidGlassGeometry';
 
 /* ==========================================================================
-   1. Staggered Entrance Wrappers (Каскадное появление виджетов)
+   1. Staggered Entrance Wrappers (Каскадное появление виджетов, шаг 60ms)
    ========================================================================== */
 
 export interface StaggerContainerProps {
@@ -45,13 +47,13 @@ export function StaggerContainer({
 
     const childIndex = validIndex++;
     const computedDelay = initialDelayMs + childIndex * stepMs;
+    const childType = child.type as { displayName?: string };
+    const childProps = child.props as { delayMs?: number };
 
-    // Если ребенок уже StaggerItem, передаем ему высчитанную задержку,
-    // иначе оборачиваем в StaggerItem автоматически.
-    if ((child.type as any)?.displayName === 'StaggerItem') {
-      return cloneElement(child, {
-        delayMs: child.props.delayMs ?? computedDelay,
-      } as any);
+    if (childType?.displayName === 'StaggerItem') {
+      return cloneElement(child as ReactElement<StaggerItemProps>, {
+        delayMs: childProps.delayMs ?? computedDelay,
+      });
     }
 
     return (
@@ -80,9 +82,13 @@ export interface StaggerItemProps {
   style?: CSSProperties;
 }
 
+type StaggerCSSProperties = CSSProperties & {
+  '--stagger-delay'?: string;
+};
+
 /**
  * Обертка отдельного виджета или карточки с аппаратным выходом снизу вверх:
- * translateY(12px) -> translateY(0), opacity: 0 -> 1, cubic-bezier(0.22, 1, 0.36, 1).
+ * opacity-0 translate-y-3 -> opacity-100 translate-y-0, transform-gpu.
  */
 export const StaggerItem = memo(function StaggerItem({
   children,
@@ -94,13 +100,13 @@ export const StaggerItem = memo(function StaggerItem({
 }: StaggerItemProps) {
   const calculatedDelay = delayMs !== undefined ? delayMs : index * stepMs;
 
-  const itemStyle: CSSProperties = {
+  const itemStyle: StaggerCSSProperties = {
     ...style,
-    ['--stagger-delay' as any]: `${calculatedDelay}ms`,
+    '--stagger-delay': `${calculatedDelay}ms`,
   };
 
   return (
-    <div className={`stagger-item ${className}`} style={itemStyle}>
+    <div className={`stagger-item transform-gpu ${className}`} style={itemStyle}>
       {children}
     </div>
   );
@@ -108,57 +114,47 @@ export const StaggerItem = memo(function StaggerItem({
 StaggerItem.displayName = 'StaggerItem';
 
 /* ==========================================================================
-   2. Glow & Animated Border Card (Премиум-виджет с мягким сиянием)
+   2. Liquid Glass Glow Card (Премиум-виджет с абстрактной геометрией)
    ========================================================================== */
 
 export interface GlowCardProps {
   children: ReactNode;
   className?: string;
   style?: CSSProperties;
-  /** Отображение акцентной полоски бренда сверху карточки */
   strip?: boolean;
-  /** Включение деликатного фонового Ambient Glow (blur-xl, opacity 20-30%) */
   ambientGlow?: boolean;
-  /** Включение переливающейся 1px градиентной рамки */
   animatedBorder?: boolean;
+  /** Количество анимированных глубинных сфер (0, 1 или 2 на экран) */
+  spheres?: 0 | 1 | 2;
+  accent?: 'mint' | 'mauve' | 'coral' | 'gold';
   onClick?: () => void;
 }
 
-/**
- * Карточка с точечным визуальным акцентом: переливающаяся рамка (1px border-gradient)
- * и деликатный фоновый Ambient Glow без перегруза интерфейса.
- */
 export function GlowCard({
   children,
   className = '',
   style,
-  strip = false,
-  ambientGlow = true,
-  animatedBorder = true,
+  spheres = 1,
+  accent = 'mint',
   onClick,
 }: GlowCardProps) {
   return (
     <div
       onClick={onClick}
-      className={`relative rounded-[18px] p-4 text-[var(--color-text)] select-none ${
-        animatedBorder ? 'glow-card-border' : 'brand-card'
-      } ${strip ? 'brand-strip' : ''} ${className}`}
+      className={`relative overflow-hidden rounded-3xl p-5 text-[var(--color-text)] select-none backdrop-blur-2xl backdrop-saturate-150 shadow-[inset_0_1px_1px_rgba(255,255,255,0.14),0_16px_38px_rgba(0,0,0,0.48)] ${className}`}
       style={{
-        background: 'var(--color-surface, #2e3432)',
+        background: 'color-mix(in srgb, var(--color-surface) 80%, rgba(18, 22, 21, 0.86))',
         ...style,
       }}
     >
-      {/* Деликатный фоновый Ambient Glow (глубина без кислотности) */}
-      {ambientGlow && <div className="glow-card-ambient" aria-hidden="true" />}
-
-      {/* Контент карточки */}
+      <AbstractGeometryBg variant="vip" spheres={spheres} accent={accent} />
       <div className="relative z-10 w-full">{children}</div>
     </div>
   );
 }
 
 /* ==========================================================================
-   3. Shimmer Button (Целевая CTA-кнопка с пробегающим бликом)
+   3. Shimmer Button (Целевая CTA-кнопка с пробегающим бликом и Spring Physics)
    ========================================================================== */
 
 export interface ShimmerButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -171,34 +167,48 @@ export interface ShimmerButtonProps extends ButtonHTMLAttributes<HTMLButtonEleme
   hapticFeedback?: 'light' | 'medium' | 'heavy' | 'selection' | 'none';
 }
 
-/**
- * Премиум CTA-кнопка с плавным диагональным бликом (Shimmer/Sheen effect),
- * пробегающим раз в ~5 секунд, аппаратным масштабированием при нажатии и Telegram haptic.
- */
 export function ShimmerButton({
   children,
   variant = 'gradient',
   block = false,
   shimmer = true,
-  hapticFeedback = 'medium',
+  hapticFeedback = 'light',
   className = '',
   style,
   onClick,
   disabled,
   ...rest
 }: ShimmerButtonProps) {
-  const palette: Record<string, { bg: string; fg: string }> = {
-    primary: { bg: 'var(--brand-mauve)', fg: '#1d1f1e' },
-    gradient: { bg: 'var(--brand-gradient)', fg: '#1d1f1e' },
-    coral: { bg: 'var(--brand-coral)', fg: '#241410' },
-    mint: { bg: 'var(--brand-mint)', fg: '#11322a' },
+  const palette: Record<string, { bg: string; fg: string; shadow: string }> = {
+    primary: {
+      bg: 'var(--brand-mauve)',
+      fg: '#1d1f1e',
+      shadow: 'inset 0 1px 1px rgba(255,255,255,0.28), 0 8px 24px -6px rgba(192,160,168,0.4)',
+    },
+    gradient: {
+      bg: 'var(--brand-gradient)',
+      fg: '#11322a',
+      shadow: 'inset 0 1px 1px rgba(255,255,255,0.34), 0 10px 28px -6px rgba(140,226,200,0.42)',
+    },
+    coral: {
+      bg: 'var(--brand-coral)',
+      fg: '#241410',
+      shadow: 'inset 0 1px 1px rgba(255,255,255,0.28), 0 10px 26px -6px rgba(245,146,110,0.42)',
+    },
+    mint: {
+      bg: 'var(--brand-mint)',
+      fg: '#11322a',
+      shadow: 'inset 0 1px 1px rgba(255,255,255,0.36), 0 10px 28px -6px rgba(140,226,200,0.46)',
+    },
     secondary: {
-      bg: 'color-mix(in srgb, var(--color-text) 14%, transparent)',
+      bg: 'color-mix(in srgb, var(--color-surface-2) 82%, transparent)',
       fg: 'var(--color-text)',
+      shadow: 'inset 0 1px 1px rgba(255,255,255,0.14), 0 8px 20px rgba(0,0,0,0.3)',
     },
     ghost: {
-      bg: 'color-mix(in srgb, var(--color-text) 8%, transparent)',
+      bg: 'color-mix(in srgb, var(--color-surface-2) 55%, transparent)',
       fg: 'var(--color-text)',
+      shadow: 'inset 0 1px 1px rgba(255,255,255,0.1)',
     },
   };
 
@@ -217,32 +227,23 @@ export function ShimmerButton({
       {...rest}
       disabled={disabled}
       onClick={handleClick}
-      className={`relative inline-flex items-center justify-center gap-2 font-bold select-none cursor-pointer overflow-hidden transition-transform duration-150 active:scale-[0.98] ${
+      className={`relative h-13 py-3.5 px-5 rounded-2xl text-base font-bold inline-flex items-center justify-center gap-2 select-none cursor-pointer overflow-hidden active:scale-[0.97] transition-all duration-200 ease-out transform-gpu ${
         block ? 'w-full' : ''
       } ${className}`}
       style={{
-        borderRadius: 14,
-        padding: '13px 20px',
-        fontSize: 15,
         background: currentTheme.bg,
         color: currentTheme.fg,
-        border: 'none',
+        boxShadow: currentTheme.shadow,
         opacity: disabled ? 0.5 : 1,
-        boxShadow:
-          variant === 'gradient' || variant === 'coral'
-            ? '0 6px 20px -6px rgba(0, 0, 0, 0.45)'
-            : 'none',
         ...style,
       }}
     >
-      {/* Пробегающий блик света (Sheen) с прозрачными краями */}
       {shimmer && !disabled && (
         <div className="sheen-overlay" aria-hidden="true">
           <div className="sheen-sweep" />
         </div>
       )}
 
-      {/* Текст и иконки кнопки */}
       <span className="relative z-10 flex items-center justify-center gap-2">
         {children}
       </span>
@@ -251,7 +252,7 @@ export function ShimmerButton({
 }
 
 /* ==========================================================================
-   4. Groove Points Glow Badge (Точечный акцент баланса GP)
+   4. Groove Points Glow Badge (Точечный акцент баланса GP в Liquid Glass)
    ========================================================================== */
 
 export interface GpGlowBadgeProps {
@@ -260,37 +261,20 @@ export interface GpGlowBadgeProps {
   style?: CSSProperties;
 }
 
-/**
- * Акцентный бейдж баланса Groove Points с мягким золотистым Ambient Glow
- * и премиальной окантовкой.
- */
 export function GpGlowBadge({ points, className = '', style }: GpGlowBadgeProps) {
   return (
     <div
-      className={`relative inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full select-none ${className}`}
+      className={`relative inline-flex items-center gap-1.5 px-3 py-1 rounded-full select-none backdrop-blur-xl shadow-[inset_0_1px_1px_rgba(255,255,255,0.16),0_4px_12px_rgba(0,0,0,0.3)] ${className}`}
       style={{
         background: 'color-mix(in srgb, var(--brand-gold, #f3c969) 14%, var(--color-surface, #2e3432))',
-        border: '1px solid color-mix(in srgb, var(--brand-gold, #f3c969) 36%, transparent)',
-        boxShadow: '0 2px 10px rgba(243, 201, 105, 0.14)',
         ...style,
       }}
     >
-      {/* Мягкое золотистое свечение позади */}
-      <div
-        className="absolute inset-0 rounded-full pointer-events-none"
-        style={{
-          background: 'radial-gradient(circle, rgba(243, 201, 105, 0.28) 0%, transparent 75%)',
-          filter: 'blur(8px)',
-          opacity: 0.6,
-        }}
-        aria-hidden="true"
-      />
-
       <svg width={13} height={13} viewBox="0 0 24 24" fill="var(--brand-gold)" className="relative z-10">
         <path d="M12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26z" />
       </svg>
       <b
-        className="relative z-10 text-[13px] font-extrabold tracking-tight"
+        className="relative z-10 text-xs font-extrabold tracking-tight"
         style={{ color: 'var(--brand-gold, #f3c969)' }}
       >
         {points} GP

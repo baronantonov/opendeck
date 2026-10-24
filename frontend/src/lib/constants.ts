@@ -114,10 +114,15 @@ export function isLessonUnlocked(
 ): { unlocked: boolean; reason: 'ok' | 'needs_paywall' | 'needs_prev_lesson' } {
   if (adminMode) return { unlocked: true, reason: 'ok' };
   if (lessonIndex === 0) return { unlocked: true, reason: 'ok' };
+  if (lessonIndex === 1) {
+    return completedLessons.includes(1)
+      ? { unlocked: true, reason: 'ok' }
+      : { unlocked: false, reason: 'needs_prev_lesson' };
+  }
   if (!isPaid) {
     return { unlocked: false, reason: 'needs_paywall' };
   }
-  const prevLessonNumber = lessonIndex; // для урока 2 (idx 1) предыдущий номер 1
+  const prevLessonNumber = lessonIndex; // для урока 3 (idx 2) предыдущий номер 2
   return completedLessons.includes(prevLessonNumber)
     ? { unlocked: true, reason: 'ok' }
     : { unlocked: false, reason: 'needs_prev_lesson' };

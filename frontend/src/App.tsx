@@ -2,16 +2,16 @@ import { Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import { useEffect, useState, useRef } from 'react';
 import { AppProvider, useApp } from './state/store';
 import { ToastProvider, useToast } from './components/Toast';
-import { BottomNav } from './components/BottomNav';
+import { TabBar } from './components/TabBar';
 import { useTelegramTheme } from './lib/theme';
 import { useTelegramInit } from './lib/useTelegramInit';
 import { NavigationProvider, useNavigation } from './lib/navigation';
 import { ExitConfirmModal } from './components/ExitConfirmModal';
 import { HomeScreenBanner } from './components/HomeScreenBanner';
-import { Home } from './screens/Home';
+import { HomeScreen } from './screens/HomeScreen';
 import { LearningScreen } from './screens/LearningScreen';
 import { TribeScreen } from './screens/TribeScreen';
-import { Profile } from './screens/Profile';
+import { ProfileScreen } from './screens/ProfileScreen';
 import { LessonScreen } from './screens/LessonScreen';
 import { VinylLoader } from './components/VinylLoader';
 import { getTelegramWebApp } from './types';
@@ -77,8 +77,8 @@ function Shell() {
           minHeight: 0,
           display: isLesson ? 'flex' : undefined,
           flexDirection: isLesson ? 'column' : undefined,
-          paddingTop: (isLesson || isLearn) ? 0 : 'var(--app-safe-top, var(--safe-top, 0px))',
-          paddingBottom: (isLesson || isLearn) ? 0 : 20,
+          paddingTop: isLesson || isLearn ? 0 : 'var(--app-safe-top, var(--safe-top, 0px))',
+          paddingBottom: 0,
           overflowY: isLesson ? 'hidden' : 'auto',
           overflowX: 'hidden',
           WebkitOverflowScrolling: 'touch',
@@ -87,15 +87,15 @@ function Shell() {
         }}
       >
         <Routes>
-          <Route path="/" element={<Home key={active} />} />
-          <Route path="/home" element={<Home key={active} />} />
+          <Route path="/" element={<HomeScreen key={active} />} />
+          <Route path="/home" element={<HomeScreen key={active} />} />
           <Route path="/learn" element={<LearningScreen key={active} />} />
           <Route path="/course" element={<Navigate to="/learn" replace />} />
           <Route path="/bonus" element={<Navigate to="/learn" replace />} />
           <Route path="/mentor" element={<Navigate to="/learn" replace />} />
           <Route path="/lesson/:id" element={<LessonScreen key={loc.pathname} />} />
           <Route path="/tribe" element={<TribeScreen key={active} />} />
-          <Route path="/profile" element={<Profile key={active} />} />
+          <Route path="/profile" element={<ProfileScreen key={active} />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
@@ -103,11 +103,11 @@ function Shell() {
       {/* Компактный плавающий баннер ярлыка на рабочий стол (активируется после сплэша, скрыт на уроках) */}
       <HomeScreenBanner active={!isLesson} splashFinished={splashFinished} />
 
-      {/* Кастомный попап подтверждения выхода */}
+      {/* Кастомный попап подтверждения выхода в стиле Dark Liquid Glass */}
       <ExitConfirmModal open={isExitModalOpen} onClose={closeExitModal} />
 
-      {/* Навигационное меню: смонтировано сразу под оверлеем прелоадера, исключая CLS и задержку появления */}
-      <BottomNav />
+      {/* Парящее нижнее меню в стиле Liquid Glass (автоматически скрывается внутри урока) */}
+      <TabBar />
     </div>
   );
 }

@@ -56,6 +56,7 @@ export interface InitResponse {
   paid?: boolean;
   paid_full?: boolean;
   paid_tripwire?: boolean;
+  tribe_invite_link?: string | null;
   bonus?: { type: string; amount: number; message: string } | null;
 }
 
@@ -63,11 +64,13 @@ export interface LessonsResponse {
   lessons: Lesson[];
   completed: number[];
   paid: boolean;
+  tribe_invite_link?: string | null;
 }
 
 export interface InvoiceResponse {
   invoice_link?: string;
   pay_url?: string;
+  gift_token?: string;
   error?: string;
   detail?: string;
 }
@@ -138,6 +141,7 @@ export interface TelegramWebApp {
       last_name?: string;
       username?: string;
       language_code?: string;
+      is_premium?: boolean;
       photo_url?: string;
     };
     start_param?: string;

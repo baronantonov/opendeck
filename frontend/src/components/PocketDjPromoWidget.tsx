@@ -10,19 +10,24 @@ import {
   CheckCircle2,
   Headphones,
   Sliders,
-  Flame,
+  Users,
   Zap,
 } from 'lucide-react';
 import { ShimmerButton } from './MotionWrappers';
 import { GiftCourseModal } from './GiftCourseModal';
+import { AbstractGeometryBg } from './LiquidGlassGeometry';
 
 export interface PocketDjPromoWidgetProps {
   className?: string;
   style?: React.CSSProperties;
-  /** Заголовок контекста отображения (напр. на главном экране или в обучении) */
   badgeText?: string;
 }
 
+/**
+ * Флагманский Hero-виджет «Pocket DJ» в стиле Liquid Glass
+ * с дрейфующей абстрактной геометрией, триггерами ценности (10 уроков + закрытый Camp),
+ * главной кнопкой «Открыть курс» с переливающимся бликом и вторичной кнопкой «Подарить курс».
+ */
 export function PocketDjPromoWidget({
   className = '',
   style,
@@ -41,13 +46,17 @@ export function PocketDjPromoWidget({
   const hasAccess = isPaid || adminMode;
 
   const handlePrimaryClick = () => {
+    haptic('light');
     if (!hasAccess) {
-      haptic('medium');
-      void checkoutCourse('dj-basics');
+      nav('/learn');
     } else {
-      haptic('medium');
       nav('/learn');
     }
+  };
+
+  const handleQuickBuy = () => {
+    haptic('light');
+    void checkoutCourse('dj-basics');
   };
 
   const handleGiftClick = () => {
@@ -58,218 +67,187 @@ export function PocketDjPromoWidget({
   return (
     <>
       <div
-        className={`relative overflow-hidden rounded-[22px] p-5 text-[var(--color-text)] select-none glow-card-border ${className}`}
+        className={`relative overflow-hidden rounded-3xl p-5 text-[var(--color-text)] select-none backdrop-blur-2xl backdrop-saturate-150 shadow-[inset_0_1px_1px_rgba(255,255,255,0.14),0_16px_40px_rgba(0,0,0,0.48)] ${className}`}
         style={{
-          background:
-            'radial-gradient(circle at 88% 18%, rgba(140, 226, 200, 0.16) 0%, transparent 58%), radial-gradient(circle at 12% 85%, rgba(192, 160, 168, 0.12) 0%, transparent 60%), var(--color-surface, #2e3432)',
-          boxShadow: '0 8px 30px -8px rgba(0, 0, 0, 0.45)',
-          boxSizing: 'border-box',
-          width: '100%',
+          background: 'color-mix(in srgb, var(--color-surface) 80%, rgba(18, 22, 21, 0.86))',
           ...style,
         }}
       >
-        {/* ── ДЕКОРАТИВНЫЙ ФОНОВЫЙ ВИНИЛ (МЕДЛЕННОЕ ВРАЩЕНИЕ 60 FPS) ── */}
+        {/* Многослойная фоновая графика: SVG mesh (opacity-[0.07]) + 2 плавно дрейфующие GPU-сферы */}
+        <AbstractGeometryBg variant="hero" spheres={2} accent="mint" />
+
+        {/* Декоративный контур винила (без пересветов, на заднем плане) */}
         <div
-          className="absolute -right-16 -top-16 w-56 h-56 pointer-events-none opacity-20 animate-spin-vinyl"
+          className="animate-spin-vinyl pointer-events-none absolute -right-16 -top-16 h-52 w-52 opacity-[0.12] transform-gpu"
           aria-hidden="true"
           style={{ zIndex: 0 }}
         >
-          <svg viewBox="0 0 200 200" className="w-full h-full">
-            <defs>
-              <radialGradient id="promo-vinyl-grooves" cx="50%" cy="50%" r="50%">
-                <stop offset="0%" stopColor="#8ce2c8" stopOpacity="0.4" />
-                <stop offset="25%" stopColor="#2b302e" stopOpacity="0.8" />
-                <stop offset="50%" stopColor="#8ce2c8" stopOpacity="0.2" />
-                <stop offset="75%" stopColor="#2b302e" stopOpacity="0.9" />
-                <stop offset="100%" stopColor="#8ce2c8" stopOpacity="0.3" />
-              </radialGradient>
-            </defs>
-            <circle cx="100" cy="100" r="96" fill="#111" stroke="var(--brand-mint)" strokeWidth="1.5" />
-            <circle cx="100" cy="100" r="90" fill="url(#promo-vinyl-grooves)" />
-            <circle cx="100" cy="100" r="76" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="1" />
-            <circle cx="100" cy="100" r="62" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="1" />
-            <circle cx="100" cy="100" r="48" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="1" />
-            {/* Яблоко пластинки */}
-            <circle cx="100" cy="100" r="34" fill="var(--brand-mint)" />
-            <circle cx="100" cy="100" r="8" fill="#111" />
+          <svg viewBox="0 0 200 200" className="h-full w-full">
+            <circle cx="100" cy="100" r="94" fill="none" stroke="var(--brand-mint)" strokeWidth="1.5" />
+            <circle cx="100" cy="100" r="76" fill="none" stroke="var(--brand-mauve)" strokeWidth="1" />
+            <circle cx="100" cy="100" r="56" fill="none" stroke="var(--brand-mint)" strokeWidth="1" strokeDasharray="6 8" />
+            <circle cx="100" cy="100" r="30" fill="var(--brand-mint)" fillOpacity="0.35" />
+            <circle cx="100" cy="100" r="8" fill="#181c1b" />
           </svg>
         </div>
 
-        {/* ── ОСНОВНОЙ КОНТЕНТ КАРТОЧКИ ── */}
-        <div className="relative z-10 flex flex-col gap-3.5 w-full">
+        {/* Основной контент Hero-виджета */}
+        <div className="relative z-10 flex w-full flex-col gap-4">
           {/* Верхняя строка статуса */}
           <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-1.5">
+            <div
+              className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-[10.5px] font-extrabold uppercase tracking-wider text-[var(--brand-mint)] shadow-[inset_0_1px_1px_rgba(255,255,255,0.14)]"
+              style={{
+                background: 'color-mix(in srgb, var(--brand-mint) 14%, var(--color-surface-2))',
+              }}
+            >
               <span
+                className="animate-organic-pulse inline-block h-2 w-2 rounded-full"
                 style={{
-                  display: 'inline-block',
-                  width: 7,
-                  height: 7,
-                  borderRadius: '50%',
                   background: 'var(--brand-mint)',
                   boxShadow: '0 0 8px var(--brand-mint)',
                 }}
               />
-              <span
-                style={{
-                  fontSize: 10.5,
-                  fontWeight: 800,
-                  color: 'var(--brand-mint)',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.06em',
-                }}
-              >
-                {badgeText || (hasAccess ? 'PRO ДОСТУП · АКТИВЕН' : 'БАЗОВЫЙ КУРС СВЕДЕНИЯ')}
+              <span>
+                {badgeText || (hasAccess ? 'PRO ДОСТУП · АКТИВЕН' : 'ФЛАГМАНСКИЙ КУРС')}
               </span>
             </div>
 
             <span
+              className="rounded-full px-3 py-1 text-xs font-extrabold text-[var(--brand-gold)] shadow-[inset_0_1px_1px_rgba(255,255,255,0.14)]"
               style={{
-                fontSize: 11,
-                fontWeight: 800,
-                color: 'var(--brand-gold)',
-                background: 'rgba(0, 0, 0, 0.35)',
-                border: '1px solid rgba(243, 201, 105, 0.25)',
-                padding: '2px 8px',
-                borderRadius: 99,
+                background: 'color-mix(in srgb, var(--brand-gold) 14%, var(--color-surface-2))',
               }}
             >
               2 500 Stars
             </span>
           </div>
 
-          {/* Заголовок курса */}
+          {/* Заголовок и ценностный оффер */}
           <div>
-            <div className="flex items-center gap-2">
-              <Headphones size={22} color="var(--brand-mint)" className="shrink-0" />
-              <h2
+            <div className="flex items-center gap-2.5">
+              <div
+                className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl text-[var(--brand-mint)] shadow-[inset_0_1px_1px_rgba(255,255,255,0.16)]"
                 style={{
-                  fontSize: 22,
-                  margin: 0,
-                  fontWeight: 800,
-                  letterSpacing: '-0.3px',
-                  color: 'var(--color-text)',
+                  background: 'color-mix(in srgb, var(--brand-mint) 16%, var(--color-surface-2))',
                 }}
               >
-                Pocket DJ
-              </h2>
+                <Headphones size={20} />
+              </div>
+              <div>
+                <h2 className="m-0 text-2xl font-extrabold tracking-tight text-[var(--color-text)]">
+                  Pocket DJ
+                </h2>
+                <div className="text-xs font-semibold text-[var(--brand-mint)]">
+                  10 уроков • Смартфон + Rekordbox
+                </div>
+              </div>
             </div>
-            <p
-              style={{
-                margin: '5px 0 0',
-                fontSize: 13,
-                color: 'var(--color-text-dim)',
-                lineHeight: 1.45,
-              }}
-            >
-              Пошаговый трек от первого бита до клубного сета из 5 треков прямо на смартфоне.
+
+            <p className="m-0 mt-2.5 text-[13.5px] leading-relaxed text-[var(--color-text-dim)]">
+              Пошаговая система от первого бита до сведения собственного клубного сета из 4–5 треков прямо на телефоне.
             </p>
           </div>
 
-          {/* Продающие динамические буллиты на основе реальных уроков */}
+          {/* Триггеры ценности в матовой капсуле */}
           <div
+            className="flex flex-col gap-2.5 rounded-2xl p-4 shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]"
             style={{
-              background: 'rgba(0, 0, 0, 0.28)',
-              borderRadius: 14,
-              padding: '12px 14px',
-              border: '1px solid rgba(255, 255, 255, 0.06)',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 8,
+              background: 'color-mix(in srgb, var(--color-surface-2) 52%, rgba(14, 17, 16, 0.58))',
             }}
           >
-            <div className="flex items-center gap-2.5 text-[12px]">
-              <CheckCircle2 size={15} color="var(--brand-mint)" className="shrink-0" />
-              <span>
-                <b className="text-[var(--color-text)]">10 практических уроков</b>: от первого экрана до клубного микса
+            <div className="flex items-center gap-2.5 text-xs">
+              <CheckCircle2 size={16} className="shrink-0 text-[var(--brand-mint)]" />
+              <span className="text-[var(--color-text-dim)]">
+                <b className="text-[var(--color-text)]">10 последовательных уроков</b>: от интерфейса до финального микса
               </span>
             </div>
 
-            <div className="flex items-center gap-2.5 text-[12px]">
-              <Sliders size={15} color="var(--brand-mint)" className="shrink-0" />
-              <span>
-                <b className="text-[var(--color-text)]">Интерактивная DJ-дека</b> прямо в телефоне (Dual Deck A/B)
+            <div className="flex items-center gap-2.5 text-xs">
+              <Users size={16} className="shrink-0 text-[var(--brand-coral)]" />
+              <span className="text-[var(--color-text-dim)]">
+                <b className="text-[var(--color-text)]">Доступ в закрытый Camp</b>: комьюнити и разбор твоих сетов
               </span>
             </div>
 
-            <div className="flex items-center gap-2.5 text-[12px]">
-              <Zap size={15} color="var(--brand-gold)" className="shrink-0" />
-              <span>
-                <b className="text-[var(--color-text)]">Сведение & Sync</b>: BPM, кроссфейдер, лупы и фильтры
+            <div className="flex items-center gap-2.5 text-xs">
+              <Sliders size={16} className="shrink-0 text-[var(--brand-mint)]" />
+              <span className="text-[var(--color-text-dim)]">
+                <b className="text-[var(--color-text)]">Виртуальная DJ-дека</b>: практика на двух деках A/B в реальном времени
               </span>
             </div>
 
-            <div className="flex items-center gap-2.5 text-[12px]">
-              <Flame size={15} color="var(--brand-coral)" className="shrink-0" />
-              <span>
-                <b className="text-[var(--color-text)]">Закрытый DJ Camp</b>: доступ в комьюнити сразу при покупке курса
-              </span>
-            </div>
-
-            <div className="flex items-center gap-2.5 text-[12px]">
-              <Sparkles size={15} color="var(--brand-mint)" className="shrink-0" />
-              <span>
-                <b className="text-[var(--color-text)]">Продвинутые техники</b>: эффекты, лупы и сведение финального микса
+            <div className="flex items-center gap-2.5 text-xs">
+              <Zap size={16} className="shrink-0 text-[var(--brand-gold)]" />
+              <span className="text-[var(--color-text-dim)]">
+                <b className="text-[var(--color-text)]">2 вводных урока бесплатно</b> + бонусные GP на менторство
               </span>
             </div>
           </div>
 
-          {/* ── КНОПКИ ДЕЙСТВИЯ ── */}
-          <div className="flex flex-col gap-2.5 pt-1">
-            {/* ГЛАВНАЯ КНОПКА: ПУЛЬСИРУЮЩИЙ GLOW + SHIMMER-БЛИК + HAPTIC */}
+          {/* Кнопки действий (калибровка 8pt: h-13 / py-3.5, rounded-2xl, text-base font-bold) */}
+          <div className="flex flex-col gap-2.5 pt-0.5">
             <ShimmerButton
               variant="mint"
               block
               shimmer
-              hapticFeedback="medium"
+              hapticFeedback="light"
               disabled={checkoutBusy}
-              onClick={handlePrimaryClick}
-              className="button-glow-pulse text-[15px] py-3.5"
+              onClick={hasAccess ? handlePrimaryClick : handlePrimaryClick}
+              className="button-glow-pulse h-13 py-3.5 rounded-2xl text-base font-bold"
             >
-              {checkoutBusy ? (
-                'Открываем Telegram Stars...'
-              ) : hasAccess ? (
+              {hasAccess ? (
                 isCourseFinished ? (
                   <>
                     <CheckCircle2 size={18} />
-                    <span>Курс открыт · Смотреть уроки</span>
+                    <span>Открыть курс · Все уроки</span>
                   </>
                 ) : (
                   <>
                     <Play size={18} fill="currentColor" />
-                    <span>Продолжить обучение · Урок {nextId}</span>
+                    <span>Открыть курс · Урок {nextId}</span>
                   </>
                 )
               ) : (
                 <>
-                  <Sparkles size={18} />
-                  <span>Открыть курс · 2 500 Stars</span>
+                  <Play size={18} fill="currentColor" />
+                  <span>Открыть курс</span>
                 </>
               )}
             </ShimmerButton>
 
-            {/* ВТОРАЯ КНОПКА: «ПОДАРИТЬ КУРС» (АКТИВНА ВСЕГДА) */}
-            <button
-              type="button"
-              onClick={handleGiftClick}
-              className="relative inline-flex items-center justify-center gap-2 font-bold select-none cursor-pointer overflow-hidden transition-all duration-150 active:scale-[0.98] w-full"
-              style={{
-                borderRadius: 14,
-                padding: '11px 18px',
-                fontSize: 14,
-                background: 'color-mix(in srgb, var(--brand-coral) 12%, transparent)',
-                color: 'var(--brand-coral)',
-                border: '1px solid color-mix(in srgb, var(--brand-coral) 35%, transparent)',
-              }}
-            >
-              <Gift size={16} />
-              <span>Подарить курс другу</span>
-            </button>
+            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+              {!hasAccess && (
+                <button
+                  type="button"
+                  disabled={checkoutBusy}
+                  onClick={handleQuickBuy}
+                  className="inline-flex h-13 w-full cursor-pointer items-center justify-center gap-2 rounded-2xl py-3.5 px-4 text-base font-bold text-[var(--color-text)] shadow-[inset_0_1px_1px_rgba(255,255,255,0.14)] active:scale-[0.97] transition-all duration-200 ease-out transform-gpu"
+                  style={{
+                    background: 'color-mix(in srgb, var(--color-surface-2) 78%, transparent)',
+                  }}
+                >
+                  <Sparkles size={17} className="text-[var(--brand-gold)]" />
+                  <span>{checkoutBusy ? 'Открываем Stars...' : 'Полный доступ · 2 500 ★'}</span>
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={handleGiftClick}
+                className="inline-flex h-13 w-full cursor-pointer items-center justify-center gap-2 rounded-2xl py-3.5 px-4 text-base font-bold text-[var(--brand-coral)] shadow-[inset_0_1px_1px_rgba(255,255,255,0.14)] active:scale-[0.97] transition-all duration-200 ease-out transform-gpu"
+                style={{
+                  background: 'color-mix(in srgb, var(--brand-coral) 14%, var(--color-surface-2))',
+                }}
+              >
+                <Gift size={18} />
+                <span>Подарить курс</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Кастомное модальное окно подарка с валидацией @username */}
       <GiftCourseModal
         isOpen={giftOpen}
         onClose={() => setGiftOpen(false)}

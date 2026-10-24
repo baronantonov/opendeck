@@ -59,7 +59,7 @@ export function CourseProgressProvider({ children }: { children: ReactNode }) {
 
   const username = useMemo(() => {
     const tw = getTelegramWebApp();
-    return tw?.initDataUnsafe?.user?.username || user.username || 'baronantonov';
+    return tw?.initDataUnsafe?.user?.username || user.username || '';
   }, [user.username]);
 
   // Проверка целостности состояния

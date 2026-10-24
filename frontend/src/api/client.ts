@@ -84,12 +84,12 @@ export async function apiLessonsBonus() {
   return r && r.ok ? r.json() : null;
 }
 
-export async function apiProgress(courseId: string, lessonId: number) {
+export async function apiProgress(courseId: string, lessonId: number, bonus = false) {
   const r = await withTimeout(
     fetch(`${API_BASE}/api/progress`, {
       method: 'POST',
       headers: headers(),
-      body: JSON.stringify({ course_id: courseId, lesson_id: lessonId }),
+      body: JSON.stringify({ course_id: courseId, lesson_id: lessonId, bonus }),
     }),
   );
   return r && r.ok ? r.json() : null;

@@ -154,23 +154,42 @@ button {
   display: none;
 }
 
-/* ---- Brand surface helpers ---- */
-.brand-card {
-  background: var(--color-surface);
-  border: 1px solid color-mix(in srgb, var(--brand-mauve) 14%, transparent);
+/* ---- Brand surface & Liquid Glass helpers ---- */
+.brand-card,
+.liquid-glass-card {
+  position: relative;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--color-surface) 78%, rgba(22, 26, 25, 0.84));
+  backdrop-filter: blur(24px) saturate(150%);
+  -webkit-backdrop-filter: blur(24px) saturate(150%);
   box-shadow:
-    0 1px 0 color-mix(in srgb, var(--color-text) 6%, transparent),
-    0 8px 24px -12px color-mix(in srgb, var(--brand-mauve) 40%, transparent);
+    inset 0 1px 1px rgba(255, 255, 255, 0.12),
+    0 12px 32px rgba(0, 0, 0, 0.42);
 }
 
-/* Brand gradient hairline (top accent strip) */
+.liquid-glass-modal {
+  position: relative;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--color-surface) 86%, rgba(16, 19, 18, 0.92));
+  backdrop-filter: blur(28px) saturate(150%);
+  -webkit-backdrop-filter: blur(28px) saturate(150%);
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.14),
+    0 20px 52px rgba(0, 0, 0, 0.65);
+}
+
+.liquid-glass-pill {
+  background: color-mix(in srgb, var(--color-surface) 76%, rgba(18, 22, 21, 0.85));
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.14),
+    0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+/* Horizontal strip removed to enforce zero horizontal lines */
 .brand-strip::before {
-  content: '';
-  display: block;
-  height: 3px;
-  border-radius: 99px;
-  margin-bottom: 12px;
-  background: var(--brand-gradient);
+  display: none;
 }
 
 .brand-text {
@@ -208,34 +227,101 @@ button {
 @keyframes pop-in {
   from {
     opacity: 0;
-    transform: translateY(8px);
+    transform: translate3d(0, 10px, 0) scale(0.97);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: translate3d(0, 0, 0) scale(1);
   }
 }
 .animate-pop {
-  animation: pop-in 0.28s ease both;
+  animation: pop-in 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+  will-change: transform, opacity;
+}
+
+@keyframes modal-spring-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 18px, 0) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+.animate-modal-spring {
+  animation: modal-spring-in 0.36s cubic-bezier(0.22, 1, 0.36, 1) both;
+  will-change: transform, opacity;
 }
 
 @keyframes toast-in {
   from {
     opacity: 0;
-    transform: translateY(12px);
+    transform: translate3d(0, 12px, 0) scale(0.97);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: translate3d(0, 0, 0) scale(1);
   }
 }
 
 /* ==========================================================================
-   Motion System: 60 FPS Telegram WebApp GPU-accelerated Keyframes & Utilities
-   Uses only composite properties: transform (3d) & opacity
+   Motion System: 60-120 FPS Telegram WebApp GPU-accelerated Keyframes & Utilities
+   Uses strictly composite properties: transform (translate3d / scale) & opacity
    ========================================================================== */
 
-/* 1. Vinyl Spin & Glow */
+/* 1. Ambient Drift for Abstract Geometry Spheres (14-18s GPU-only, Zero Overexposure) */
+@keyframes ambient-drift {
+  0%, 100% {
+    transform: translate3d(0px, 0px, 0px) scale(1);
+  }
+  33% {
+    transform: translate3d(14px, -10px, 0px) scale(1.06);
+  }
+  66% {
+    transform: translate3d(-10px, 12px, 0px) scale(0.95);
+  }
+}
+
+@keyframes ambient-drift-reverse {
+  0%, 100% {
+    transform: translate3d(0px, 0px, 0px) scale(1);
+  }
+  50% {
+    transform: translate3d(-14px, 10px, 0px) scale(1.07);
+  }
+}
+
+.animate-ambient-drift {
+  animation: ambient-drift 16s ease-in-out infinite;
+  will-change: transform;
+  backface-visibility: hidden;
+}
+
+.animate-ambient-drift-slow {
+  animation: ambient-drift-reverse 18s ease-in-out infinite;
+  will-change: transform;
+  backface-visibility: hidden;
+}
+
+/* Organic soft pulse for active indicators */
+@keyframes organic-pulse {
+  0%, 100% {
+    opacity: 0.95;
+    transform: scale(1) translate3d(0, 0, 0);
+  }
+  50% {
+    opacity: 0.45;
+    transform: scale(1.22) translate3d(0, 0, 0);
+  }
+}
+
+.animate-organic-pulse {
+  animation: organic-pulse 2.6s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+/* 2. Vinyl Spin & Glow */
 @keyframes vinyl-spin {
   from {
     transform: rotate(0deg);
@@ -267,11 +353,11 @@ button {
   will-change: transform, opacity;
 }
 
-/* 2. Staggered entrance: cubic-bezier(0.16, 1, 0.3, 1) */
+/* 3. Staggered entrance: opacity-0 translate-y-3 -> opacity-100 translate-y-0 (step 60ms, transform-gpu) */
 @keyframes stagger-in {
   from {
     opacity: 0;
-    transform: translate3d(0, 18px, 0);
+    transform: translate3d(0, 12px, 0);
   }
   to {
     opacity: 1;
@@ -281,13 +367,14 @@ button {
 
 .stagger-item {
   opacity: 0;
-  animation: stagger-in 0.46s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: stagger-in 0.44s cubic-bezier(0.16, 1, 0.3, 1) both;
   animation-delay: var(--stagger-delay, 0ms);
   will-change: transform, opacity;
   backface-visibility: hidden;
+  transform: translate3d(0, 0, 0);
 }
 
-/* 3. Sheen / Shimmer light sweep for CTA and premium elements */
+/* 4. Sheen / Shimmer light sweep for CTA and premium elements */
 @keyframes sheen-sweep {
   0%, 20% {
     transform: translate3d(-140%, 0, 0) skewX(-22deg);
@@ -314,81 +401,45 @@ button {
     90deg,
     transparent 0%,
     rgba(255, 255, 255, 0.05) 20%,
-    rgba(255, 255, 255, 0.45) 50%,
+    rgba(255, 255, 255, 0.38) 50%,
     rgba(255, 255, 255, 0.05) 80%,
     transparent 100%
   );
   transform: translate3d(-140%, 0, 0) skewX(-22deg);
-  animation: sheen-sweep 3.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  animation: sheen-sweep 3.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
   will-change: transform;
   pointer-events: none;
 }
 
-/* 4. Animated Mesh / Gradient Border for high-priority cards (100% cross-browser) */
-@keyframes border-gradient-shift {
-  0% {
-    background-position: 0% 50%;
-  }
-  50% {
-    background-position: 100% 50%;
-  }
-  100% {
-    background-position: 0% 50%;
-  }
-}
-
+/* 5. Liquid Glass Surface with Inner Lens Specular Highlight */
 .glow-card-border {
   position: relative;
-  border-radius: 18px;
+  border-radius: 24px;
   isolation: isolate;
-  background: var(--color-surface);
-}
-
-.glow-card-border::before {
-  content: '';
-  position: absolute;
-  inset: -1.5px;
-  border-radius: 19.5px;
-  background: linear-gradient(
-    115deg,
-    #c0a0a8 0%,
-    #8ce2c8 35%,
-    #f3c969 65%,
-    #c0a0a8 100%
-  );
-  background-size: 200% 200%;
-  animation: border-gradient-shift 5s ease infinite;
-  z-index: -2;
-  pointer-events: none;
-}
-
-.glow-card-border::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: 18px;
-  background: var(--color-surface);
-  z-index: -1;
-  pointer-events: none;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--color-surface) 80%, rgba(20, 24, 23, 0.86));
+  backdrop-filter: blur(24px) saturate(150%);
+  -webkit-backdrop-filter: blur(24px) saturate(150%);
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.14),
+    0 12px 32px rgba(0, 0, 0, 0.45);
 }
 
 .glow-card-ambient {
   position: absolute;
-  inset: -4px;
-  border-radius: 22px;
+  inset: 0;
+  border-radius: inherit;
   background: radial-gradient(
-    circle at 50% 0%,
-    rgba(140, 226, 200, 0.35) 0%,
-    rgba(192, 160, 168, 0.25) 50%,
-    transparent 75%
+    circle at 85% 15%,
+    rgba(140, 226, 200, 0.18) 0%,
+    rgba(192, 160, 168, 0.12) 45%,
+    transparent 70%
   );
-  filter: blur(14px);
-  opacity: 0.35;
   pointer-events: none;
-  z-index: -3;
+  z-index: 0;
 }
 
-/* 5. Splash Screen Exit animation */
+/* 6. Splash Screen Exit animation */
 @keyframes splash-fade-scale {
   from {
     opacity: 1;
@@ -410,37 +461,45 @@ button {
 /* 7. DJ Play Button: Clean glowing button in Open Deck brand mint */
 @keyframes dj-play-glow {
   0%, 100% {
-    box-shadow: 0 0 16px rgba(140, 226, 200, 0.6), 0 0 34px rgba(140, 226, 200, 0.3);
+    box-shadow:
+      inset 0 1px 1px rgba(255, 255, 255, 0.36),
+      0 6px 20px rgba(140, 226, 200, 0.42);
   }
   50% {
-    box-shadow: 0 0 24px rgba(140, 226, 200, 0.9), 0 0 50px rgba(140, 226, 200, 0.48);
+    box-shadow:
+      inset 0 1px 1px rgba(255, 255, 255, 0.45),
+      0 8px 28px rgba(140, 226, 200, 0.65);
   }
 }
 
 @keyframes dj-play-glow-active {
   0%, 100% {
-    box-shadow: 0 0 22px rgba(140, 226, 200, 0.85), 0 0 44px rgba(140, 226, 200, 0.45);
+    box-shadow:
+      inset 0 1px 1px rgba(255, 255, 255, 0.42),
+      0 8px 26px rgba(140, 226, 200, 0.6);
   }
   50% {
-    box-shadow: 0 0 32px rgba(140, 226, 200, 1), 0 0 60px rgba(140, 226, 200, 0.65);
+    box-shadow:
+      inset 0 1px 1px rgba(255, 255, 255, 0.5),
+      0 10px 34px rgba(140, 226, 200, 0.82);
   }
 }
 
 .dj-play-btn {
-  animation: dj-play-glow 2.8s ease-in-out infinite;
+  animation: dj-play-glow 3s ease-in-out infinite;
   will-change: box-shadow, transform;
 }
 
 .dj-play-btn--active {
-  animation: dj-play-glow-active 2.2s ease-in-out infinite;
+  animation: dj-play-glow-active 2.4s ease-in-out infinite;
 }
 
 .dj-play-container:active .dj-play-btn {
-  transform: scale(0.92) !important;
-  transition: transform 0.08s ease;
+  transform: scale(0.95) !important;
+  transition: transform 0.12s ease-out;
 }
 
-/* 7. Accordion Grid & Badge Shake System */
+/* 8. Accordion Grid & Badge Shake System */
 .accordion-grid {
   display: grid;
   grid-template-rows: 0fr;
@@ -458,13 +517,13 @@ button {
 
 @keyframes badge-shake {
   0%, 100% {
-    transform: translateX(0);
+    transform: translate3d(0, 0, 0);
   }
   20%, 60% {
-    transform: translateX(-4px);
+    transform: translate3d(-4px, 0, 0);
   }
   40%, 80% {
-    transform: translateX(4px);
+    transform: translate3d(4px, 0, 0);
   }
 }
 
@@ -482,24 +541,31 @@ button {
   }
 }
 
-/* 8. Pulsing Glow for Primary Promo CTA */
+/* 9. Pulsing Glow for Primary Promo CTA */
 @keyframes button-glow-pulse {
   0%, 100% {
-    box-shadow: 0 0 16px rgba(140, 226, 200, 0.45), 0 0 32px rgba(140, 226, 200, 0.2);
+    box-shadow:
+      inset 0 1px 1px rgba(255, 255, 255, 0.32),
+      0 8px 24px -4px rgba(140, 226, 200, 0.38);
   }
   50% {
-    box-shadow: 0 0 28px rgba(140, 226, 200, 0.85), 0 0 52px rgba(140, 226, 200, 0.4);
+    box-shadow:
+      inset 0 1px 1px rgba(255, 255, 255, 0.42),
+      0 10px 32px -2px rgba(140, 226, 200, 0.62);
   }
 }
 
 .button-glow-pulse {
-  animation: button-glow-pulse 3.2s ease-in-out infinite;
+  animation: button-glow-pulse 3.4s ease-in-out infinite;
   will-change: box-shadow;
 }
 
-/* 9. Accessibility: graceful degradation on reduced motion */
+/* 10. Accessibility: graceful degradation on reduced motion */
 @media (prefers-reduced-motion: reduce) {
-  .animate-spin-vinyl {
+  .animate-spin-vinyl,
+  .animate-ambient-drift,
+  .animate-ambient-drift-slow,
+  .animate-organic-pulse {
     animation: none !important;
   }
   .sheen-sweep {

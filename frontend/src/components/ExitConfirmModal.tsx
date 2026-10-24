@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { Disc3 } from 'lucide-react';
 import { getTelegramWebApp } from '../types';
 import { haptic } from '../lib/theme';
+import { AbstractGeometryBg } from './LiquidGlassGeometry';
 
 export interface ExitConfirmModalProps {
   open: boolean;
@@ -34,7 +35,7 @@ export function ExitConfirmModal({
   if (!open) return null;
 
   const handleConfirmExit = () => {
-    haptic('medium');
+    haptic('light');
     if (onExit) {
       onExit();
     } else {
@@ -55,137 +56,55 @@ export function ExitConfirmModal({
 
   return createPortal(
     <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        background: 'rgba(0, 0, 0, 0.78)',
-        backdropFilter: 'blur(12px)',
-        WebkitBackdropFilter: 'blur(12px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 300,
-        padding: '16px',
-        boxSizing: 'border-box',
-        opacity: isClosing ? 0 : 1,
-        transition: 'opacity 0.18s ease',
-      }}
+      className={`fixed inset-0 z-[300] flex items-center justify-center bg-black/72 p-4 backdrop-blur-xl transition-opacity duration-200 ${
+        isClosing ? 'opacity-0' : 'opacity-100'
+      }`}
     >
       <div
-        className={isClosing ? '' : 'animate-pop'}
+        className={`relative flex w-full max-w-[380px] flex-col items-center overflow-hidden rounded-3xl p-6 text-center backdrop-blur-2xl backdrop-saturate-150 shadow-[inset_0_1px_1px_rgba(255,255,255,0.14),0_24px_60px_rgba(0,0,0,0.72)] transition-all duration-200 ease-out transform-gpu ${
+          isClosing ? 'scale-95 opacity-0' : 'animate-modal-spring scale-100 opacity-100'
+        }`}
         style={{
-          width: '100%',
-          maxWidth: 380,
-          background: 'var(--color-surface)',
-          borderRadius: 24,
-          border: '1px solid color-mix(in srgb, var(--brand-line) 65%, transparent)',
-          boxShadow:
-            '0 20px 50px rgba(0, 0, 0, 0.7), 0 0 25px color-mix(in srgb, var(--brand-mint) 12%, transparent)',
-          padding: '28px 20px 22px',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          textAlign: 'center',
-          position: 'relative',
-          boxSizing: 'border-box',
-          opacity: isClosing ? 0 : 1,
-          transform: isClosing ? 'scale(0.94)' : 'scale(1)',
-          transition: 'opacity 0.18s ease, transform 0.18s ease',
+          background: 'color-mix(in srgb, var(--color-surface) 86%, rgba(16, 20, 19, 0.94))',
         }}
       >
-        {/* Фирменная иконка винила с мягким свечением */}
+        <AbstractGeometryBg variant="modal" spheres={1} accent="gold" />
+
+        {/* Иконка винила с мягким свечением */}
         <div
+          className="relative z-10 mb-4 grid h-14 w-14 place-items-center rounded-2xl text-[var(--brand-gold)] shadow-[inset_0_1px_1px_rgba(255,255,255,0.18),0_8px_24px_rgba(243,201,105,0.2)]"
           style={{
-            width: 54,
-            height: 54,
-            borderRadius: 18,
-            background: 'color-mix(in srgb, var(--brand-gold) 14%, var(--color-surface))',
-            border: '1px solid color-mix(in srgb, var(--brand-gold) 35%, transparent)',
-            display: 'grid',
-            placeItems: 'center',
-            color: 'var(--brand-gold)',
-            marginBottom: 16,
-            boxShadow:
-              '0 8px 24px color-mix(in srgb, var(--brand-gold) 22%, transparent)',
+            background: 'color-mix(in srgb, var(--brand-gold) 15%, var(--color-surface-2))',
           }}
         >
           <Disc3 size={28} className="animate-spin" style={{ animationDuration: '8s' }} />
         </div>
 
-        {/* Заголовок */}
-        <h3
-          style={{
-            margin: '0 0 8px',
-            fontSize: 21,
-            fontWeight: 800,
-            color: 'var(--color-text)',
-            letterSpacing: '-0.3px',
-          }}
-        >
+        <h3 className="relative z-10 m-0 mb-2 text-xl font-extrabold tracking-tight text-[var(--color-text)]">
           Уже уходишь?
         </h3>
 
-        {/* Описание */}
-        <p
-          style={{
-            margin: '0 0 22px',
-            fontSize: 13.5,
-            color: 'var(--color-text-dim)',
-            lineHeight: 1.48,
-            maxWidth: 310,
-          }}
-        >
+        <p className="relative z-10 m-0 mb-5 max-w-[310px] text-[13.5px] leading-relaxed text-[var(--color-text-dim)]">
           Твой прогресс в Open Deck сохранен. До следующего трека и нового ранга осталось совсем немного!
         </p>
 
-        {/* Кнопки действий */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, width: '100%' }}>
-          {/* Главная акцентная кнопка «Остаться» */}
+        <div className="relative z-10 flex w-full flex-col gap-2.5">
           <button
             type="button"
             onClick={handleStay}
-            style={{
-              width: '100%',
-              height: 48,
-              borderRadius: 14,
-              border: 'none',
-              background: 'var(--brand-mint)',
-              color: '#11322a',
-              fontSize: 15,
-              fontWeight: 800,
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-              boxShadow:
-                '0 4px 18px color-mix(in srgb, var(--brand-mint) 28%, transparent)',
-              transition: 'transform 0.15s ease',
-            }}
-            className="active:scale-[0.98]"
+            className="inline-flex h-13 w-full cursor-pointer items-center justify-center rounded-2xl py-3.5 text-base font-bold text-[#11322a] shadow-[inset_0_1px_1px_rgba(255,255,255,0.34),0_8px_24px_rgba(140,226,200,0.32)] active:scale-[0.97] transition-all duration-200 ease-out transform-gpu"
+            style={{ background: 'var(--brand-mint)' }}
           >
             Остаться
           </button>
 
-          {/* Второстепенная кнопка «Выйти» */}
           <button
             type="button"
             onClick={handleConfirmExit}
+            className="inline-flex h-13 w-full cursor-pointer items-center justify-center rounded-2xl py-3.5 text-base font-bold text-[var(--color-text-dim)] shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)] hover:text-[var(--brand-coral)] active:scale-[0.97] transition-all duration-200 ease-out transform-gpu"
             style={{
-              width: '100%',
-              height: 44,
-              borderRadius: 14,
-              border: '1px solid var(--brand-line)',
               background: 'color-mix(in srgb, var(--color-surface-2) 65%, transparent)',
-              color: 'var(--color-text-dim)',
-              fontSize: 14,
-              fontWeight: 600,
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-              transition: 'all 0.15s ease',
             }}
-            className="hover:text-[var(--brand-coral)] hover:border-[var(--brand-coral)]/40 active:scale-[0.98]"
           >
             Выйти
           </button>

@@ -3,6 +3,7 @@ import { useApp } from '../../state/store';
 import { useCourseProgress } from '../../state/CourseProgressContext';
 import { useToast } from '../Toast';
 import { getTelegramWebApp } from '../../types';
+import { AbstractGeometryBg } from '../LiquidGlassGeometry';
 import {
   Wrench,
   RotateCcw,
@@ -19,6 +20,10 @@ import {
  */
 export const ADMIN_USER_IDS: number[] = [285754501];
 export const ADMIN_USERNAMES: string[] = ['baronantonov'];
+
+interface PreviewWindow {
+  __PREVIEW__?: boolean;
+}
 
 /**
  * Проверка прав доступа к пульту продюсера / Dev Mode.
@@ -45,15 +50,17 @@ export function isProducerAuthorized(
     }
   }
 
-  // 3. Авторегистрация разработчика в окружении Antigravity / Preview
+  // 3. Авторегистрация разработчика ТОЛЬКО в dev-окружении или изолированном превью
+  const previewWin = window as unknown as PreviewWindow;
   const isPreview = Boolean(
-    (window as any).__PREVIEW__ ||
-      window.location.search.includes('preview') ||
-      window.location.search.includes('dev') ||
-      window.location.hostname === 'localhost' ||
-      window.location.hostname === '127.0.0.1' ||
-      window.location.hostname.includes('antigravity') ||
-      window.location.hostname.includes('webcontainer'),
+    import.meta.env.DEV &&
+      (previewWin.__PREVIEW__ ||
+        window.location.search.includes('preview') ||
+        window.location.search.includes('dev') ||
+        window.location.hostname === 'localhost' ||
+        window.location.hostname === '127.0.0.1' ||
+        window.location.hostname.includes('antigravity') ||
+        window.location.hostname.includes('webcontainer')),
   );
 
   return isPreview;
@@ -76,12 +83,12 @@ export function ProducerDevPanel() {
   const { toast } = useToast();
   const [isOpen, setIsOpen] = useState(false);
 
-  // Вычисляем Telegram WebApp контекст
+  // Вычисляем Telegram WebApp контекст (без подстановки админского ID гостям в проде)
   const tw = getTelegramWebApp();
-  const currentTgId = tw?.initDataUnsafe?.user?.id ?? userId ?? 285754501;
-  const currentUsername = tw?.initDataUnsafe?.user?.username || username || 'baronantonov';
+  const currentTgId = tw?.initDataUnsafe?.user?.id ?? userId ?? 0;
+  const currentUsername = tw?.initDataUnsafe?.user?.username || username || '';
 
-  // Проверка авторизации: для обычных пользователей компонент возвращает null и отсутствует в DOM!
+  // Проверка авторизации: для обычных пользователей компонент возвращает null и отсутствует в DOM
   const hasAccess = useMemo(() => {
     return isProducerAuthorized(currentTgId, currentUsername);
   }, [currentTgId, currentUsername]);
@@ -91,16 +98,18 @@ export function ProducerDevPanel() {
   }
 
   const isSigValid = verifyIntegrity();
-  const displayLessonsCount = isCoursePurchased ? Math.min(10, Math.max(completedLessons.length, 1)) : 1;
+  const displayLessonsCount = isCoursePurchased ? Math.min(10, Math.max(completedLessons.length, 1)) : Math.max(completedLessons.length, 1);
 
-  const triggerHaptic = (type: 'warning' | 'success' | 'medium') => {
+  const triggerHaptic = (type: 'warning' | 'success' | 'light') => {
     try {
-      if (type === 'medium') {
-        tw?.HapticFeedback?.impactOccurred?.('medium');
+      if (type === 'light') {
+        tw?.HapticFeedback?.impactOccurred?.('light');
       } else {
         tw?.HapticFeedback?.notificationOccurred?.(type);
       }
-    } catch {}
+    } catch {
+      /* ignore */
+    }
   };
 
   /**
@@ -120,15 +129,16 @@ export function ProducerDevPanel() {
     triggerHaptic('success');
     setCoursePurchased(true);
 
-    // Удаляем флаг показа салюта, чтобы при входе в «ПЛЕМЯ» сработал праздничный Canvas-салют
     if (typeof window !== 'undefined') {
       try {
         localStorage.removeItem('opendeck_tribe_confetti_shown');
         tw?.CloudStorage?.removeItem?.('opendeck_tribe_confetti_shown', () => {});
-      } catch {}
+      } catch {
+        /* ignore */
+      }
     }
 
-    toast('⚡', 'Pocket DJ активирован: Племя и Урок 2 открыты');
+    toast('⚡', 'Pocket DJ активирован: Племя и все 10 уроков доступны');
   };
 
   /**
@@ -145,76 +155,29 @@ export function ProducerDevPanel() {
    * 4. Тест Paywall после 2-го урока
    */
   const handleTestPaywall = () => {
-    triggerHaptic('medium');
+    triggerHaptic('light');
     setupPaywallTest();
     setAdminMode(false);
     toast('🎯', 'Урок 1 завершён. Заверши Урок 2 для проверки Paywall');
   };
 
   return (
-    <section
-      aria-label="Пульт продюсера / Dev Mode"
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 10,
-        margin: '12px 0 6px',
-      }}
-    >
-      {/* ── ПЛАВАЮЩИЙ БЕЙДЖ-ТРИГГЕР [ 🛠 DEV ] ── */}
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          padding: '6px 12px',
-          background: 'color-mix(in srgb, var(--brand-gold) 10%, var(--color-surface))',
-          border: '1px solid color-mix(in srgb, var(--brand-gold) 35%, transparent)',
-          borderRadius: 14,
-          boxShadow: '0 4px 16px rgba(243, 201, 105, 0.08)',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div
-            style={{
-              width: 24,
-              height: 24,
-              borderRadius: 7,
-              background: 'color-mix(in srgb, var(--brand-gold) 20%, transparent)',
-              display: 'grid',
-              placeItems: 'center',
-              color: 'var(--brand-gold)',
-            }}
-          >
-            <Wrench size={13} />
+    <section aria-label="Пульт продюсера / Dev Mode" className="flex flex-col gap-3">
+      {/* ── ПЛАВАЮЩИЙ БЕЙДЖ-ТРИГГЕР [ 🛠 DEV ] В LIQUID GLASS ── */}
+      <div className="liquid-glass-pill rounded-2xl px-4 py-3 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="w-7 h-7 rounded-xl bg-[#f3c969]/15 flex items-center justify-center text-[#f3c969] shrink-0">
+            <Wrench size={14} />
           </div>
-          <span
-            style={{
-              fontSize: 12,
-              fontWeight: 800,
-              letterSpacing: '0.04em',
-              textTransform: 'uppercase',
-              color: 'var(--brand-gold)',
-            }}
-          >
+          <span className="text-xs font-extrabold uppercase tracking-wider text-[#f3c969] truncate">
             Пульт продюсера · DEV
           </span>
           <span
-            style={{
-              fontSize: 10.5,
-              fontWeight: 700,
-              padding: '2px 6px',
-              borderRadius: 6,
-              background: isCoursePurchased
-                ? 'color-mix(in srgb, var(--brand-mint) 22%, transparent)'
-                : 'color-mix(in srgb, var(--brand-coral) 20%, transparent)',
-              color: isCoursePurchased ? 'var(--brand-mint)' : 'var(--brand-coral)',
-              border: `1px solid ${
-                isCoursePurchased
-                  ? 'color-mix(in srgb, var(--brand-mint) 40%, transparent)'
-                  : 'color-mix(in srgb, var(--brand-coral) 35%, transparent)'
-              }`,
-            }}
+            className={`text-[10.5px] font-bold px-2 py-0.5 rounded-full shrink-0 ${
+              isCoursePurchased
+                ? 'bg-[#8ce2c8]/20 text-[#8ce2c8]'
+                : 'bg-[#f5926e]/20 text-[#f5926e]'
+            }`}
           >
             {isCoursePurchased ? 'Куплен' : 'Free'}
           </span>
@@ -223,289 +186,129 @@ export function ProducerDevPanel() {
         <button
           type="button"
           onClick={() => {
-            triggerHaptic('medium');
+            triggerHaptic('light');
             setIsOpen((prev) => !prev);
           }}
-          style={{
-            border: 'none',
-            background: 'rgba(255, 255, 255, 0.06)',
-            color: 'var(--color-text)',
-            borderRadius: 8,
-            padding: '4px 8px',
-            fontSize: 11,
-            fontWeight: 700,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 4,
-            cursor: 'pointer',
-          }}
+          className="px-3 py-1.5 rounded-xl bg-white/[0.06] shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)] text-xs font-bold text-[#f4f7f5] flex items-center gap-1 active:scale-[0.97] transition-all duration-200 ease-out cursor-pointer border-0"
         >
           <span>{isOpen ? 'Скрыть' : 'Открыть'}</span>
           {isOpen ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
         </button>
       </div>
 
-      {/* ── РАЗВЕРНУТАЯ ПАНЕЛЬ ПУЛЬТА ПРОДЮСЕРА ── */}
+      {/* ── РАЗВЕРНУТАЯ ПАНЕЛЬ ПУЛЬТА ПРОДЮСЕРА (DARK LIQUID GLASS) ── */}
       {isOpen && (
-        <div
-          style={{
-            background: 'color-mix(in srgb, var(--color-surface) 95%, #000)',
-            border: '1px solid color-mix(in srgb, var(--brand-gold) 30%, var(--color-line))',
-            borderRadius: 16,
-            padding: '14px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 12,
-            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.45)',
-          }}
-        >
+        <div className="liquid-glass-card relative overflow-hidden rounded-3xl p-4 flex flex-col gap-3 animate-modal-spring">
+          <AbstractGeometryBg variant="modal" spheres={0} />
+
           {/* 1. СТАТУС-БАР ТЕСТЕРА */}
-          <div
-            style={{
-              background: 'rgba(0, 0, 0, 0.35)',
-              borderRadius: 12,
-              padding: '10px 12px',
-              border: '1px solid rgba(255, 255, 255, 0.06)',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 6,
-            }}
-          >
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                fontSize: 12,
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <div className="relative z-10 rounded-2xl p-3.5 bg-[#2b302e]/70 shadow-[inset_0_1px_1px_rgba(255,255,255,0.08)] flex flex-col gap-2">
+            <div className="flex items-center justify-between text-xs">
+              <div className="flex items-center gap-1.5">
                 <ShieldCheck
                   size={14}
                   color={isSigValid ? 'var(--brand-mint)' : 'var(--brand-coral)'}
                 />
-                <span style={{ color: 'var(--color-text-dim)' }}>TG ID:</span>
-                <b style={{ color: 'var(--color-text)', fontFamily: 'monospace' }}>
-                  {currentTgId}
-                </b>
-                <span style={{ color: 'var(--brand-mint)', fontSize: 11 }}>
-                  @{currentUsername}
-                </span>
+                <span className="text-[#9aa3a0]">TG ID:</span>
+                <b className="text-[#f4f7f5] font-mono">{currentTgId}</b>
+                {currentUsername && (
+                  <span className="text-[#8ce2c8] text-[11px]">@{currentUsername}</span>
+                )}
               </div>
               <span
-                style={{
-                  fontSize: 10,
-                  fontWeight: 800,
-                  color: isSigValid ? 'var(--brand-mint)' : 'var(--brand-coral)',
-                  background: isSigValid
-                    ? 'color-mix(in srgb, var(--brand-mint) 15%, transparent)'
-                    : 'color-mix(in srgb, var(--brand-coral) 15%, transparent)',
-                  padding: '2px 6px',
-                  borderRadius: 5,
-                }}
+                className={`text-[10px] font-extrabold px-2 py-0.5 rounded-md ${
+                  isSigValid
+                    ? 'bg-[#8ce2c8]/15 text-[#8ce2c8]'
+                    : 'bg-[#f5926e]/15 text-[#f5926e]'
+                }`}
               >
                 {isSigValid ? 'SIG: OK' : 'SIG: INVALID'}
               </span>
             </div>
 
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                fontSize: 12,
-                paddingTop: 4,
-                borderTop: '1px solid rgba(255, 255, 255, 0.04)',
-              }}
-            >
+            <div className="flex items-center justify-between text-xs">
               <div>
-                <span style={{ color: 'var(--color-text-dim)' }}>Курс: </span>
-                <b
-                  style={{
-                    color: isCoursePurchased ? 'var(--brand-mint)' : 'var(--brand-coral)',
-                  }}
-                >
+                <span className="text-[#9aa3a0]">Курс: </span>
+                <b className={isCoursePurchased ? 'text-[#8ce2c8]' : 'text-[#f5926e]'}>
                   {isCoursePurchased ? 'Куплен (Pocket DJ)' : 'Не куплен'}
                 </b>
               </div>
               <div>
-                <span style={{ color: 'var(--color-text-dim)' }}>Уроки: </span>
-                <b style={{ color: 'var(--brand-gold)' }}>
-                  {displayLessonsCount} / 10
-                </b>
+                <span className="text-[#9aa3a0]">Уроки: </span>
+                <b className="text-[#f3c969]">{displayLessonsCount} / 10</b>
               </div>
             </div>
           </div>
 
           {/* 2. КНОПКИ БЫСТРЫХ СЦЕНАРИЕВ ТЕСТИРОВАНИЯ */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 8 }}>
-            {/* Кнопка 1: Сбросить всё (Режим новичка) */}
+          <div className="relative z-10 flex flex-col gap-2">
             <button
               type="button"
               onClick={handleResetAll}
-              style={{
-                width: '100%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'flex-start',
-                gap: 10,
-                padding: '10px 12px',
-                borderRadius: 12,
-                border: '1px solid color-mix(in srgb, var(--brand-coral) 35%, transparent)',
-                background: 'color-mix(in srgb, var(--brand-coral) 10%, var(--color-surface))',
-                color: 'var(--color-text)',
-                cursor: 'pointer',
-                textAlign: 'left',
-                fontSize: 12.5,
-                fontWeight: 700,
-              }}
+              className="w-full flex items-center gap-3 p-3 rounded-2xl bg-[#f5926e]/12 shadow-[inset_0_1px_1px_rgba(245,146,110,0.25)] text-left active:scale-[0.97] transition-all duration-200 ease-out cursor-pointer border-0"
             >
-              <div
-                style={{
-                  width: 28,
-                  height: 28,
-                  borderRadius: 8,
-                  background: 'color-mix(in srgb, var(--brand-coral) 20%, transparent)',
-                  color: 'var(--brand-coral)',
-                  display: 'grid',
-                  placeItems: 'center',
-                  flexShrink: 0,
-                }}
-              >
+              <div className="w-8 h-8 rounded-xl bg-[#f5926e]/20 text-[#f5926e] flex items-center justify-center shrink-0">
                 <RotateCcw size={15} />
               </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div>🔄 Сбросить всё (Режим новичка)</div>
-                <div style={{ fontSize: 10.5, color: 'var(--color-text-dim)', fontWeight: 500 }}>
+              <div className="flex-1 min-w-0">
+                <div className="text-xs font-bold text-[#f4f7f5]">
+                  🔄 Сбросить всё (Режим новичка)
+                </div>
+                <div className="text-[10.5px] text-[#9aa3a0] font-medium">
                   Обнуляет покупку, сбрасывает к Уроку 1, чистит конфетти и баннеры
                 </div>
               </div>
             </button>
 
-            {/* Кнопка 2: Выдать покупку Pocket DJ */}
             <button
               type="button"
               onClick={handleGrantPurchase}
-              style={{
-                width: '100%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'flex-start',
-                gap: 10,
-                padding: '10px 12px',
-                borderRadius: 12,
-                border: '1px solid color-mix(in srgb, var(--brand-mint) 35%, transparent)',
-                background: 'color-mix(in srgb, var(--brand-mint) 10%, var(--color-surface))',
-                color: 'var(--color-text)',
-                cursor: 'pointer',
-                textAlign: 'left',
-                fontSize: 12.5,
-                fontWeight: 700,
-              }}
+              className="w-full flex items-center gap-3 p-3 rounded-2xl bg-[#8ce2c8]/12 shadow-[inset_0_1px_1px_rgba(140,226,200,0.25)] text-left active:scale-[0.97] transition-all duration-200 ease-out cursor-pointer border-0"
             >
-              <div
-                style={{
-                  width: 28,
-                  height: 28,
-                  borderRadius: 8,
-                  background: 'color-mix(in srgb, var(--brand-mint) 20%, transparent)',
-                  color: 'var(--brand-mint)',
-                  display: 'grid',
-                  placeItems: 'center',
-                  flexShrink: 0,
-                }}
-              >
+              <div className="w-8 h-8 rounded-xl bg-[#8ce2c8]/20 text-[#8ce2c8] flex items-center justify-center shrink-0">
                 <Zap size={15} />
               </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div>⚡ Выдать покупку Pocket DJ</div>
-                <div style={{ fontSize: 10.5, color: 'var(--color-text-dim)', fontWeight: 500 }}>
+              <div className="flex-1 min-w-0">
+                <div className="text-xs font-bold text-[#f4f7f5]">
+                  ⚡ Выдать покупку Pocket DJ
+                </div>
+                <div className="text-[10.5px] text-[#9aa3a0] font-medium">
                   Подписывает покупку, разблокирует Племя (салют) и Урок 3
                 </div>
               </div>
             </button>
 
-            {/* Кнопка 3: Открыть все 10 уроков */}
             <button
               type="button"
               onClick={handleUnlockAll}
-              style={{
-                width: '100%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'flex-start',
-                gap: 10,
-                padding: '10px 12px',
-                borderRadius: 12,
-                border: '1px solid color-mix(in srgb, var(--brand-gold) 35%, transparent)',
-                background: 'color-mix(in srgb, var(--brand-gold) 10%, var(--color-surface))',
-                color: 'var(--color-text)',
-                cursor: 'pointer',
-                textAlign: 'left',
-                fontSize: 12.5,
-                fontWeight: 700,
-              }}
+              className="w-full flex items-center gap-3 p-3 rounded-2xl bg-[#f3c969]/12 shadow-[inset_0_1px_1px_rgba(243,201,105,0.25)] text-left active:scale-[0.97] transition-all duration-200 ease-out cursor-pointer border-0"
             >
-              <div
-                style={{
-                  width: 28,
-                  height: 28,
-                  borderRadius: 8,
-                  background: 'color-mix(in srgb, var(--brand-gold) 20%, transparent)',
-                  color: 'var(--brand-gold)',
-                  display: 'grid',
-                  placeItems: 'center',
-                  flexShrink: 0,
-                }}
-              >
+              <div className="w-8 h-8 rounded-xl bg-[#f3c969]/20 text-[#f3c969] flex items-center justify-center shrink-0">
                 <Unlock size={15} />
               </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div>🔓 Открыть все 10 уроков</div>
-                <div style={{ fontSize: 10.5, color: 'var(--color-text-dim)', fontWeight: 500 }}>
+              <div className="flex-1 min-w-0">
+                <div className="text-xs font-bold text-[#f4f7f5]">
+                  🔓 Открыть все 10 уроков
+                </div>
+                <div className="text-[10.5px] text-[#9aa3a0] font-medium">
                   Полный доступ ко всем урокам и деке для быстрого теста
                 </div>
               </div>
             </button>
 
-            {/* Кнопка 4: Тест Paywall после 2-го урока */}
             <button
               type="button"
               onClick={handleTestPaywall}
-              style={{
-                width: '100%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'flex-start',
-                gap: 10,
-                padding: '10px 12px',
-                borderRadius: 12,
-                border: '1px solid rgba(255, 255, 255, 0.12)',
-                background: 'rgba(255, 255, 255, 0.04)',
-                color: 'var(--color-text)',
-                cursor: 'pointer',
-                textAlign: 'left',
-                fontSize: 12.5,
-                fontWeight: 700,
-              }}
+              className="w-full flex items-center gap-3 p-3 rounded-2xl bg-white/[0.05] shadow-[inset_0_1px_1px_rgba(255,255,255,0.12)] text-left active:scale-[0.97] transition-all duration-200 ease-out cursor-pointer border-0"
             >
-              <div
-                style={{
-                  width: 28,
-                  height: 28,
-                  borderRadius: 8,
-                  background: 'rgba(255, 255, 255, 0.08)',
-                  color: 'var(--color-text)',
-                  display: 'grid',
-                  placeItems: 'center',
-                  flexShrink: 0,
-                }}
-              >
+              <div className="w-8 h-8 rounded-xl bg-white/[0.08] text-[#f4f7f5] flex items-center justify-center shrink-0">
                 <Target size={15} />
               </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div>🎯 Тест Paywall после 2-го урока</div>
-                <div style={{ fontSize: 10.5, color: 'var(--color-text-dim)', fontWeight: 500 }}>
+              <div className="flex-1 min-w-0">
+                <div className="text-xs font-bold text-[#f4f7f5]">
+                  🎯 Тест Paywall после 2-го урока
+                </div>
+                <div className="text-[10.5px] text-[#9aa3a0] font-medium">
                   Урок 1 пройден, финиш Урока 2 вызовет окно покупки
                 </div>
               </div>

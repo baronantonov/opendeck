@@ -1,24 +1,18 @@
 import { useState, useEffect } from 'react';
 import { Smartphone, X } from 'lucide-react';
 import { useHomeScreenBanner } from '../lib/useHomeScreenBanner';
+import { AbstractGeometryBg } from './LiquidGlassGeometry';
 
 export interface HomeScreenBannerProps {
-  /** Флаг активности/завершения экрана загрузки */
   active?: boolean;
   splashFinished?: boolean;
 }
 
 /**
- * Плавающий баннер добавления ярлыка на рабочий стол:
- * - Глобальный сессионный лимит показа (sessionStorage)
- * - Автоскрытие через 8 секунд с индикатором прогресса
- * - Задержка показа ровно 2 секунды
- * - Аппаратное ускорение (translateZ, willChange) и плавный transition на Tailwind CSS
- * - Динамический отступ над таб-баром с учетом safe-area
- * - Сквозной клик вокруг карточки (pointer-events-none для обертки, pointer-events-auto для баннера)
+ * Плавающий баннер добавления ярлыка на рабочий стол в эстетике темного Liquid Glass
+ * с глубоким размытием (backdrop-blur-2xl), внутренним бликом и деликатной геометрией.
  */
 export function HomeScreenBanner({ active = true, splashFinished }: HomeScreenBannerProps) {
-  // Страховочный таймер: если splash screen по какой-то причине не прислал onExited
   const [splashTimeout, setSplashTimeout] = useState(false);
   useEffect(() => {
     const t = setTimeout(() => setSplashTimeout(true), 2500);
@@ -34,105 +28,53 @@ export function HomeScreenBanner({ active = true, splashFinished }: HomeScreenBa
   return (
     <aside
       aria-label="Добавить ярлык на рабочий стол"
-      className="fixed left-0 right-0 z-[120] pointer-events-none flex justify-center px-3"
+      className="pointer-events-none fixed left-0 right-0 z-[120] flex justify-center px-4"
       style={{
-        bottom: 'calc(var(--app-safe-bottom, var(--safe-bottom, 0px)) + var(--tabbar-height, 68px) + 12px)',
+        bottom: 'calc(env(safe-area-inset-bottom, 0px) + 92px)',
       }}
     >
       <div
-        className={`pointer-events-auto w-full max-w-[420px] transition-all duration-300 ease-out transform ${
+        className={`w-full max-w-[448px] transition-all duration-300 ease-out transform-gpu ${
           isVisible
-            ? 'translate-y-0 opacity-100 scale-100'
-            : 'translate-y-2 opacity-0 scale-95 pointer-events-none'
+            ? 'pointer-events-auto translate-y-0 scale-100 opacity-100'
+            : 'pointer-events-none translate-y-2 scale-95 opacity-0'
         }`}
-        style={{
-          willChange: 'transform, opacity',
-        }}
       >
         <div
+          className="relative flex w-full items-center gap-3 overflow-hidden rounded-3xl px-4 py-3.5 backdrop-blur-2xl backdrop-saturate-150 shadow-[inset_0_1px_1px_rgba(255,255,255,0.14),0_16px_40px_rgba(0,0,0,0.58)]"
           style={{
-            width: '100%',
-            background: 'color-mix(in srgb, var(--color-surface) 95%, #000)',
-            backdropFilter: 'blur(20px)',
-            WebkitBackdropFilter: 'blur(20px)',
-            borderRadius: 18,
-            border: '1px solid color-mix(in srgb, var(--brand-mint) 35%, transparent)',
-            boxShadow: '0 8px 30px rgba(0, 0, 0, 0.5), 0 0 20px rgba(140, 226, 200, 0.12)',
-            padding: '12px 14px 14px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 12,
-            position: 'relative',
-            overflow: 'hidden',
-            boxSizing: 'border-box',
+            background: 'color-mix(in srgb, var(--color-surface) 84%, rgba(16, 20, 19, 0.92))',
           }}
         >
-          {/* Иконка смартфона с фирменным мятным свечением */}
+          <AbstractGeometryBg variant="modal" spheres={0} accent="mint" />
+
+          {/* Иконка смартфона */}
           <div
+            className="relative z-10 grid h-10 w-10 shrink-0 place-items-center rounded-2xl text-[var(--brand-mint)] shadow-[inset_0_1px_1px_rgba(255,255,255,0.16)]"
             style={{
-              width: 38,
-              height: 38,
-              borderRadius: 12,
-              background: 'color-mix(in srgb, var(--brand-mint) 14%, var(--color-surface))',
-              border: '1px solid color-mix(in srgb, var(--brand-mint) 30%, transparent)',
-              display: 'grid',
-              placeItems: 'center',
-              color: 'var(--brand-mint)',
-              flexShrink: 0,
-              boxShadow: '0 4px 12px rgba(140, 226, 200, 0.18)',
+              background: 'color-mix(in srgb, var(--brand-mint) 15%, var(--color-surface-2))',
             }}
           >
             <Smartphone size={20} />
           </div>
 
           {/* Текстовый блок */}
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div
-              style={{
-                fontSize: 13.5,
-                fontWeight: 700,
-                color: 'var(--color-text)',
-                lineHeight: 1.25,
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-              }}
-            >
+          <div className="relative z-10 min-w-0 flex-1">
+            <div className="truncate text-[13.5px] font-bold leading-tight text-[var(--color-text)]">
               Ярлык на экран
             </div>
-            <div
-              style={{
-                fontSize: 11.5,
-                color: 'var(--color-text-dim)',
-                lineHeight: 1.3,
-                marginTop: 2,
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-              }}
-            >
+            <div className="mt-0.5 truncate text-[11.5px] leading-tight text-[var(--color-text-dim)]">
               Прямой запуск без шапки Telegram
             </div>
           </div>
 
           {/* Кнопки действий */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+          <div className="relative z-10 flex shrink-0 items-center gap-1.5">
             <button
               type="button"
               onClick={handleAdd}
-              style={{
-                border: 'none',
-                borderRadius: 10,
-                background: 'var(--brand-mint)',
-                color: '#11322a',
-                fontSize: 12.5,
-                fontWeight: 800,
-                padding: '7px 13px',
-                cursor: 'pointer',
-                boxShadow: '0 2px 10px rgba(140, 226, 200, 0.25)',
-                transition: 'transform 0.15s ease',
-              }}
-              className="active:scale-95"
+              className="cursor-pointer rounded-xl px-3.5 py-2 text-xs font-extrabold text-[#11322a] shadow-[inset_0_1px_1px_rgba(255,255,255,0.32),0_4px_12px_rgba(140,226,200,0.28)] active:scale-[0.97] transition-all duration-200 ease-out"
+              style={{ background: 'var(--brand-mint)' }}
             >
               Добавить
             </button>
@@ -141,35 +83,22 @@ export function HomeScreenBanner({ active = true, splashFinished }: HomeScreenBa
               type="button"
               onClick={() => dismiss(true)}
               aria-label="Скрыть"
+              className="grid h-8 w-8 cursor-pointer place-items-center rounded-full text-[var(--color-text-dim)] shadow-[inset_0_1px_1px_rgba(255,255,255,0.12)] active:scale-[0.97] transition-all duration-200 ease-out"
               style={{
-                width: 28,
-                height: 28,
-                borderRadius: 14,
-                border: '1px solid rgba(255, 255, 255, 0.08)',
-                background: 'rgba(255, 255, 255, 0.05)',
-                color: 'var(--color-text-dim)',
-                display: 'grid',
-                placeItems: 'center',
-                cursor: 'pointer',
-                transition: 'all 0.15s ease',
+                background: 'color-mix(in srgb, var(--color-surface-2) 70%, transparent)',
               }}
-              className="hover:bg-white/10 active:scale-90"
             >
               <X size={14} strokeWidth={2.4} />
             </button>
           </div>
 
-          {/* Тонкий акцентный индикатор прогресса автоскрытия (8 секунд) */}
+          {/* Линейный индикатор автоскрытия */}
           <div
+            className="absolute bottom-0 left-0 h-[2.5px] transition-[width] duration-75 ease-linear"
             style={{
-              position: 'absolute',
-              bottom: 0,
-              left: 0,
-              height: 2.5,
               width: `${progress}%`,
               background: 'var(--brand-mint)',
               boxShadow: '0 0 8px var(--brand-mint)',
-              transition: 'width 0.05s linear',
             }}
           />
         </div>

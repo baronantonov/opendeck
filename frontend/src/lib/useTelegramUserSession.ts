@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import type { CourseProgress, Lesson, User } from '../types';
-import { apiInit, apiLessons, apiLessonsBonus, apiProfile } from '../api/client';
+import { apiInit, apiLessons, apiLessonsBonus, apiProfile, apiProgress } from '../api/client';
 import { BONUS_LESSONS, COURSE_LESSONS } from './constants';
 import {
   getEffectiveUserId,
@@ -221,6 +221,11 @@ export function useTelegramUserSession(): TelegramUserSession {
       return { ...s, completedLessons: next };
     });
     setUserState((u) => ({ ...u, groovePoints: u.groovePoints + 50 }));
+    void apiProgress('dj-basics', lessonId, false).then((res) => {
+      if (res && typeof res.gp === 'number') {
+        setUserState((u) => ({ ...u, groovePoints: res.gp }));
+      }
+    }).catch(() => {});
   }, [isPaid]);
 
   const completeBonusLesson = useCallback((bonusId: number) => {
@@ -229,6 +234,11 @@ export function useTelegramUserSession(): TelegramUserSession {
       setUserState((u) => ({ ...u, groovePoints: u.groovePoints + 30 }));
       return bonusId;
     });
+    void apiProgress('dj-bonus', bonusId, true).then((res) => {
+      if (res && typeof res.gp === 'number') {
+        setUserState((u) => ({ ...u, groovePoints: res.gp }));
+      }
+    }).catch(() => {});
   }, []);
 
   const reload = useCallback(async () => {
@@ -285,6 +295,13 @@ export function useTelegramUserSession(): TelegramUserSession {
 
       const lessons = await apiLessons('dj-basics').catch(() => null);
       const bonus = await apiLessonsBonus().catch(() => null);
+
+      const tribeLink = init?.tribe_invite_link || lessons?.tribe_invite_link;
+      if (tribeLink && typeof window !== 'undefined') {
+        try {
+          sessionStorage.setItem('opendeck_tribe_link', tribeLink);
+        } catch {}
+      }
 
       setUserState((prevUser) => {
         let nextUser = prevUser;

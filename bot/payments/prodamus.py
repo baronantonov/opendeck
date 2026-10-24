@@ -1,4 +1,4 @@
-"""Prodamus (МИР / СБП / карты РФ) — внешний редирект, серая зона ToS.
+r"""Prodamus (МИР / СБП / карты РФ) — внешний редирект, серая зона ToS.
 
 ВАЖНО: открывать через openLink (внешний браузер), НЕ в webview Mini App,
 чтобы снизить риск бана бота. Подтверждение — по webhook от Prodamus.
@@ -88,10 +88,12 @@ class ProdamusProvider(PaymentProvider):
 
         final_order_id = order_id or f"{user_id}:{course_id}"
         final_name = product_name or "Курс DJ School — Open Deck"
-        # Цена в рублях: берём из amount_label вида "1990 RUB" либо дефолт 1990.
+        # Цена в рублях: берём первое целое число из amount_label вида "1990 RUB" либо дефолт 1990.
+        import re
         amount_rub = 1990
         try:
-            amount_rub = int("".join(ch for ch in amount_label if ch.isdigit()) or "1990")
+            m = re.search(r"\d+", str(amount_label))
+            amount_rub = int(m.group(0)) if m else 1990
         except Exception:
             amount_rub = 1990
 
@@ -111,9 +113,12 @@ class ProdamusProvider(PaymentProvider):
             "urlSuccess": f"{config.MINI_APP_URL}",
             "urlReturn": f"{config.MINI_APP_URL}",
         }
-        # Подпись НЕ отправляется (форма не проверяет её при создании ссылки).
-        # sign_params оставлен для справки / если включите проверку в кабинете.
-        # params["signature"] = sign_params(params, config.PRODAMUS_SECRET_KEY)
+        # Подпись ссылки отправляется при включённой настройке PRODAMUS_SIGN_LINK=1
+        # (в базовом режиме do=link форма payform.ru генерирует ссылку без входной подписи,
+        # а криптографическая проверка подписи и суммы выполняется на /webhooks/prodamus).
+        import os
+        if os.getenv("PRODAMUS_SIGN_LINK", "").lower() in ("1", "true", "yes"):
+            params["signature"] = sign_params(params, config.PRODAMUS_SECRET_KEY)
 
         try:
             async with httpx.AsyncClient(timeout=15, follow_redirects=False) as c:

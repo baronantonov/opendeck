@@ -178,6 +178,19 @@ def test_test_economy():
     r3 = client.post("/api/archetype/share", headers={})
     check("archetype/share без auth -> 401", r3.status_code == 401, f"status={r3.status_code}")
 
+    print("== Защита от циклического реферала (A <-> B) и фарма закрытых бонусов ==")
+    # friend_id уже приглашён inviter_id; попытка inviter_id привязать реф-код friend_id блокируется
+    friend_code = (db.get_user(friend_id) or {}).get("referral_code")
+    gp_inv_before = gp(inviter_id)
+    client.post("/api/init", json={"init_data": sign_init(inviter_id, "Inviter"), "start_param": f"ref_{friend_code}"})
+    check("циклический реферал A <-> B заблокирован", gp(inviter_id) == gp_inv_before, f"gp={gp(inviter_id)}")
+
+    # Бесплатный юзер без пройденных основных уроков не может закрыть бонусный урок 4
+    fresh_uid = base + 30
+    client.post("/api/init", json={"init_data": sign_init(fresh_uid, "Fresh"), "start_param": ""})
+    r_bonus_lock = client.post("/api/progress", json={"course_id": "dj-bonus", "lesson_id": 4, "bonus": True}, headers=ua(fresh_uid))
+    check("закрытый бонусный урок 4 без прохождения основных -> 403", r_bonus_lock.status_code == 403, f"status={r_bonus_lock.status_code}")
+
     print()
     print(f"ИТОГО: {passed} PASS / {failed} FAIL")
     assert failed == 0, f"Economy tests failed: {failed} checks failed"

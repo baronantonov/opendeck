@@ -85,6 +85,12 @@ def _require_auth(session: Optional[str]) -> None:
 # auth
 # ---------------------------------------------------------------------------
 
+# In-memory rate-limit для защиты /crm/login от brute-force: IP -> список таймстампов неудачных попыток
+_LOGIN_FAILURES: dict[str, list[float]] = {}
+_LOGIN_WINDOW_SEC = 60.0
+_LOGIN_MAX_FAILS = 5
+
+
 @router.post("/crm/login")
 async def crm_login(req: Request):
     if not ADMIN_KEY:
@@ -92,18 +98,39 @@ async def crm_login(req: Request):
             {"error": "crm_disabled", "detail": "ADMIN_KEY не задан на сервере"},
             status_code=503,
         )
+    client_ip = (
+        req.headers.get("cf-connecting-ip")
+        or (req.headers.get("x-forwarded-for") or "").split(",")[0].strip()
+        or (req.client.host if req.client else "unknown")
+    )
+    now = time.time()
+    recent_fails = [t for t in _LOGIN_FAILURES.get(client_ip, []) if now - t < _LOGIN_WINDOW_SEC]
+    if len(recent_fails) >= _LOGIN_MAX_FAILS:
+        _LOGIN_FAILURES[client_ip] = recent_fails
+        return JSONResponse(
+            {"error": "rate_limited", "detail": "Слишком много попыток входа. Подожди минуту."},
+            status_code=429,
+        )
+
     body = {}
     try:
         body = await req.json()
     except Exception:
         pass
-    key = body.get("key", "")
+    key = str(body.get("key", ""))
     # защита от тайминга (сравниваем всё равно фикс. время)
     ok = hmac.compare_digest(key, ADMIN_KEY)
     if not ok:
-        # лёгкий rate-limit по IP можно добавить позже; пока просто 401
+        recent_fails.append(now)
+        _LOGIN_FAILURES[client_ip] = recent_fails
         return JSONResponse({"error": "bad_key"}, status_code=401)
-    token = _sign("ok", int(time.time()))
+    _LOGIN_FAILURES.pop(client_ip, None)
+    token = _sign("ok", int(now))
+    is_https = (
+        SECURE_COOKIE
+        or req.url.scheme == "https"
+        or req.headers.get("x-forwarded-proto") == "https"
+    )
     resp = JSONResponse({"ok": True})
     resp.set_cookie(
         COOKIE_NAME,
@@ -111,7 +138,7 @@ async def crm_login(req: Request):
         max_age=SESSION_TTL,
         httponly=True,
         samesite="lax",
-        secure=SECURE_COOKIE,  # True при https (ngrok/прокси): иначе cookie утекает по http
+        secure=is_https,
         path="/",
     )
     return resp

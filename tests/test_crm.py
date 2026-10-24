@@ -169,6 +169,12 @@ def test_crm():
     r = client.post("/crm/logout")
     check("logout -> ok", r.status_code == 200)
 
+    print("== CRM: защита от brute-force (/crm/login rate-limit) ==")
+    for _ in range(5):
+        client.post("/crm/login", json={"key": "wrong-pass"}, headers={"X-Forwarded-For": "198.51.100.77"})
+    r_rl = client.post("/crm/login", json={"key": "wrong-pass"}, headers={"X-Forwarded-For": "198.51.100.77"})
+    check("6-я неверная попытка пароля с одного IP -> 429 rate_limited", r_rl.status_code == 429)
+
     print(f"\nИтог CRM: {passed} PASS / {failed} FAIL")
     assert failed == 0, f"CRM tests failed: {failed} checks failed"
 

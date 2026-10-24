@@ -53,16 +53,22 @@ app = FastAPI(title="DJ School API")
 # CRM-админка (защищена ADMIN_KEY через подписанный cookie)
 app.include_router(crm_router)
 
+_DEFAULT_CORS_ORIGINS = [
+    "https://baronantonov.github.io",
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+]
+_EXTRA_CORS = [
+    o.strip()
+    for o in os.getenv("CORS_ORIGINS", "").split(",")
+    if o.strip()
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "https://opendeck-tma.serveousercontent.com",
-        "https://opendeck-tma.loca.lt",
-        "https://squabble-lilly-lankiness.ngrok-free.dev",
-        "https://baronantonov.github.io",
-        "http://localhost:8000",
-        "http://127.0.0.1:8000",
-    ],
+    allow_origins=_DEFAULT_CORS_ORIGINS + _EXTRA_CORS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -171,8 +177,8 @@ def _resolve_uid(
     uid = _user_id_from_init(x_init_data)
     if uid is not None:
         return uid
-    # путь бота: проверяем internal key, затем берём user_id из тела
-    if authorization == f"Bearer {INTERNAL_API_KEY}" and body:
+    # путь бота: проверяем internal key (constant-time), затем берём user_id из тела
+    if authorization and hmac.compare_digest(authorization, f"Bearer {INTERNAL_API_KEY}") and body:
         uid = body.get("user_id")
         if uid is not None:
             try:
@@ -315,9 +321,15 @@ async def api_init(
                 }
     elif sp.startswith("ref_") and existing and not existing.get("referred_by"):
         # пользователь уже существовал, но реф ссылка не была привязана
+        # Защита от циклического реферала A <-> B: инвайтер не должен быть приглашён этим юзером
         ref_code = sp[4:]
         inviter = db.get_user_by_referral_code(ref_code)
-        if inviter and inviter["user_id"] != uid:
+        my_code = existing.get("referral_code")
+        if (
+            inviter
+            and inviter["user_id"] != uid
+            and (not my_code or inviter.get("referred_by") != my_code)
+        ):
             with db._conn() as c:
                 c.execute(
                     "UPDATE users SET referred_by=? WHERE user_id=?",
@@ -328,11 +340,16 @@ async def api_init(
         # Подарок курса: активируется ТОЛЬКО если даритель реально оплатил
         # Stars-инвойс (запись gifts: pending -> paid через /api/gift/activate)
         # и подарок ещё не использован. Без оплаты — ничего не выдаём.
-        target_recipient = sp[5:].strip().lstrip("@").lower()
+        raw_gift = sp[5:].strip()
+        if "__" in raw_gift:
+            target_recipient, gift_token_arg = raw_gift.split("__", 1)
+        else:
+            target_recipient, gift_token_arg = raw_gift, None
+        target_recipient = target_recipient.lstrip("@").lower()
         my_username = (username or "").strip().lower()
         if target_recipient and (target_recipient == my_username or target_recipient == str(uid)):
             if not db.has_paid(uid, COURSE_ID):
-                claimed = db.claim_gift(target_recipient)
+                claimed = db.claim_gift(target_recipient, token=gift_token_arg)
                 if claimed:
                     db.add_payment(uid, COURSE_ID, provider="gift", status="paid")
                     bonus = {
@@ -341,6 +358,7 @@ async def api_init(
                         "message": "🎁 Тебе подарили полный курс Open Deck! Все уроки открыты.",
                     }
 
+    is_paid = db.has_paid(uid, COURSE_ID) or db.has_paid(uid, "tripwire")
     return {
         "user": _user_response(uid),
         "course": _course_response(uid),
@@ -350,7 +368,8 @@ async def api_init(
         # PLAY A: флаги оплаты для фронт-пейвола (курс иначе проходится бесплатно)
         "paid_full": db.has_paid(uid, COURSE_ID),
         "paid_tripwire": db.has_paid(uid, "tripwire"),
-        "paid": db.has_paid(uid, COURSE_ID) or db.has_paid(uid, "tripwire"),
+        "paid": is_paid,
+        "tribe_invite_link": os.getenv("TRIBE_INVITE_LINK", "https://t.me/+S9cLCiFHbWQzY2Iy") if is_paid else None,
     }
 
 
@@ -399,6 +418,7 @@ async def lessons(
         "lessons": COURSE_MAIN,
         "completed": completed,
         "total": TOTAL_MAIN,
+        "tribe_invite_link": os.getenv("TRIBE_INVITE_LINK", "https://t.me/+S9cLCiFHbWQzY2Iy") if paid else None,
     }
 
 
@@ -442,11 +462,19 @@ async def progress(
     if uid is None:
         return JSONResponse({"error": "bad_init_data"}, status_code=401)
 
-    # ---- БОНУСЫ (C3): отдельный course_id, не требует оплаты ----
+    # ---- БОНУСЫ (C3): отдельный course_id, открываются по порядку от прогресса основного курса ----
     if p.course_id == BONUS_COURSE_ID or p.bonus:
         course_id = BONUS_COURSE_ID
         if p.lesson_id not in BONUS_NEW_IDS and p.lesson_id not in BONUS_OLD_IDS:
             return JSONResponse({"error": "bad_lesson_id"}, status_code=400)
+        new_bonus_id = BONUS_OLD_TO_NEW.get(p.lesson_id, p.lesson_id)
+        main_completed = len([x for x in db.get_completed(uid, COURSE_ID) if x in MAIN_OLD_IDS])
+        unlocked_count = min(main_completed + 1, TOTAL_BONUS)
+        if new_bonus_id > unlocked_count:
+            return JSONResponse(
+                {"error": "bonus_locked", "unlocked_count": unlocked_count},
+                status_code=403,
+            )
         old_id = BONUS_NEW_TO_OLD.get(p.lesson_id, p.lesson_id)
         gp = db.complete_lesson(uid, course_id, old_id)
         completed = [
@@ -487,15 +515,16 @@ async def progress(
 @app.post("/api/referral/purchase")
 async def referral_purchase(
     req: Request,
-    x_init_data: str = Header("", alias="X-Init-Data"),
     authorization: str | None = Header(None),
 ):
+    if not authorization or not hmac.compare_digest(authorization, f"Bearer {INTERNAL_API_KEY}"):
+        return JSONResponse({"error": "unauthorized"}, status_code=403)
     body = {}
     try:
         body = await req.json()
     except Exception:
         body = {}
-    uid = _resolve_uid(x_init_data, authorization, body)
+    uid = _resolve_uid("", authorization, body)
     if uid is None:
         return JSONResponse({"error": "bad_init_data"}, status_code=401)
 
@@ -528,23 +557,23 @@ async def referral_purchase(
 @app.post("/api/gp/apply")
 async def gp_apply(
     req: Request,
-    x_init_data: str = Header("", alias="X-Init-Data"),
     authorization: str | None = Header(None),
 ):
+    if not authorization or not hmac.compare_digest(authorization, f"Bearer {INTERNAL_API_KEY}"):
+        return JSONResponse({"error": "unauthorized"}, status_code=403)
     body = {}
     try:
         body = await req.json()
     except Exception:
         body = {}
 
-    # charge_id: у бота это telegram_payment_charge_id (идемпотентность),
-    # у фронта обычно нет — тогда списание разовое (фронт зовёт один раз после paid)
+    # charge_id: у бота это telegram_payment_charge_id (идемпотентность)
     charge_id = body.get("charge_id")
-    uid = _resolve_uid(x_init_data, authorization, body)
+    uid = _resolve_uid("", authorization, body)
     if uid is None:
         return JSONResponse({"error": "bad_init_data"}, status_code=401)
 
-    # amount: либо из тела (фронт), либо бот считает его сам из GP пользователя
+    # amount: либо из тела, либо бот считает его сам из GP пользователя
     amount = body.get("amount")
     if amount is None:
         amount = min(db.get_gp(uid), 7000)
@@ -568,9 +597,9 @@ async def gp_spend(
     except Exception:
         body = {}
     amount = body.get("amount")
-    if not amount or amount <= 0:
+    if isinstance(amount, bool) or not isinstance(amount, int) or amount <= 0 or amount > 10000:
         return JSONResponse({"error": "bad_amount"}, status_code=400)
-    reason = body.get("reason", "spend")
+    reason = str(body.get("reason", "spend"))[:32]
     uid = _resolve_uid(x_init_data, None, body)
     if uid is None:
         return JSONResponse({"error": "bad_init_data"}, status_code=401)
@@ -595,7 +624,7 @@ async def gp_earn(
 ):
     """Rewarded-механика: начислить GP за действие (шер/ежедневный бонус/отзыв).
 
-    ЗАЩИТА ОТ ФЕРМЫ: одно действие — не чаще 1 раза в 24ч (по transactions).
+    ЗАЩИТА ОТ ФЕРМЫ: одно действие — не чаще 1 раза в 24ч (атомарно под BEGIN IMMEDIATE).
     """
     body = {}
     try:
@@ -608,17 +637,10 @@ async def gp_earn(
     uid = _resolve_uid(x_init_data, None, body)
     if uid is None:
         return JSONResponse({"error": "bad_init_data"}, status_code=401)
-    # cooldown 24ч
-    with db._conn() as c:
-        recent = c.execute(
-            "SELECT 1 FROM transactions WHERE user_id=? AND action_type=? "
-            "AND timestamp > datetime('now', '-24 hours') LIMIT 1",
-            (uid, f"reward_{action}"),
-        ).fetchone()
-        if recent:
-            return JSONResponse({"error": "cooldown", "hint": "доступно через 24ч"}, status_code=429)
     amount = REWARD_ACTIONS[action]
-    result = db.add_gp(uid, amount, action_type=f"reward_{action}")
+    result = db.add_gp(uid, amount, action_type=f"reward_{action}", cooldown_hours=24)
+    if result.get("cooldown"):
+        return JSONResponse({"error": "cooldown", "hint": "доступно через 24ч"}, status_code=429)
     result["amount"] = amount
     result["action"] = action
     return result
@@ -767,6 +789,7 @@ async def create_invoice(
 
     # --- Подарок курса (только Stars): токен в payload инвойса + запись pending ---
     gift_payload = None
+    gift_token = None
     if body.gift_recipient:
         if body.provider != "stars":
             return JSONResponse({"error": "gift_stars_only"}, status_code=400)
@@ -860,13 +883,16 @@ async def create_invoice(
         return JSONResponse({"error": "telegram_api_error", "detail": data}, status_code=502)
     if gift_payload is None:
         _STARS_INVOICE_CACHE[cache_key] = data["result"]
-    return {
+    res = {
         "invoice_link": data["result"],
         "title": label,
         "price": price,
         "variant": variant,
         "experiment": "price_tripwire" if course_id == "tripwire" else ("price_full" if course_id == COURSE_ID else None),
     }
+    if gift_token:
+        res["gift_token"] = gift_token
+    return res
 
 
 # ---- GET /api/ab/assign ----
@@ -963,11 +989,15 @@ async def prodamus_webhook(req: Request, sign: str = Header(None, alias="Sign"))
     if not secret_raw:
         return JSONResponse({"error": "webhook_not_configured"}, status_code=500)
 
+    raw_bytes = await req.body()
+    if len(raw_bytes) > 65536:
+        return JSONResponse({"error": "payload_too_large"}, status_code=413)
+
     # Prodamus присылает form-data (application/x-www-form-urlencoded).
     # Парсим тело вручную (без зависимости от python-multipart), т.к.
-    # в рантаймеuvicorn его может не быть -> AssertionError на req.form().
+    # в рантайме uvicorn его может не быть -> AssertionError на req.form().
     from urllib.parse import parse_qs
-    raw = (await req.body()).decode("utf-8", "ignore")
+    raw = raw_bytes.decode("utf-8", "ignore")
     parsed = parse_qs(raw, keep_blank_values=True)
     form_dict = {k: (v[0] if isinstance(v, list) and v else "") for k, v in parsed.items()}
 
@@ -979,22 +1009,53 @@ async def prodamus_webhook(req: Request, sign: str = Header(None, alias="Sign"))
     order_id = form_dict.get("order_id") or ""
 
     if status == "paid" and order_id:
-        if db.is_webhook_processed(order_id):
-            return {"ok": True, "duplicate": True}
         try:
             parts = order_id.split(":")
             user_id = int(parts[0])
             cid = parts[1]
             gp_spent = int(parts[2]) if len(parts) > 2 and parts[2].isdigit() else 0
-            if gp_spent > 0:
-                db.spend_gp(user_id, gp_spent, reason=f"{cid}_discount")
-            db.add_payment(user_id, cid, "prodamus", status="paid",
-                           raw=json.dumps(form_dict, ensure_ascii=False)[:4000])
-            db.apply_referral_purchase(user_id)
-            db.mark_webhook_processed(order_id)
         except (ValueError, IndexError):
             logger.warning(f"Invalid Prodamus order_id format: {order_id}")
-        except Exception as e:
+            return JSONResponse({"error": "bad_order_id"}, status_code=400)
+
+        if cid not in ("dj-basics", "tripwire", "mentoring"):
+            return JSONResponse({"error": "bad_course_id"}, status_code=400)
+
+        # Сверка фактически оплаченной суммы (защита от покупки тарифа за 1 ₽)
+        sum_raw = form_dict.get("sum") or form_dict.get("amount")
+        paid_rub: int | None = None
+        if sum_raw is not None or len(parts) >= 3 or cid == "mentoring":
+            try:
+                paid_val = float(sum_raw or 0)
+            except (TypeError, ValueError):
+                return JSONResponse({"error": "bad_amount"}, status_code=400)
+            min_rub = 19800.0 if cid == "mentoring" else 1500.0
+            if cid == "mentoring" and gp_spent > 0 and db.get_gp(user_id) < gp_spent:
+                min_rub = 23900.0
+            if paid_val < min_rub:
+                logger.warning(f"Prodamus underpayment rejected: order={order_id} sum={paid_val} min={min_rub}")
+                return JSONResponse({"error": "underpaid"}, status_code=400)
+            paid_rub = int(round(paid_val))
+
+        # Атомарный захват идемпотентности (защита от параллельных ретраев)
+        if not db.claim_webhook_order(order_id):
+            return {"ok": True, "duplicate": True}
+
+        try:
+            if gp_spent > 0:
+                db.spend_gp(user_id, gp_spent, reason=f"{cid}_discount")
+            db.add_payment(
+                user_id,
+                cid,
+                "prodamus",
+                amount=paid_rub,
+                currency="RUB",
+                status="paid",
+                raw=json.dumps(form_dict, ensure_ascii=False)[:4000],
+            )
+            db.apply_referral_purchase(user_id)
+        except Exception:
+            db.unclaim_webhook_order(order_id)
             logger.exception("Error processing Prodamus webhook")
             return JSONResponse({"error": "internal_error"}, status_code=500)
     return {"ok": True}
@@ -1014,6 +1075,8 @@ async def tribute_webhook(req: Request, x_signature: str = Header(None, alias="X
 
     import hashlib
     raw = await req.body()
+    if len(raw) > 65536:
+        return JSONResponse({"error": "payload_too_large"}, status_code=413)
     computed = hmac.new(api_key.encode(), raw, hashlib.sha256).hexdigest()
     if not hmac.compare_digest(computed, x_signature):
         return JSONResponse({"error": "bad_signature"}, status_code=400)
@@ -1023,17 +1086,15 @@ async def tribute_webhook(req: Request, x_signature: str = Header(None, alias="X
     except Exception:
         return JSONResponse({"error": "bad_json"}, status_code=400)
 
+    # Игнорируем события отмены / возврата
+    event_name = str(body.get("name") or body.get("event") or "").lower()
+    if event_name and any(w in event_name for w in ("cancel", "refund", "fail", "expire")):
+        return {"ok": True, "ignored": True}
+
     # Tribute webhook payload содержит purchase_id и поля продукта/юзера.
-    # order_id мы НЕ формируем при создании ссылки (Tribute-продукт статичен),
-    # поэтому привязываем по telegram user_id из payload, если есть, иначе
-    # по purchase_id как уникальному ключу идемпотентности.
     purchase_id = str(body.get("purchase_id") or body.get("id") or "")
     if not purchase_id:
         return JSONResponse({"error": "no_purchase_id"}, status_code=400)
-
-    # idempotency: тот же purchase_id не начисляем дважды
-    if db.is_webhook_processed(purchase_id):
-        return {"ok": True, "duplicate": True}
 
     # Курс менторства — единственный Tribute-продукт в этом проекте.
     user_id = (
@@ -1045,14 +1106,19 @@ async def tribute_webhook(req: Request, x_signature: str = Header(None, alias="X
     )
     if not user_id:
         return JSONResponse({"error": "missing_user_id"}, status_code=400)
+
+    # Атомарный захват идемпотентности
+    if not db.claim_webhook_order(purchase_id):
+        return {"ok": True, "duplicate": True}
+
     course_id = "mentoring"
     try:
         uid = int(user_id)
         db.add_payment(uid, course_id, "tribute", status="paid",
                        raw=json.dumps(body, ensure_ascii=False)[:4000])
         db.apply_referral_purchase(uid)
-        db.mark_webhook_processed(purchase_id)
-    except Exception as e:
+    except Exception:
+        db.unclaim_webhook_order(purchase_id)
         logger.exception("Error processing Tribute webhook")
         return JSONResponse({"error": "internal_error"}, status_code=500)
     return {"ok": True}

@@ -9,7 +9,6 @@ tunnel-keys/id_ed25519
 node_modules/
 .env.*
 dj_school.db
-.dockerignore
 
 dj_school.db-wal
 dj_school.db-shm

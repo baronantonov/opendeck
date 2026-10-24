@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { Stats, StudentRow, TestAccount } from './types';
 import {
-  getStats, getStudents, deleteStudent, resetFree, getTestAccounts, deleteTestAccounts,
+  getStats, getStudents, deleteStudent, resetFree, getTestAccounts, deleteTestAccounts, logout,
 } from './api';
 import { Login } from './components/Login';
 import { StatsBar } from './components/StatsBar';
@@ -90,7 +90,7 @@ export default function App() {
         </div>
         <div style={{ flex: 1 }} />
         <button onClick={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))} style={{ width: 40, height: 40, borderRadius: 12, border: '1px solid var(--color-border)', background: 'var(--color-surface)', color: 'var(--color-text)', cursor: 'pointer', fontSize: 16 }}>{theme === 'dark' ? '🌙' : '☀️'}</button>
-        <button onClick={() => { setAuthed(false); }} style={{ padding: '10px 14px', borderRadius: 12, border: '1px solid var(--color-border)', background: 'var(--color-surface)', color: 'var(--color-text)', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>Выйти</button>
+        <button onClick={() => { void logout().finally(() => setAuthed(false)); }} style={{ padding: '10px 14px', borderRadius: 12, border: '1px solid var(--color-border)', background: 'var(--color-surface)', color: 'var(--color-text)', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>Выйти</button>
       </div>
 
       <StatsBar s={stats} />

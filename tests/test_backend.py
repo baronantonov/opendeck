@@ -232,6 +232,33 @@ def test_backend_suite():
                         headers={"Authorization": "Bearer TEST_INTERNAL_KEY"}).json()
     check("повторная активация того же подарка -> duplicate", r_dup.get("duplicate") is True)
 
+    print("== Защита от атак на платежи и внутренние эндпоинты (Security Audit) ==")
+    # 1) Prodamus за 1 рубль отклоняется (underpaid)
+    underpaid_uid = 948000 + int(time.time()) % 100000
+    underpaid_form = {"status": "paid", "order_id": f"{underpaid_uid}:mentoring:0:1700000000", "sum": "1.00"}
+    underpaid_body = urllib.parse.urlencode(underpaid_form).encode()
+    underpaid_sig = prodamus_sign.sign_params(underpaid_form, webhook_secret)
+    r_under = client.post("/webhooks/prodamus", content=underpaid_body, headers={"Sign": underpaid_sig})
+    check("Prodamus вебхук на 1 ₽ для менторства отклонён (400 underpaid)",
+          r_under.status_code == 400 and db.has_paid(underpaid_uid, "mentoring") is False)
+
+    # 2) Клиент не может вызывать внутренние /api/referral/purchase и /api/gp/apply по X-Init-Data
+    r_ref_client = client.post("/api/referral/purchase", json={}, headers={"X-Init-Data": fr_init})
+    check("клиентский вызов /api/referral/purchase без INTERNAL_API_KEY -> 403", r_ref_client.status_code == 403)
+    r_gp_client = client.post("/api/gp/apply", json={"amount": 100}, headers={"X-Init-Data": fr_init})
+    check("клиентский вызов /api/gp/apply без INTERNAL_API_KEY -> 403", r_gp_client.status_code == 403)
+
+    # 3) /api/gp/spend валидирует типы amount (не падает в 500 TypeError)
+    r_bad_spend = client.post("/api/gp/spend", json={"amount": "100"}, headers={"X-Init-Data": fr_init})
+    check("/api/gp/spend со строкой amount -> 400 (не 500)", r_bad_spend.status_code == 400)
+
+    # 4) Чужой buyer_id не может активировать токен подарка
+    gift_token_2 = secrets.token_urlsafe(24)
+    db.create_gift(buyer_uid, "other_friend", gift_token_2)
+    r_wrong_buyer = client.post("/api/gift/activate", json={"user_id": buyer_uid + 999, "token": gift_token_2},
+                                headers={"Authorization": "Bearer TEST_INTERNAL_KEY"})
+    check("activate_gift с чужим buyer_id -> 400", r_wrong_buyer.status_code == 400)
+
     print(f"\nИтог: {passed} PASS / {failed} FAIL")
     assert failed == 0, f"Backend tests failed: {failed} checks failed"
 

@@ -12,12 +12,13 @@
 При первом запуске таблицы создаются сами. Миграции — на месте.
 """
 from __future__ import annotations
-import sqlite3, hashlib
+import os, sqlite3, hashlib
 from pathlib import Path
 from contextlib import contextmanager
 from typing import Optional
 
-DB_PATH = Path(__file__).resolve().parent.parent / "dj_school.db"
+_DEFAULT_DB_PATH = Path(__file__).resolve().parent.parent / "dj_school.db"
+DB_PATH = Path(os.getenv("DB_PATH", str(_DEFAULT_DB_PATH)))
 COURSE_ID = "dj-basics"
 BONUS_COURSE_ID = "dj-bonus"
 GP_PER_LESSON = 50
@@ -111,6 +112,7 @@ def _generate_referral_code(user_id: int) -> str:
 def _conn():
     c = sqlite3.connect(str(DB_PATH), timeout=30.0)
     c.row_factory = sqlite3.Row
+    c.execute("PRAGMA busy_timeout=30000")
     try:
         yield c
         c.commit()
@@ -287,6 +289,7 @@ def complete_lesson(user_id, course_id, lesson_id):
     is_bonus = (course_id == BONUS_COURSE_ID)
     gp_gain = GP_PER_BONUS if is_bonus else GP_PER_LESSON
     with _conn() as c:
+        c.execute("BEGIN IMMEDIATE")
         already = c.execute(
             "SELECT 1 FROM progress "
             "WHERE user_id=? AND course_id=? AND lesson_id=? AND completed=1",
@@ -357,11 +360,24 @@ def apply_referral_signup(invitee_id: int, inviter_id: int):
     if invitee_id == inviter_id:
         return None
     with _conn() as c:
+        c.execute("BEGIN IMMEDIATE")
         inviter = c.execute(
-            "SELECT referral_code FROM users WHERE user_id=?",
+            "SELECT referral_code, referred_by FROM users WHERE user_id=?",
             (inviter_id,)
         ).fetchone()
         if not inviter:
+            return None
+
+        # защита от циклического реферала (A <-> B)
+        invitee_row = c.execute(
+            "SELECT referral_code FROM users WHERE user_id=?",
+            (invitee_id,)
+        ).fetchone()
+        if (
+            invitee_row
+            and invitee_row["referral_code"]
+            and inviter["referred_by"] == invitee_row["referral_code"]
+        ):
             return None
 
         # защита от дубликатов начисления (TOCTOU race condition)
@@ -414,6 +430,7 @@ def apply_referral_purchase(invitee_id: int) -> Optional[int]:
     PURCHASE_BONUS = 500
     MILESTONES = {3: 300, 5: 1000, 10: 2500}  # друзей → GP
     with _conn() as c:
+        c.execute("BEGIN IMMEDIATE")
         row = c.execute(
             "SELECT referred_by FROM users WHERE user_id=?", (invitee_id,)
         ).fetchone()
@@ -495,7 +512,8 @@ def apply_gp_spend(user_id: int, amount: int, charge_id: str | None = None) -> O
     Возвращает {groove_points, discount, final_price} или None (если user не найден).
     """
     with _conn() as c:
-        # идемпотентность: тот же charge_id уже обработан
+        c.execute("BEGIN IMMEDIATE")
+        # идемпотентность: тот же charge_id уже обработан (проверяем ДО проверки amount <= 0)
         if charge_id:
             dup = c.execute(
                 "SELECT 1 FROM transactions WHERE charge_id=? AND action_type='gp_spend' LIMIT 1",
@@ -512,6 +530,13 @@ def apply_gp_spend(user_id: int, amount: int, charge_id: str | None = None) -> O
                     "duplicate": True,
                 }
 
+        try:
+            amount = int(amount)
+        except (TypeError, ValueError):
+            return None
+        if amount <= 0:
+            return None
+
         row = c.execute(
             "SELECT groove_points FROM users WHERE user_id=?", (user_id,)
         ).fetchone()
@@ -519,7 +544,7 @@ def apply_gp_spend(user_id: int, amount: int, charge_id: str | None = None) -> O
             return None
 
         # реально спишем: сколько запросили, но не больше чем есть и не больше 7000
-        actual_amount = min(amount, row["groove_points"], 7000)
+        actual_amount = min(amount, int(row["groove_points"]), 7000)
         if actual_amount <= 0:
             return None  # нечего списывать
 
@@ -549,20 +574,28 @@ def spend_gp(user_id: int, amount: int, reason: str = "spend") -> Optional[dict]
 
     Спишет min(amount, groove_points). Возвращает {groove_points} или None.
     """
+    try:
+        amount = int(amount)
+    except (TypeError, ValueError):
+        return None
+    if amount <= 0:
+        return None
+    clean_reason = "".join(ch for ch in str(reason or "spend") if ch.isalnum() or ch in ("_", "-"))[:32] or "spend"
     with _conn() as c:
+        c.execute("BEGIN IMMEDIATE")
         row = c.execute(
             "SELECT groove_points FROM users WHERE user_id=?", (user_id,)
         ).fetchone()
         if not row:
             return None
-        actual = min(amount, row["groove_points"])
+        actual = min(amount, int(row["groove_points"]))
         if actual <= 0:
             return {"groove_points": int(row["groove_points"])}
         c.execute(
             "UPDATE users SET groove_points = groove_points - ? WHERE user_id=?",
             (actual, user_id),
         )
-        action_name = f"gp_spend_{reason}" if reason and reason != "spend" else "gp_spend"
+        action_name = f"gp_spend_{clean_reason}" if clean_reason and clean_reason != "spend" else "gp_spend"
         c.execute(
             "INSERT INTO transactions (user_id, amount, action_type) "
             "VALUES (?, ?, ?)",
@@ -574,12 +607,35 @@ def spend_gp(user_id: int, amount: int, reason: str = "spend") -> Optional[dict]
         return {"groove_points": int(new_gp)}
 
 
-def add_gp(user_id: int, amount: int, action_type: str = "gp_earn") -> dict:
+def add_gp(
+    user_id: int,
+    amount: int,
+    action_type: str = "gp_earn",
+    cooldown_hours: int | None = None,
+) -> dict:
     """Начислить GP (rewarded-механика: шер/ежедневный бонус и т.п.).
 
-    Возвращает {groove_points}.
+    Если передан cooldown_hours — атомарно под BEGIN IMMEDIATE проверяет,
+    не было ли такой же транзакции за последние cooldown_hours часов.
+    Возвращает {groove_points} (или {groove_points, cooldown: True}).
     """
+    amount = int(amount)
     with _conn() as c:
+        c.execute("BEGIN IMMEDIATE")
+        if cooldown_hours is not None and cooldown_hours > 0:
+            recent = c.execute(
+                "SELECT 1 FROM transactions WHERE user_id=? AND action_type=? "
+                f"AND timestamp > datetime('now', '-{int(cooldown_hours)} hours') LIMIT 1",
+                (user_id, action_type),
+            ).fetchone()
+            if recent:
+                row = c.execute(
+                    "SELECT groove_points FROM users WHERE user_id=?", (user_id,)
+                ).fetchone()
+                return {
+                    "groove_points": int(row["groove_points"]) if row else 0,
+                    "cooldown": True,
+                }
         c.execute(
             "UPDATE users SET groove_points = groove_points + ? WHERE user_id=?",
             (amount, user_id),
@@ -612,6 +668,7 @@ def apply_archetype_share(user_id: int) -> dict:
     """
     SHARE_REWARD = 20
     with _conn() as c:
+        c.execute("BEGIN IMMEDIATE")
         _uid = int(user_id)
         already = c.execute(
             "SELECT 1 FROM transactions WHERE user_id=? "
@@ -735,6 +792,24 @@ def mark_webhook_processed(order_id: str):
                   (order_id,))
 
 
+def claim_webhook_order(order_id: str) -> bool:
+    """Атомарно пометить order_id как обработанный (защита от гонки ретраев вебхука).
+    Возвращает True только первому потоку, захватившему order_id.
+    """
+    with _conn() as c:
+        c.execute("BEGIN IMMEDIATE")
+        cur = c.execute(
+            "INSERT OR IGNORE INTO webhook_processed (order_id) VALUES (?)",
+            (order_id,),
+        )
+        return cur.rowcount == 1
+
+
+def unclaim_webhook_order(order_id: str):
+    with _conn() as c:
+        c.execute("DELETE FROM webhook_processed WHERE order_id=?", (order_id,))
+
+
 # ---------------------------------------------------------------------------
 # Gifts: подарок курса (buyer оплатил Stars -> token в payload инвойса ->
 # бот подтверждает /api/gift/activate -> получатель активирует в /api/init)
@@ -757,43 +832,57 @@ def create_gift(buyer_id: int, recipient: str, token: str):
 def activate_gift(token: str, buyer_id: int) -> dict | None:
     """Бот подтвердил оплату Stars: pending -> paid. Идемпотентно."""
     with _conn() as c:
+        c.execute("BEGIN IMMEDIATE")
         row = c.execute(
-            "SELECT id, status FROM gifts WHERE token_hash=?",
+            "SELECT id, buyer_id, status FROM gifts WHERE token_hash=?",
             (_gift_token_hash(token),),
         ).fetchone()
-        if not row:
+        if not row or int(row["buyer_id"]) != int(buyer_id):
             return None
         if row["status"] != "pending":
             # уже подтверждён (paid) или использован (used) — повторное
             # подтверждение оплаты ботом идемпотентно
             return {"duplicate": True}
-        c.execute(
+        cur = c.execute(
             "UPDATE gifts SET status='paid', paid_at=datetime('now') "
-            "WHERE id=? AND buyer_id=?",
+            "WHERE id=? AND buyer_id=? AND status='pending'",
             (row["id"], buyer_id),
         )
+        if cur.rowcount == 0:
+            return None
         return {"ok": True}
 
 
-def claim_gift(recipient: str) -> dict | None:
+def claim_gift(recipient: str, token: str | None = None) -> dict | None:
     """Получатель открыл gift-ссылку: paid -> used (один раз).
 
+    Поддерживает активацию по криптостойкому токену (если передан token)
+    с проверкой совпадения recipient, либо по recipient (обратная совместимость).
     Возвращает {"gift_id": ..., "buyer_id": ...} или None.
     """
     with _conn() as c:
-        row = c.execute(
-            "SELECT id, buyer_id FROM gifts "
-            "WHERE recipient=? AND status='paid' ORDER BY created_at LIMIT 1",
-            (recipient,),
-        ).fetchone()
+        c.execute("BEGIN IMMEDIATE")
+        row = None
+        if token:
+            row = c.execute(
+                "SELECT id, buyer_id FROM gifts "
+                "WHERE token_hash=? AND recipient=? AND status='paid' LIMIT 1",
+                (_gift_token_hash(token), recipient),
+            ).fetchone()
+        if not row:
+            row = c.execute(
+                "SELECT id, buyer_id FROM gifts "
+                "WHERE recipient=? AND status='paid' ORDER BY created_at LIMIT 1",
+                (recipient,),
+            ).fetchone()
         if not row:
             return None
-        c.execute(
+        cur = c.execute(
             "UPDATE gifts SET status='used', used_at=datetime('now') "
             "WHERE id=? AND status='paid'",
             (row["id"],),
         )
-        if c.total_changes == 0:
+        if cur.rowcount == 0:
             return None  # гонка: кто-то успел использовать первым
         return {"gift_id": row["id"], "buyer_id": row["buyer_id"]}
 
@@ -1006,7 +1095,10 @@ def crm_list_users(q=None, status="all", sort="created", order="desc",
                  AND pr.completed=1 AND pr.course_id='dj-basics') AS lessons_done,
               (SELECT COUNT(*) FROM progress pb WHERE pb.user_id=u.user_id
                  AND pb.completed=1 AND pb.course_id='dj-bonus') AS bonus_done,
-              (SELECT COUNT(*) FROM payments p WHERE p.user_id=u.user_id AND p.status='paid') AS paid_count
+              (SELECT COUNT(*) FROM payments p WHERE p.user_id=u.user_id AND p.status='paid') AS paid_count,
+              EXISTS (SELECT 1 FROM payments pm WHERE pm.user_id=u.user_id AND pm.course_id='mentoring' AND pm.status='paid') AS is_vip,
+              EXISTS (SELECT 1 FROM payments pf WHERE pf.user_id=u.user_id AND pf.course_id='dj-basics' AND pf.status='paid') AS is_full,
+              EXISTS (SELECT 1 FROM payments pt WHERE pt.user_id=u.user_id AND pt.course_id='tripwire' AND pt.status='paid') AS is_tw
             FROM users u
             {where_sql}
             ORDER BY {sort_col} {order_sql}
@@ -1019,9 +1111,9 @@ def crm_list_users(q=None, status="all", sort="created", order="desc",
     for r in rows:
         d = dict(r)
         paid_count = int(d.get("paid_count", 0) or 0)
-        is_vip = db_has_paid_course(d["user_id"], "mentoring")
-        is_full = db_has_paid_course(d["user_id"], "dj-basics")
-        is_tw = db_has_paid_course(d["user_id"], "tripwire")
+        is_vip = bool(d.get("is_vip"))
+        is_full = bool(d.get("is_full"))
+        is_tw = bool(d.get("is_tw"))
         if is_vip:
             seg = "vip"
         elif paid_count > 0:

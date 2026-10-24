@@ -83,7 +83,22 @@ async def cmd_start(msg: Message, command: CommandObject | None = None):
 
 
 async def on_pre_checkout(q: PreCheckoutQuery):
-    # Подтверждаем готовность принять Stars-оплату
+    # Валидируем валюту и сумму Stars-оплаты перед подтверждением
+    if q.currency != "XTR" or q.total_amount <= 0:
+        await q.bot.answer_pre_checkout_query(
+            q.id,
+            ok=False,
+            error_message="Некорректная валюта или сумма счёта.",
+        )
+        return
+    payload = q.invoice_payload or ""
+    if not (payload in ("dj-basics", "tripwire", "mentoring") or payload.startswith("gift:")):
+        await q.bot.answer_pre_checkout_query(
+            q.id,
+            ok=False,
+            error_message="Неизвестный тип заказа.",
+        )
+        return
     await q.bot.answer_pre_checkout_query(q.id, ok=True)
 
 
@@ -94,7 +109,7 @@ async def on_paid(msg: Message):
     headers = {"Authorization": f"Bearer {config.INTERNAL_API_KEY}"}
     async with httpx.AsyncClient() as c:
         # 0) подарок курса: payload = "gift:<token>" — подтверждаем оплату подарка
-        #    (pending -> paid), затем выдаём доступ как при обычной покупке курса.
+        #    (pending -> paid) и НЕ выдаём курс самому покупателю (фикс бага «2 по цене 1»).
         if course_id.startswith("gift:"):
             gift_token = course_id.split(":", 1)[1]
             try:
@@ -104,9 +119,14 @@ async def on_paid(msg: Message):
                 }, headers=headers)
                 if ga.status_code != 200:
                     print(f"⚠️ /api/gift/activate failed: {ga.status_code} {ga.text}")
+                    await msg.answer("⚠️ Оплата получена, но не удалось активировать подарок. Напиши в поддержку.")
+                    return
             except Exception as e:
                 print(f"⚠️ /api/gift/activate error: {e}")
-            course_id = "dj-basics"
+                await msg.answer("⚠️ Ошибка связи с сервером при активации подарка. Напиши в поддержку.")
+                return
+            await msg.answer("🎁 Подарок оплачен и активирован! Отправь ссылку другу в Mini App — курс откроется у него при входе.")
+            return
 
         # 1) выдать доступ (идемпотентно на стороне бэкенда по course_id+user)
         r = await c.post(f"{config.BACKEND_URL}/api/grant", json={
@@ -169,18 +189,20 @@ async def on_paid(msg: Message):
 
 
 async def on_inline(query: InlineQuery):
-    """Обработчик inline-режима: пересылает приглашение (текст с deep link)."""
-    text = query.query or ""
-    if not text.strip():
+    """Обработчик inline-режима: пересылает приглашение (экранируем HTML против фишинга)."""
+    import html
+    raw_text = (query.query or "").strip()
+    if not raw_text or len(raw_text) > 500:
         return
+    safe_text = html.escape(raw_text)
     await query.answer(
         results=[
             InlineQueryResultArticle(
                 id="1",
                 title="🎧 Пригласить друга в Open Deck",
-                description=text.split("\n", 1)[0] if "\n" in text else text,
+                description=raw_text.split("\n", 1)[0][:120] if "\n" in raw_text else raw_text[:120],
                 input_message_content=InputTextMessageContent(
-                    message_text=text,
+                    message_text=safe_text,
                 ),
             )
         ],
@@ -190,7 +212,7 @@ async def on_inline(query: InlineQuery):
 
 async def on_web_app_data(msg: Message):
     """Получает данные из tg.sendData() — отправляет приглашение с Mini App карточкой."""
-    import json
+    import json, html
     if not msg.web_app_data:
         return
     try:
@@ -199,8 +221,8 @@ async def on_web_app_data(msg: Message):
         return
     if data.get("action") != "invite":
         return
-    code = data.get("code", "")
-    archetype = data.get("archetype", "Куратор Вайба")
+    code = "".join(ch for ch in str(data.get("code", "")) if ch.isalnum())[:16]
+    archetype = html.escape(str(data.get("archetype", "Куратор Вайба"))[:64])
     if not code:
         return
     bot_info = await msg.bot.get_me()
@@ -213,6 +235,8 @@ async def on_web_app_data(msg: Message):
 async def main():
     if not config.BOT_TOKEN:
         raise SystemExit("❌ BOT_TOKEN не задан. Экспортируйте переменную или впишите в bot/config.py")
+    if not config.INTERNAL_API_KEY:
+        raise SystemExit("❌ INTERNAL_API_KEY не задан. Бот не сможет подтверждать оплаты в бэкенде.")
     bot = Bot(token=config.BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
     dp = Dispatcher()
     dp.message.register(cmd_start, CommandStart())

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { StudentDetail } from '../types';
 import { getStudent, setLesson } from '../api';
-import { initials, fmtDate, fmtDateTime, esc } from '../lib';
+import { initials, fmtDateTime } from '../lib';
 import { Button } from './ui';
 
 export function StudentDrawer({
@@ -60,7 +60,7 @@ export function StudentDrawer({
                 <KV k="GP баланс" v={<span style={{ color: 'var(--color-warn)' }}>{s.gp.toLocaleString('ru-RU')}</span>} />
                 <KV k="Статус" v={s.paid_mentor ? 'VIP · менторинг' : s.paid_full ? 'Прошёл полный курс' : s.paid_tripwire ? 'Трипвайр' : 'Бесплатный'} />
                 <KV k="Рефералов" v={String(s.referrals_count)} />
-                <KV k="Реф-код" v={<span style={{ fontSize: 12 }}>{esc(s.user.referral_code) || '—'}</span>} />
+                <KV k="Реф-код" v={<span style={{ fontSize: 12 }}>{s.user.referral_code || '—'}</span>} />
               </div>
               <div style={{ display: 'flex', gap: 8, marginBottom: 18 }}>
                 <Button variant="warn" style={{ flex: 1 }} onClick={() => onGp(id, s.gp)}>⭐ Счёт</Button>
@@ -74,7 +74,7 @@ export function StudentDrawer({
                     {s.lessons.slice().sort((a, b) => (a.course_id === b.course_id ? a.lesson_id - b.lesson_id : a.course_id < b.course_id ? -1 : 1)).map((l, i) => (
                       <label key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 11px', borderRadius: 10, background: 'var(--color-surface)', border: '1px solid var(--color-border)', cursor: 'pointer' }}>
                         <input type="checkbox" defaultChecked={l.completed} onChange={(e) => toggleLesson(l.course_id, l.lesson_id, e.target.checked, e.target)} style={{ accentColor: 'var(--color-accent)', width: 17, height: 17 }} />
-                        <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--color-muted)', background: 'var(--color-surface-2)', padding: '2px 7px', borderRadius: 6 }}>{esc(l.course_id)}</span>
+                        <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--color-muted)', background: 'var(--color-surface-2)', padding: '2px 7px', borderRadius: 6 }}>{l.course_id}</span>
                         <span style={{ fontSize: 13.5, fontWeight: 600 }}>ур. {l.lesson_id}</span>
                         {l.gp_earned ? <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--color-warn)', fontWeight: 650 }}>+{l.gp_earned}★</span> : null}
                       </label>
@@ -84,15 +84,15 @@ export function StudentDrawer({
               )}
               <Section title="💳 Платежи" />
               {s.payments && s.payments.length ? s.payments.map((p, i) => (
-                <Row key={i} title={esc(p.course_id)} sub={`${esc(p.provider || '')} · ${fmtDateTime(p.created_at)}`} amount={p.status === 'paid' ? `✓ ${p.amount ? p.amount + '★' : ''}` : '·'} pos={p.status === 'paid'} />
+                <Row key={i} title={p.course_id} sub={`${p.provider || ''} · ${fmtDateTime(p.created_at)}`} amount={p.status === 'paid' ? `✓ ${p.amount ? p.amount + '★' : ''}` : '·'} pos={p.status === 'paid'} />
               )) : <Empty>Платежей нет</Empty>}
               <Section title="🤝 Приглашённые" />
               {s.referrals && s.referrals.length ? s.referrals.map((rf, i) => (
-                <Row key={i} title={esc(rf.first_name || 'Без имени')} sub={rf.username ? '@' + esc(rf.username) : 'id ' + rf.user_id} amount={rf.groove_points ? rf.groove_points + '★' : ''} />
+                <Row key={i} title={rf.first_name || 'Без имени'} sub={rf.username ? '@' + rf.username : 'id ' + rf.user_id} amount={rf.groove_points ? rf.groove_points + '★' : ''} />
               )) : <Empty>Никого не пригласил</Empty>}
               <Section title="📈 История GP" />
               {s.transactions && s.transactions.length ? s.transactions.slice(0, 40).map((t, i) => (
-                <Row key={i} title={esc(t.action_type)} sub={fmtDateTime(t.timestamp)} amount={`${t.amount < 0 ? '' : '+'}${t.amount}`} pos={t.amount >= 0} neg={t.amount < 0} />
+                <Row key={i} title={t.action_type} sub={fmtDateTime(t.timestamp)} amount={`${t.amount < 0 ? '' : '+'}${t.amount}`} pos={t.amount >= 0} neg={t.amount < 0} />
               )) : <Empty>Нет движений</Empty>}
             </>
           )}

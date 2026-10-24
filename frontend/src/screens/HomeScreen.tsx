@@ -47,7 +47,7 @@ export function HomeScreen() {
             }}
             className="relative flex cursor-pointer flex-col gap-4 overflow-hidden rounded-3xl p-5 backdrop-blur-2xl backdrop-saturate-150 shadow-[inset_0_1px_1px_rgba(255,255,255,0.12),0_12px_32px_rgba(0,0,0,0.42)] active:scale-[0.97] transition-all duration-200 ease-out transform-gpu"
             style={{
-              background: 'color-mix(in srgb, var(--color-surface) 78%, rgba(20, 24, 23, 0.84))',
+              background: 'color-mix(in srgb, var(--color-surface) 30%, transparent)',
             }}
           >
             {/* Векторная геометрия без лишних анимированных сфер (лимит 2 сферы уже в Hero-виджете) */}

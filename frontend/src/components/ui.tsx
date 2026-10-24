@@ -37,12 +37,12 @@ export function Button({
       shadow: 'inset 0 1px 1px rgba(255,255,255,0.34), 0 8px 24px -6px rgba(140,226,200,0.42)',
     },
     ghost: {
-      bg: 'color-mix(in srgb, var(--color-surface-2) 60%, transparent)',
+      bg: 'color-mix(in srgb, var(--color-surface-2) 30%, transparent)',
       fg: 'var(--color-text)',
       shadow: 'inset 0 1px 1px rgba(255,255,255,0.1)',
     },
     secondary: {
-      bg: 'color-mix(in srgb, var(--color-surface-2) 82%, transparent)',
+      bg: 'color-mix(in srgb, var(--color-surface-2) 30%, transparent)',
       fg: 'var(--color-text)',
       shadow: 'inset 0 1px 1px rgba(255,255,255,0.14), 0 6px 16px rgba(0,0,0,0.25)',
     },
@@ -89,7 +89,7 @@ export function Card({
     <div
       className={`relative overflow-hidden rounded-3xl p-5 backdrop-blur-2xl backdrop-saturate-150 shadow-[inset_0_1px_1px_rgba(255,255,255,0.12),0_12px_32px_rgba(0,0,0,0.42)] ${className}`}
       style={{
-        background: 'color-mix(in srgb, var(--color-surface) 78%, rgba(20, 24, 23, 0.84))',
+        background: 'color-mix(in srgb, var(--color-surface) 30%, transparent)',
         ...style,
       }}
     >

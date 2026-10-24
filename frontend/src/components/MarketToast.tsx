@@ -26,7 +26,7 @@ export function MarketToast({ open, timerKey, onClose }: MarketToastProps) {
       }`}
       style={{
         bottom: 'calc(env(safe-area-inset-bottom, 0px) + 92px)',
-        background: 'color-mix(in srgb, var(--color-surface) 84%, rgba(16, 20, 19, 0.92))',
+        background: 'color-mix(in srgb, var(--color-surface) 30%, transparent)',
       }}
     >
       <AbstractGeometryBg variant="modal" spheres={0} accent="mint" />

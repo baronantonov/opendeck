@@ -40,7 +40,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             key={t.id}
             className="animate-modal-spring relative flex max-w-full items-center gap-2.5 overflow-hidden rounded-2xl px-4 py-3 text-[13px] font-bold text-[var(--color-text)] backdrop-blur-2xl backdrop-saturate-150 shadow-[inset_0_1px_1px_rgba(255,255,255,0.14),0_12px_32px_rgba(0,0,0,0.55)] transform-gpu"
             style={{
-              background: 'color-mix(in srgb, var(--color-surface) 86%, rgba(16, 20, 19, 0.94))',
+              background: 'color-mix(in srgb, var(--color-surface) 30%, transparent)',
             }}
           >
             <AbstractGeometryBg variant="modal" spheres={0} accent="mint" />

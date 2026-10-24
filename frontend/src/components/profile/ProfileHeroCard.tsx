@@ -205,7 +205,7 @@ export function ProfileHeroCard() {
       </div>
 
       {/* Интегрированная шкала прогресса курса Pocket DJ (X / 10) */}
-      <div className="relative z-10 rounded-2xl p-3.5 bg-[#2b302e]/65 shadow-[inset_0_1px_1px_rgba(255,255,255,0.08)] flex flex-col gap-2">
+      <div className="relative z-10 rounded-2xl p-3.5 bg-[#2b302e]/30 shadow-[inset_0_1px_1px_rgba(255,255,255,0.08)] flex flex-col gap-2">
         <div className="flex items-center justify-between text-xs">
           <span className="font-bold text-[#f4f7f5]">Прогресс курса «Pocket DJ»</span>
           <span className="font-extrabold text-[#8ce2c8]">

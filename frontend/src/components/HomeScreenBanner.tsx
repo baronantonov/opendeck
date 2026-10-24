@@ -43,7 +43,7 @@ export function HomeScreenBanner({ active = true, splashFinished }: HomeScreenBa
         <div
           className="relative flex w-full items-center gap-3 overflow-hidden rounded-3xl px-4 py-3.5 backdrop-blur-2xl backdrop-saturate-150 shadow-[inset_0_1px_1px_rgba(255,255,255,0.14),0_16px_40px_rgba(0,0,0,0.58)]"
           style={{
-            background: 'color-mix(in srgb, var(--color-surface) 84%, rgba(16, 20, 19, 0.92))',
+            background: 'color-mix(in srgb, var(--color-surface) 30%, transparent)',
           }}
         >
           <AbstractGeometryBg variant="modal" spheres={0} accent="mint" />

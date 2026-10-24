@@ -287,7 +287,7 @@ export function ProfileScreen() {
           </div>
 
           {user.referralCode && (
-            <div className="relative z-10 rounded-2xl p-3 bg-[#2b302e]/70 shadow-[inset_0_1px_1px_rgba(255,255,255,0.08)] flex items-center justify-between">
+            <div className="relative z-10 rounded-2xl p-3 bg-[#2b302e]/30 shadow-[inset_0_1px_1px_rgba(255,255,255,0.08)] flex items-center justify-between">
               <span className="text-xs text-[#9aa3a0]">Реферальный код:</span>
               <code className="text-sm font-extrabold text-[#8ce2c8] font-mono">
                 {user.referralCode}
@@ -323,7 +323,7 @@ export function ProfileScreen() {
                   type="button"
                   disabled={busy === a.action}
                   onClick={() => void earn(a.action, a.label)}
-                  className="w-full flex items-center gap-3 p-3.5 rounded-2xl bg-[#2b302e]/65 shadow-[inset_0_1px_1px_rgba(255,255,255,0.08)] text-[#f4f7f5] text-xs font-bold active:scale-[0.97] transition-all duration-200 ease-out cursor-pointer border-0 disabled:opacity-50"
+                  className="w-full flex items-center gap-3 p-3.5 rounded-2xl bg-[#2b302e]/30 shadow-[inset_0_1px_1px_rgba(255,255,255,0.08)] text-[#f4f7f5] text-xs font-bold active:scale-[0.97] transition-all duration-200 ease-out cursor-pointer border-0 disabled:opacity-50"
                 >
                   <div className="w-8 h-8 rounded-xl bg-[#8ce2c8]/12 text-[#8ce2c8] flex items-center justify-center shrink-0">
                     <ActionIcon size={16} />

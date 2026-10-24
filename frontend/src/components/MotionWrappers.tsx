@@ -143,7 +143,7 @@ export function GlowCard({
       onClick={onClick}
       className={`relative overflow-hidden rounded-3xl p-5 text-[var(--color-text)] select-none backdrop-blur-2xl backdrop-saturate-150 shadow-[inset_0_1px_1px_rgba(255,255,255,0.14),0_16px_38px_rgba(0,0,0,0.48)] ${className}`}
       style={{
-        background: 'color-mix(in srgb, var(--color-surface) 80%, rgba(18, 22, 21, 0.86))',
+        background: 'color-mix(in srgb, var(--color-surface) 30%, transparent)',
         ...style,
       }}
     >
@@ -201,12 +201,12 @@ export function ShimmerButton({
       shadow: 'inset 0 1px 1px rgba(255,255,255,0.36), 0 10px 28px -6px rgba(140,226,200,0.46)',
     },
     secondary: {
-      bg: 'color-mix(in srgb, var(--color-surface-2) 82%, transparent)',
+      bg: 'color-mix(in srgb, var(--color-surface-2) 30%, transparent)',
       fg: 'var(--color-text)',
       shadow: 'inset 0 1px 1px rgba(255,255,255,0.14), 0 8px 20px rgba(0,0,0,0.3)',
     },
     ghost: {
-      bg: 'color-mix(in srgb, var(--color-surface-2) 55%, transparent)',
+      bg: 'color-mix(in srgb, var(--color-surface-2) 30%, transparent)',
       fg: 'var(--color-text)',
       shadow: 'inset 0 1px 1px rgba(255,255,255,0.1)',
     },

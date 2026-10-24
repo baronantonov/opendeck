@@ -109,7 +109,7 @@ export function PaywallModal({
         onClick={(e) => e.stopPropagation()}
         className="animate-modal-spring relative w-full max-w-[480px] overflow-hidden rounded-t-3xl sm:rounded-3xl p-5 pb-[calc(env(safe-area-inset-bottom,16px)+20px)] text-[var(--color-text)] backdrop-blur-2xl backdrop-saturate-150 shadow-[inset_0_1px_1px_rgba(255,255,255,0.14),0_-16px_48px_rgba(0,0,0,0.68)] transform-gpu select-none"
         style={{
-          background: 'color-mix(in srgb, var(--color-surface) 86%, rgba(16, 20, 19, 0.94))',
+          background: 'color-mix(in srgb, var(--color-surface) 30%, transparent)',
           maxHeight: '92dvh',
           overflowY: 'auto',
         }}
@@ -159,7 +159,7 @@ export function PaywallModal({
         <div
           className="relative z-10 mb-5 flex flex-col gap-3 rounded-2xl p-4 shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]"
           style={{
-            background: 'color-mix(in srgb, var(--color-surface-2) 55%, rgba(12, 15, 14, 0.65))',
+            background: 'color-mix(in srgb, var(--color-surface-2) 30%, transparent)',
           }}
         >
           <div className="flex items-start gap-3">

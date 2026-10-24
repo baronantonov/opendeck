@@ -101,7 +101,7 @@ export function LearningScreen() {
           <div
             className="flex items-center justify-between gap-2 rounded-full px-4 py-2.5 backdrop-blur-2xl backdrop-saturate-150 shadow-[inset_0_1px_1px_rgba(255,255,255,0.14),0_8px_24px_rgba(0,0,0,0.38)]"
             style={{
-              background: 'color-mix(in srgb, var(--color-surface) 78%, rgba(18, 22, 21, 0.86))',
+              background: 'color-mix(in srgb, var(--color-surface) 30%, transparent)',
             }}
           >
             <div className="flex items-center gap-2">
@@ -139,7 +139,7 @@ export function LearningScreen() {
           <div
             className="relative w-full overflow-hidden rounded-3xl backdrop-blur-2xl backdrop-saturate-150 shadow-[inset_0_1px_1px_rgba(255,255,255,0.12),0_14px_36px_rgba(0,0,0,0.44)] transition-all duration-200"
             style={{
-              background: 'color-mix(in srgb, var(--color-surface) 80%, rgba(20, 24, 23, 0.86))',
+              background: 'color-mix(in srgb, var(--color-surface) 30%, transparent)',
             }}
           >
             <AbstractGeometryBg variant="hero" spheres={1} accent="mint" />
@@ -294,7 +294,7 @@ export function LearningScreen() {
                               ? 'color-mix(in srgb, var(--brand-mint) 12%, var(--color-surface-2))'
                               : showPaywallBadge
                                 ? 'color-mix(in srgb, var(--brand-coral) 6%, var(--color-surface-2))'
-                                : 'color-mix(in srgb, var(--color-surface-2) 55%, rgba(16, 20, 19, 0.5))',
+                                : 'color-mix(in srgb, var(--color-surface-2) 30%, transparent)',
                             opacity: !unlocked && !showPaywallBadge ? 0.65 : 1,
                           }}
                         >
@@ -422,7 +422,7 @@ export function LearningScreen() {
             onClick={() => handleLockedCardClick('beginner')}
             className="relative w-full cursor-pointer overflow-hidden rounded-3xl p-5 backdrop-blur-2xl backdrop-saturate-150 shadow-[inset_0_1px_1px_rgba(255,255,255,0.12),0_12px_32px_rgba(0,0,0,0.38)] active:scale-[0.97] transition-all duration-200 ease-out transform-gpu"
             style={{
-              background: 'color-mix(in srgb, var(--color-surface) 76%, rgba(18, 22, 21, 0.84))',
+              background: 'color-mix(in srgb, var(--color-surface) 30%, transparent)',
             }}
           >
             <AbstractGeometryBg variant="card" spheres={0} accent="mauve" />
@@ -483,7 +483,7 @@ export function LearningScreen() {
             onClick={() => handleLockedCardClick('advanced')}
             className="relative w-full cursor-pointer overflow-hidden rounded-3xl p-5 backdrop-blur-2xl backdrop-saturate-150 shadow-[inset_0_1px_1px_rgba(255,255,255,0.12),0_12px_32px_rgba(0,0,0,0.38)] active:scale-[0.97] transition-all duration-200 ease-out transform-gpu"
             style={{
-              background: 'color-mix(in srgb, var(--color-surface) 76%, rgba(18, 22, 21, 0.84))',
+              background: 'color-mix(in srgb, var(--color-surface) 30%, transparent)',
             }}
           >
             <AbstractGeometryBg variant="card" spheres={0} accent="coral" />
@@ -541,7 +541,7 @@ export function LearningScreen() {
           <div
             className="relative w-full overflow-hidden rounded-3xl backdrop-blur-2xl backdrop-saturate-150 shadow-[inset_0_1px_1px_rgba(255,255,255,0.14),0_16px_38px_rgba(0,0,0,0.45)] transition-all duration-200"
             style={{
-              background: 'color-mix(in srgb, var(--brand-gold) 7%, var(--color-surface))',
+              background: 'color-mix(in srgb, var(--color-surface) 30%, transparent)',
             }}
           >
             <AbstractGeometryBg variant="mentor" spheres={1} accent="gold" />
@@ -635,7 +635,7 @@ export function LearningScreen() {
                   <div
                     className="flex flex-col gap-2 rounded-2xl p-4 shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]"
                     style={{
-                      background: 'color-mix(in srgb, var(--color-surface-2) 58%, rgba(12, 15, 14, 0.65))',
+                      background: 'color-mix(in srgb, var(--color-surface-2) 30%, transparent)',
                     }}
                   >
                     <div className="flex justify-between text-xs text-[var(--color-text-dim)]">

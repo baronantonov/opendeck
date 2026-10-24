@@ -305,7 +305,7 @@ export function TribeScreen() {
               <div
                 className="relative overflow-hidden rounded-3xl p-5 backdrop-blur-2xl backdrop-saturate-150 shadow-[inset_0_1px_1px_rgba(255,255,255,0.14),0_16px_42px_rgba(0,0,0,0.48)]"
                 style={{
-                  background: 'color-mix(in srgb, var(--color-surface) 80%, rgba(18, 22, 21, 0.86))',
+                  background: 'color-mix(in srgb, var(--color-surface) 30%, transparent)',
                 }}
               >
                 <AbstractGeometryBg variant="vip" spheres={2} accent="mint" />
@@ -364,7 +364,7 @@ export function TribeScreen() {
                   <div
                     className="rounded-2xl p-4 shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]"
                     style={{
-                      background: 'color-mix(in srgb, var(--color-surface-2) 52%, rgba(12, 15, 14, 0.6))',
+                      background: 'color-mix(in srgb, var(--color-surface-2) 30%, transparent)',
                     }}
                   >
                     <p className="m-0 text-[13.5px] font-medium leading-relaxed text-[var(--color-text)]">
@@ -394,7 +394,7 @@ export function TribeScreen() {
               <div
                 className="relative overflow-hidden rounded-3xl p-5 backdrop-blur-2xl backdrop-saturate-150 shadow-[inset_0_1px_1px_rgba(255,255,255,0.12),0_12px_32px_rgba(0,0,0,0.4)]"
                 style={{
-                  background: 'color-mix(in srgb, var(--color-surface) 78%, rgba(20, 24, 23, 0.84))',
+                  background: 'color-mix(in srgb, var(--color-surface) 30%, transparent)',
                 }}
               >
                 <AbstractGeometryBg variant="card" spheres={0} accent="coral" />
@@ -409,7 +409,7 @@ export function TribeScreen() {
                     <div
                       className="flex items-start gap-3 rounded-2xl p-3.5 shadow-[inset_0_1px_1px_rgba(255,255,255,0.08)]"
                       style={{
-                        background: 'color-mix(in srgb, var(--color-surface-2) 55%, rgba(14, 17, 16, 0.5))',
+                        background: 'color-mix(in srgb, var(--color-surface-2) 30%, transparent)',
                       }}
                     >
                       <div
@@ -431,7 +431,7 @@ export function TribeScreen() {
                     <div
                       className="flex items-start gap-3 rounded-2xl p-3.5 shadow-[inset_0_1px_1px_rgba(255,255,255,0.08)]"
                       style={{
-                        background: 'color-mix(in srgb, var(--color-surface-2) 55%, rgba(14, 17, 16, 0.5))',
+                        background: 'color-mix(in srgb, var(--color-surface-2) 30%, transparent)',
                       }}
                     >
                       <div
@@ -453,7 +453,7 @@ export function TribeScreen() {
                     <div
                       className="flex items-start gap-3 rounded-2xl p-3.5 shadow-[inset_0_1px_1px_rgba(255,255,255,0.08)]"
                       style={{
-                        background: 'color-mix(in srgb, var(--color-surface-2) 55%, rgba(14, 17, 16, 0.5))',
+                        background: 'color-mix(in srgb, var(--color-surface-2) 30%, transparent)',
                       }}
                     >
                       <div
@@ -483,7 +483,7 @@ export function TribeScreen() {
               <div
                 className="relative overflow-hidden rounded-3xl p-5 backdrop-blur-2xl backdrop-saturate-150 shadow-[inset_0_1px_1px_rgba(255,255,255,0.14),0_16px_42px_rgba(0,0,0,0.48)]"
                 style={{
-                  background: 'color-mix(in srgb, var(--color-surface) 80%, rgba(18, 22, 21, 0.86))',
+                  background: 'color-mix(in srgb, var(--color-surface) 30%, transparent)',
                 }}
               >
                 <AbstractGeometryBg variant="vip" spheres={2} accent="coral" />
@@ -532,7 +532,7 @@ export function TribeScreen() {
                   <div
                     className="rounded-2xl p-4 shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]"
                     style={{
-                      background: 'color-mix(in srgb, var(--color-surface-2) 52%, rgba(12, 15, 14, 0.6))',
+                      background: 'color-mix(in srgb, var(--color-surface-2) 30%, transparent)',
                     }}
                   >
                     <p className="m-0 text-[13.5px] font-medium leading-relaxed text-[var(--color-text)]">
@@ -577,7 +577,7 @@ export function TribeScreen() {
               <div
                 className="relative overflow-hidden rounded-3xl p-5 backdrop-blur-2xl backdrop-saturate-150 shadow-[inset_0_1px_1px_rgba(255,255,255,0.12),0_12px_32px_rgba(0,0,0,0.4)]"
                 style={{
-                  background: 'color-mix(in srgb, var(--color-surface) 78%, rgba(20, 24, 23, 0.84))',
+                  background: 'color-mix(in srgb, var(--color-surface) 30%, transparent)',
                 }}
               >
                 <AbstractGeometryBg variant="card" spheres={0} accent="mint" />

@@ -65,7 +65,7 @@ export function ExitConfirmModal({
           isClosing ? 'scale-95 opacity-0' : 'animate-modal-spring scale-100 opacity-100'
         }`}
         style={{
-          background: 'color-mix(in srgb, var(--color-surface) 86%, rgba(16, 20, 19, 0.94))',
+          background: 'color-mix(in srgb, var(--color-surface) 30%, transparent)',
         }}
       >
         <AbstractGeometryBg variant="modal" spheres={1} accent="gold" />

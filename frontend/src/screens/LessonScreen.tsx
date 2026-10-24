@@ -249,7 +249,7 @@ export function LessonScreen() {
             {lesson.title}
           </h1>
 
-          <div className="relative z-10 p-3.5 rounded-2xl bg-[#2b302e]/65 shadow-[inset_0_1px_1px_rgba(255,255,255,0.08)] text-xs sm:text-[13.5px] leading-relaxed text-[#f4f7f5]/90">
+          <div className="relative z-10 p-3.5 rounded-2xl bg-[#2b302e]/30 shadow-[inset_0_1px_1px_rgba(255,255,255,0.08)] text-xs sm:text-[13.5px] leading-relaxed text-[#f4f7f5]/90">
             {lesson.summary}
           </div>
 

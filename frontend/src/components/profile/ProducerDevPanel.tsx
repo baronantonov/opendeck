@@ -202,7 +202,7 @@ export function ProducerDevPanel() {
           <AbstractGeometryBg variant="modal" spheres={0} />
 
           {/* 1. СТАТУС-БАР ТЕСТЕРА */}
-          <div className="relative z-10 rounded-2xl p-3.5 bg-[#2b302e]/70 shadow-[inset_0_1px_1px_rgba(255,255,255,0.08)] flex flex-col gap-2">
+          <div className="relative z-10 rounded-2xl p-3.5 bg-[#2b302e]/30 shadow-[inset_0_1px_1px_rgba(255,255,255,0.08)] flex flex-col gap-2">
             <div className="flex items-center justify-between text-xs">
               <div className="flex items-center gap-1.5">
                 <ShieldCheck

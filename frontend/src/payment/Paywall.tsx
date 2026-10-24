@@ -351,7 +351,7 @@ export function MentorPay({
         onTouchEnd={handleTouchEnd}
         className="animate-modal-spring relative w-full max-w-[480px] overflow-y-auto overflow-x-hidden rounded-t-3xl p-5 pb-[calc(var(--safe-bottom,0px)+22px)] text-[var(--color-text)] backdrop-blur-2xl backdrop-saturate-150 shadow-[inset_0_1px_1px_rgba(255,255,255,0.14),0_-16px_48px_rgba(0,0,0,0.68)] select-none"
         style={{
-          background: 'color-mix(in srgb, var(--color-surface) 86%, rgba(16, 20, 19, 0.94))',
+          background: 'color-mix(in srgb, var(--color-surface) 30%, transparent)',
           maxHeight: 'calc(100dvh - var(--safe-top, 0px) - 16px)',
           transform: dragY > 0 ? `translate3d(0, ${dragY}px, 0)` : undefined,
           transition: dragY > 0 ? 'none' : 'transform 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
@@ -413,7 +413,7 @@ export function MentorPay({
         <div
           className="relative z-10 mb-3.5 flex flex-col gap-3 rounded-2xl p-4 shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]"
           style={{
-            background: 'color-mix(in srgb, var(--color-surface-2) 50%, rgba(12, 15, 14, 0.6))',
+            background: 'color-mix(in srgb, var(--color-surface-2) 30%, transparent)',
           }}
         >
           <div className="flex items-start gap-3">

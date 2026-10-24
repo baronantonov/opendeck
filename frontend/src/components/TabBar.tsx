@@ -112,7 +112,7 @@ export function TabBar() {
           aria-label="Главное меню"
           className="pointer-events-auto relative mx-4 mb-[calc(env(safe-area-inset-bottom,0px)+12px)] grid w-full grid-cols-5 items-end rounded-3xl px-1.5 pb-2 pt-1.5 backdrop-blur-2xl backdrop-saturate-150 shadow-[inset_0_1px_1px_rgba(255,255,255,0.12),0_12px_32px_rgba(0,0,0,0.5)] select-none"
           style={{
-            background: 'color-mix(in srgb, var(--color-surface) 76%, rgba(20, 24, 23, 0.84))',
+            background: 'color-mix(in srgb, var(--color-surface) 30%, transparent)',
           }}
         >
           {/* 1) ГЛАВНАЯ */}

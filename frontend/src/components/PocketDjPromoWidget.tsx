@@ -69,7 +69,7 @@ export function PocketDjPromoWidget({
       <div
         className={`relative overflow-hidden rounded-3xl p-5 text-[var(--color-text)] select-none backdrop-blur-2xl backdrop-saturate-150 shadow-[inset_0_1px_1px_rgba(255,255,255,0.14),0_16px_40px_rgba(0,0,0,0.48)] ${className}`}
         style={{
-          background: 'color-mix(in srgb, var(--color-surface) 80%, rgba(18, 22, 21, 0.86))',
+          background: 'color-mix(in srgb, var(--color-surface) 30%, transparent)',
           ...style,
         }}
       >
@@ -153,7 +153,7 @@ export function PocketDjPromoWidget({
           <div
             className="flex flex-col gap-2.5 rounded-2xl p-4 shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]"
             style={{
-              background: 'color-mix(in srgb, var(--color-surface-2) 52%, rgba(14, 17, 16, 0.58))',
+              background: 'color-mix(in srgb, var(--color-surface-2) 30%, transparent)',
             }}
           >
             <div className="flex items-center gap-2.5 text-xs">

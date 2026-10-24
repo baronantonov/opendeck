@@ -73,7 +73,7 @@ export function ProfileWidgetSkeleton() {
     <div
       className="animate-pulse flex items-center gap-3 rounded-3xl px-4 py-3.5 backdrop-blur-2xl backdrop-saturate-150 shadow-[inset_0_1px_1px_rgba(255,255,255,0.12),0_12px_32px_rgba(0,0,0,0.4)]"
       style={{
-        background: 'color-mix(in srgb, var(--color-surface) 78%, rgba(20, 24, 23, 0.84))',
+        background: 'color-mix(in srgb, var(--color-surface) 30%, transparent)',
       }}
     >
       <div className="h-11 w-11 shrink-0 rounded-full bg-white/10" />
@@ -119,7 +119,7 @@ export function ProfileWidget({ onClick }: { onClick?: () => void }) {
       }}
       className="relative flex cursor-pointer items-center gap-3 overflow-hidden rounded-3xl px-4 py-3.5 backdrop-blur-2xl backdrop-saturate-150 shadow-[inset_0_1px_1px_rgba(255,255,255,0.12),0_12px_32px_rgba(0,0,0,0.42)] select-none active:scale-[0.97] transition-all duration-200 ease-out transform-gpu"
       style={{
-        background: 'color-mix(in srgb, var(--color-surface) 78%, rgba(20, 24, 23, 0.84))',
+        background: 'color-mix(in srgb, var(--color-surface) 30%, transparent)',
       }}
     >
       <AbstractGeometryBg variant="card" spheres={0} accent="mint" />

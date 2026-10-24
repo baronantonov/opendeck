@@ -1,11 +1,13 @@
 import { useNavigate } from 'react-router-dom';
 import { useApp, COURSE_LESSONS } from '../../state/store';
+import { useCourseProgress } from '../../state/CourseProgressContext';
 import { getUserRank, type RankDef } from '../../lib/constants';
 import { haptic } from '../../lib/theme';
 import { getTelegramWebApp } from '../../types';
 import { GpGlowBadge } from '../MotionWrappers';
 import { UserAvatar } from '../UserAvatar';
 import { AbstractGeometryBg } from '../LiquidGlassGeometry';
+import { StatusBadge } from '../StatusBadge';
 
 export interface TelegramUser {
   id: number;
@@ -32,7 +34,10 @@ export function getTelegramWebAppData(): {
 
 export function useProfileWidgetData() {
   const { user, course, isPaid, loading } = useApp();
+  const { isCoursePurchased } = useCourseProgress();
   const { user: tgUser, initData } = getTelegramWebAppData();
+
+  const isPlayer = Boolean(isPaid || isCoursePurchased);
 
   const firstName = tgUser?.first_name || user.name || 'DJ';
   const lastName = tgUser?.last_name || user.lastName || '';
@@ -62,6 +67,7 @@ export function useProfileWidgetData() {
     archetype: user.archetype || 'Куратор Вайба',
     rank,
     isPaid,
+    isPlayer,
     completedCount,
     totalCount,
     hasValidInitData: Boolean(initData),
@@ -140,16 +146,7 @@ export function ProfileWidget({ onClick }: { onClick?: () => void }) {
           <span className="truncate text-[15px] font-extrabold leading-tight text-[var(--color-text)]">
             Привет, {data.firstName}
           </span>
-          {data.isPaid && (
-            <span
-              className="shrink-0 rounded-md px-1.5 py-0.5 text-[9.5px] font-extrabold uppercase tracking-wider text-[var(--brand-mint)] shadow-[inset_0_1px_1px_rgba(255,255,255,0.14)]"
-              style={{
-                background: 'color-mix(in srgb, var(--brand-mint) 16%, transparent)',
-              }}
-            >
-              PRO
-            </span>
-          )}
+          <StatusBadge isPlayer={data.isPlayer} size="sm" />
         </div>
 
         <div className="mt-1 flex items-center gap-1.5 truncate text-xs text-[var(--color-text-dim)]">

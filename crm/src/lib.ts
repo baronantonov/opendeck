@@ -27,7 +27,7 @@ export function statusBadge(s: string): { cls: string; label: string } {
   const map: Record<string, { cls: string; label: string }> = {
     free: { cls: 'free', label: 'Бесплатный' },
     paid: { cls: 'paid', label: 'Платный' },
-    vip: { cls: 'vip', label: 'VIP' },
+    vip: { cls: 'vip', label: 'PLAYER' },
   };
   return map[s] || map.free;
 }

@@ -17,7 +17,7 @@ export function StatsBar({ s }: { s: Stats | null }) {
     { label: 'Новые 7д', value: String(s.new_week), cls: 'accent' },
     { label: 'Актив 24ч', value: String(s.active_today) },
     { label: 'Платные', value: String(s.paid_any), cls: 'good', sub: `полн ${s.paid_full} · триал ${s.paid_tripwire}` },
-    { label: 'VIP', value: String(s.paid_mentor), cls: 'vip' },
+    { label: 'PLAYER', value: String(s.paid_mentor), cls: 'vip' },
     { label: 'Выручка ★', value: (s.revenue_stars || 0).toLocaleString('ru-RU'), cls: 'good' },
     { label: 'Рефералов', value: String(s.referrals_total), cls: 'accent' },
     { label: 'GP в обороте', value: gp },

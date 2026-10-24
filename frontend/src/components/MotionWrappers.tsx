@@ -147,7 +147,7 @@ export function GlowCard({
         ...style,
       }}
     >
-      <AbstractGeometryBg variant="vip" spheres={spheres} accent={accent} />
+      <AbstractGeometryBg variant="player" spheres={spheres} accent={accent} />
       <div className="relative z-10 w-full">{children}</div>
     </div>
   );

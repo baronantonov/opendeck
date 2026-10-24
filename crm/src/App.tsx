@@ -98,7 +98,7 @@ export default function App() {
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', marginBottom: 16 }}>
         <input value={filters.q} onChange={(e) => setFilter({ q: e.target.value })} placeholder="Поиск по имени, @юзеру, id…" style={{ flex: '1 1 260px', minWidth: 220, padding: '11px 14px', borderRadius: 12, background: 'var(--color-surface)', border: '1px solid var(--color-border)', outline: 'none', color: 'var(--color-text)' }} />
         <div style={{ display: 'inline-flex', background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 12, padding: 3, gap: 2 }}>
-          {[['all', 'Все'], ['free', 'Бесплатные'], ['paid', 'Платные'], ['vip', 'VIP']].map(([v, l]) => (
+          {[['all', 'Все'], ['free', 'Бесплатные'], ['paid', 'Платные'], ['vip', 'PLAYER']].map(([v, l]) => (
             <button key={v} onClick={() => setFilter({ status: v })} style={{ border: 0, background: filters.status === v ? 'linear-gradient(135deg,var(--color-accent),var(--color-accent-2))' : 'transparent', color: filters.status === v ? '#1d1f1e' : 'var(--color-muted)', padding: '8px 14px', borderRadius: 9, fontSize: 13, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>{l}</button>
           ))}
         </div>

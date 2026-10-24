@@ -4,8 +4,8 @@ import { getUserRank } from '../../lib/constants';
 import { Star, IconHeadphones } from '../ui';
 import { UserAvatar } from '../UserAvatar';
 import { AbstractGeometryBg } from '../LiquidGlassGeometry';
+import { StatusBadge } from '../StatusBadge';
 import { getTelegramWebApp } from '../../types';
-import { ShieldCheck } from 'lucide-react';
 
 /**
  * Тип пользователя из официального Telegram Web App SDK.
@@ -111,20 +111,7 @@ export function ProfileHeroCard() {
           RESIDENT PASSPORT
         </span>
 
-        <div
-          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider whitespace-nowrap shrink-0 ${
-            hasProAccess
-              ? 'bg-[#8ce2c8]/15 text-[#8ce2c8] shadow-[inset_0_1px_1px_rgba(140,226,200,0.28)]'
-              : 'bg-white/[0.06] text-[#f3c969] shadow-[inset_0_1px_1px_rgba(255,255,255,0.12)]'
-          }`}
-        >
-          <span
-            className="w-1.5 h-1.5 rounded-full animate-organic-pulse shrink-0"
-            style={{ background: hasProAccess ? 'var(--brand-mint)' : 'var(--brand-gold)' }}
-          />
-          <ShieldCheck size={12} className="shrink-0" />
-          <span className="whitespace-nowrap">{hasProAccess ? 'PRO ДОСТУП' : 'БАЗОВЫЙ ДОСТУП'}</span>
-        </div>
+        <StatusBadge isPlayer={hasProAccess} size="md" />
       </div>
 
       {/* Основной блок: Крупный UserAvatar + Имя и бейджи */}

@@ -25,11 +25,12 @@ import { useRegisterModal } from '../lib/navigation';
 import { GiftCourseModal } from '../components/GiftCourseModal';
 import { StaggerContainer, StaggerItem, ShimmerButton } from '../components/MotionWrappers';
 import { AbstractGeometryBg } from '../components/LiquidGlassGeometry';
+import { StatusBadge } from '../components/StatusBadge';
 
 export function LearningScreen() {
   const navigate = useNavigate();
   const { user, course, isPaid, adminMode } = useApp();
-  const { guardLessonAccess } = useCourseProgress();
+  const { guardLessonAccess, isCoursePurchased } = useCourseProgress();
   const { toast } = useToast();
   const [mentorOpen, setMentorOpen] = useState(false);
   const [giftOpen, setGiftOpen] = useState(false);
@@ -45,7 +46,7 @@ export function LearningScreen() {
   const dc = course.completedLessons.length;
   const tc = COURSE_LESSONS.length;
   const progressPct = Math.min(100, Math.round((dc / tc) * 100));
-  const hasFullAccess = isPaid || adminMode;
+  const hasFullAccess = Boolean(isPaid || adminMode || isCoursePurchased);
 
   const handleOpenLesson = (index: number) => {
     haptic('light');
@@ -96,7 +97,7 @@ export function LearningScreen() {
       }}
     >
       <StaggerContainer stepMs={60} className="gap-4">
-        {/* 0. ВЕРХНИЙ СТЕКЛЯННЫЙ ПИЛЛ СТАТУСА С МЯГКИМ ПУЛЬСИРУЮЩИМ ИНДИКАТОРОМ */}
+        {/* 0. ВЕРХНИЙ СТЕКЛЯННЫЙ ПИЛЛ СТАТУСА С ЕДИНЫМ ЗНАЧКОМ GUEST / PLAYER */}
         <StaggerItem index={0}>
           <div
             className="flex items-center justify-between gap-2 rounded-full px-4 py-2.5 backdrop-blur-2xl backdrop-saturate-150 shadow-[inset_0_1px_1px_rgba(255,255,255,0.14),0_8px_24px_rgba(0,0,0,0.38)]"
@@ -104,18 +105,7 @@ export function LearningScreen() {
               background: 'color-mix(in srgb, var(--color-surface) 30%, transparent)',
             }}
           >
-            <div className="flex items-center gap-2 min-w-0">
-              <span
-                className="animate-organic-pulse inline-block h-2 w-2 rounded-full shrink-0"
-                style={{
-                  background: 'var(--brand-mint)',
-                  boxShadow: '0 0 8px var(--brand-mint)',
-                }}
-              />
-              <span className="text-[11px] font-extrabold uppercase tracking-wider text-[var(--brand-mint)] whitespace-nowrap truncate">
-                {hasFullAccess ? 'PRO ДОСТУП' : 'БАЗОВЫЙ ДОСТУП'}
-              </span>
-            </div>
+            <StatusBadge isPlayer={hasFullAccess} size="md" />
 
             <div className="flex items-center gap-2 shrink-0">
               <span className="text-xs font-extrabold text-[var(--color-text)] whitespace-nowrap">

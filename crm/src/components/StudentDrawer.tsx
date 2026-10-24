@@ -58,7 +58,7 @@ export function StudentDrawer({
             <>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 18 }}>
                 <KV k="GP баланс" v={<span style={{ color: 'var(--color-warn)' }}>{s.gp.toLocaleString('ru-RU')}</span>} />
-                <KV k="Статус" v={s.paid_mentor ? 'VIP · менторинг' : s.paid_full ? 'Прошёл полный курс' : s.paid_tripwire ? 'Трипвайр' : 'Бесплатный'} />
+                <KV k="Статус" v={s.paid_mentor ? 'PLAYER · менторинг' : s.paid_full ? 'Прошёл полный курс' : s.paid_tripwire ? 'Трипвайр' : 'Бесплатный'} />
                 <KV k="Рефералов" v={String(s.referrals_count)} />
                 <KV k="Реф-код" v={<span style={{ fontSize: 12 }}>{s.user.referral_code || '—'}</span>} />
               </div>

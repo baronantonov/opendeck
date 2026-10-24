@@ -109,7 +109,7 @@ export function PocketDjPromoWidget({
                 }}
               />
               <span>
-                {badgeText || (hasAccess ? 'PRO ДОСТУП · АКТИВЕН' : 'ФЛАГМАНСКИЙ КУРС')}
+                {hasAccess ? 'КУРС КУПЛЕН · АКТИВЕН' : (badgeText || 'ФЛАГМАНСКИЙ КУРС')}
               </span>
             </div>
 

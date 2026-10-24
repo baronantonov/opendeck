@@ -2,7 +2,7 @@ import { memo } from 'react';
 
 export interface AbstractGeometryBgProps {
   /** Вариант композиции векторных линий и фигур */
-  variant?: 'hero' | 'card' | 'vip' | 'modal' | 'mentor' | 'passport';
+  variant?: 'hero' | 'card' | 'vip' | 'player' | 'modal' | 'mentor' | 'passport';
   /**
    * Количество анимированных глубинных световых сфер (строго 0, 1 или 2 на экран
    * для гарантии 60-120 FPS и отсутствия пересветов)
@@ -109,7 +109,7 @@ export const AbstractGeometryBg = memo(function AbstractGeometryBg({
           </>
         )}
 
-        {variant === 'vip' && (
+        {(variant === 'vip' || variant === 'player') && (
           <>
             <path
               d="M-20 190 Q 150 20 420 130"

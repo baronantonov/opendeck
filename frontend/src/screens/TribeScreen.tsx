@@ -11,6 +11,7 @@ import {
   ShimmerButton,
 } from '../components/MotionWrappers';
 import { AbstractGeometryBg } from '../components/LiquidGlassGeometry';
+import { StatusBadge } from '../components/StatusBadge';
 import {
   Lock,
   Unlock,
@@ -174,7 +175,7 @@ function TribeCanvasConfetti({ onComplete }: { onComplete?: () => void }) {
 }
 
 /**
- * Экран «ПЛЕМЯ» (TribeScreen.tsx — VIP Pass):
+ * Экран «ПЛЕМЯ» (TribeScreen.tsx — Клубный доступ):
  * Оформлен как эксклюзивный клубный пропуск в стиле Liquid Glass
  * с абстрактной геометрией и мощной акцентной кнопкой.
  */
@@ -296,7 +297,7 @@ export function TribeScreen() {
       <StaggerContainer stepMs={60} className="gap-4">
         {hasAccess ? (
           <>
-            {/* 1. VIP PASS: ДОСТУП ОТКРЫТ */}
+            {/* 1. КЛУБНЫЙ ДОСТУП: ОТКРЫТ (СТАТУС PLAYER) */}
             <StaggerItem index={0}>
               <div
                 className="relative overflow-hidden rounded-3xl p-5 backdrop-blur-2xl backdrop-saturate-150 shadow-[inset_0_1px_1px_rgba(255,255,255,0.14),0_16px_42px_rgba(0,0,0,0.48)]"
@@ -304,26 +305,12 @@ export function TribeScreen() {
                   background: 'color-mix(in srgb, var(--color-surface) 30%, transparent)',
                 }}
               >
-                <AbstractGeometryBg variant="vip" spheres={2} accent="mint" />
+                <AbstractGeometryBg variant="player" spheres={2} accent="mint" />
 
                 <div className="relative z-10 flex flex-col gap-4">
-                  {/* Шапка VIP Pass */}
+                  {/* Шапка клубного пропуска */}
                   <div className="flex items-center justify-between gap-2">
-                    <span
-                      className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-[10.5px] font-extrabold uppercase tracking-wider text-[var(--brand-mint)] shadow-[inset_0_1px_1px_rgba(255,255,255,0.14)]"
-                      style={{
-                        background: 'color-mix(in srgb, var(--brand-mint) 15%, var(--color-surface-2))',
-                      }}
-                    >
-                      <span
-                        className="animate-organic-pulse inline-block h-2 w-2 rounded-full"
-                        style={{
-                          background: 'var(--brand-mint)',
-                          boxShadow: '0 0 8px var(--brand-mint)',
-                        }}
-                      />
-                      <span>VIP PASS · АКТИВЕН</span>
-                    </span>
+                    <StatusBadge isPlayer={true} size="md" />
 
                     <span
                       className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold text-[var(--color-text-dim)] shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]"
@@ -473,7 +460,7 @@ export function TribeScreen() {
             </StaggerItem>
           </>
         ) : (
-          /* СОСТОЯНИЕ VIP PASS: ЗАКРЫТ ДО ПОКУПКИ КУРСА */
+          /* СОСТОЯНИЕ КЛУБНОГО ПРОПУСКА: ЗАКРЫТ ДО ПОКУПКИ КУРСА */
           <>
             <StaggerItem index={0}>
               <div
@@ -482,19 +469,11 @@ export function TribeScreen() {
                   background: 'color-mix(in srgb, var(--color-surface) 30%, transparent)',
                 }}
               >
-                <AbstractGeometryBg variant="vip" spheres={2} accent="coral" />
+                <AbstractGeometryBg variant="player" spheres={2} accent="coral" />
 
                 <div className="relative z-10 flex flex-col gap-4">
                   <div className="flex items-center justify-between gap-2">
-                    <span
-                      className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[10.5px] font-extrabold uppercase tracking-wider text-[var(--brand-coral)] shadow-[inset_0_1px_1px_rgba(255,255,255,0.14)]"
-                      style={{
-                        background: 'color-mix(in srgb, var(--brand-coral) 15%, var(--color-surface-2))',
-                      }}
-                    >
-                      <Lock size={12} />
-                      <span>VIP PASS · ЗАКРЫТ</span>
-                    </span>
+                    <StatusBadge isPlayer={false} size="md" />
 
                     <span
                       className="rounded-full px-3 py-1 text-xs font-bold text-[var(--color-text-dim)] shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]"
@@ -680,7 +659,7 @@ export function TribeScreen() {
                             Курс Pocket DJ + Open Deck Camp
                           </div>
                           <div className="text-[11px] font-semibold text-[var(--brand-coral)]">
-                            Мгновенная активация VIP Pass
+                            Мгновенный статус PLAYER
                           </div>
                         </div>
                       </div>

@@ -23,6 +23,7 @@ import { AbstractGeometryBg } from '../components/LiquidGlassGeometry';
 import { useToast } from '../components/Toast';
 import { apiArchetypeShare, apiGpEarn } from '../api/client';
 import { haptic } from '../lib/theme';
+import { getCanonicalReferralUrl } from '../lib/securityGuard';
 import { getTelegramWebApp } from '../types';
 
 interface Rank {
@@ -50,16 +51,20 @@ const RANKS: Rank[] = [
 const EARN_ACTIONS = [
   { action: 'daily', label: 'Ежедневный бонус за активность', reward: 25, icon: IconSparkles },
   { action: 'share_achievement', label: 'Поделиться достижением', reward: 25, icon: IconShare },
-  { action: 'invite_team', label: 'Пригласить друга в команду', reward: 50, icon: IconUsers },
+  { action: 'invite_team', label: 'Позвать в команду', reward: 50, icon: IconUsers },
   { action: 'review', label: 'Оставить отзыв о курсе', reward: 50, icon: IconTrophy },
 ];
 
 export function ProfileScreen() {
   const { user, setUser, course, referralFriends, referralGpEarned } = useApp();
-  const { completedLessons } = useCourseProgress();
+  const { completedLessons, userId } = useCourseProgress();
   const { toast } = useToast();
   const [busy, setBusy] = useState<string | null>(null);
   const dc = Math.min(10, Math.max(course.completedLessons.length, completedLessons.length));
+  const referralUrl = useMemo(
+    () => getCanonicalReferralUrl(userId, user.referralCode),
+    [userId, user.referralCode],
+  );
 
   const currentRankIndex = useMemo(() => {
     let idx = 0;
@@ -106,18 +111,16 @@ export function ProfileScreen() {
 
   const inviteFriend = async () => {
     haptic('light');
-    const refCode = user.referralCode || 'opendeck';
     try {
       const tw = getTelegramWebApp();
-      const botUrl = `https://t.me/OpenDeck_bot/app?startapp=ref_${refCode}`;
-      const text = `Привет! Учусь диджеингу в Open Deck DJ School на базе Rekordbox. Лови +100 GP при регистрации в моей команде:`;
-      const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(botUrl)}&text=${encodeURIComponent(text)}`;
+      const text = `Залетай в мою команду в Open Deck DJ School (обучение на базе Rekordbox)! Лови +100 GP на старт по моей ссылке:`;
+      const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(referralUrl)}&text=${encodeURIComponent(text)}`;
       if (tw?.openTelegramLink) {
         tw.openTelegramLink(shareUrl);
       } else {
         window.open(shareUrl, '_blank');
       }
-      await earn('invite_team', 'Приглашение в команду');
+      await earn('invite_team', 'Позвать в команду');
     } catch {
       /* ignore */
     }
@@ -125,13 +128,11 @@ export function ProfileScreen() {
 
   const shareProfile = async () => {
     haptic('light');
-    const shareUrl = `https://baronantonov.github.io/opendeck/`;
-    const text = `Мой DJ-профиль в Open Deck:
-Звание: ${currentRank.title}
-Архетип: ${user.archetype}
+    const text = `Мой DJ-профиль в Open Deck DJ School:
+Звание: ${currentRank.title} · Архетип: ${user.archetype}
 Прогресс: ${user.groovePoints} GP · ${dc}/10 уроков
-Обучение диджеингу на базе Rekordbox. Присоединяйся!`;
-    const link = `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(text)}`;
+Залетай в мою команду на базе Rekordbox (+100 GP на старт):`;
+    const link = `https://t.me/share/url?url=${encodeURIComponent(referralUrl)}&text=${encodeURIComponent(text)}`;
 
     try {
       const tw = getTelegramWebApp();
@@ -151,9 +152,8 @@ export function ProfileScreen() {
 
   const shareAchievement = async (achName: string) => {
     haptic('light');
-    const shareUrl = `https://baronantonov.github.io/opendeck/`;
-    const text = `Я открыл достижение «${achName}» в Open Deck DJ School! Учусь сведению на Rekordbox:`;
-    const link = `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(text)}`;
+    const text = `Я открыл достижение «${achName}» в Open Deck DJ School! Залетай в мою команду на базе Rekordbox (+100 GP на старт):`;
+    const link = `https://t.me/share/url?url=${encodeURIComponent(referralUrl)}&text=${encodeURIComponent(text)}`;
 
     try {
       const tw = getTelegramWebApp();
@@ -173,7 +173,7 @@ export function ProfileScreen() {
     { name: 'Половина пути', got: dc >= 5, desc: 'Пройди первые 5 уроков курса', icon: IconWaveform },
     { name: 'Мастер сведения', got: dc >= 7, desc: 'Освой кроссфейдер, лупы и фильтры', icon: IconSparkles },
     { name: 'DJ-сет собран', got: dc >= 10, desc: 'Заверши все 10 уроков курса', icon: IconDisc },
-    { name: 'Мастер нетворкинга', got: referralFriends >= 3, desc: 'Пригласи 3 друзей в школу', icon: IconUsers },
+    { name: 'Мастер нетворкинга', got: referralFriends >= 3, desc: 'Позови 3 участников в команду', icon: IconUsers },
     { name: 'Архетип раскрыт', got: !!user.archetype, desc: 'Определи свой персональный вайб', icon: IconFlame },
     { name: 'Золотой резерв', got: user.groovePoints >= 300, desc: 'Накопи 300+ GP на скидку созвона', icon: IconTrophy },
   ];
@@ -255,7 +255,7 @@ export function ProfileScreen() {
               <IconUsers size={18} />
             </div>
             <div className="text-base font-extrabold text-[#f4f7f5]">{referralFriends}</div>
-            <div className="text-[11px] font-medium text-[#9aa3a0]">Друзей</div>
+            <div className="text-[11px] font-medium text-[#9aa3a0]">Команда</div>
           </div>
         </div>
       </StaggerItem>
@@ -275,34 +275,35 @@ export function ProfileScreen() {
               Команда и реферальная программа
             </h3>
             <p className="m-0 text-xs text-[#9aa3a0] leading-relaxed">
-              Получай <b className="text-[#f4f7f5]">+100 GP</b> за каждого приглашённого друга и{' '}
-              <b className="text-[#f4f7f5]">+500 GP</b> при его покупке курса. Очки дают прямую
+              Получай <b className="text-[#f4f7f5]">+100 GP</b> за каждого участника в команде и{' '}
+              <b className="text-[#f4f7f5]">+500 GP</b> при покупке им курса. Очки дают прямую
               скидку на созвоны с FREEDA DJ.
             </p>
             {referralGpEarned > 0 && (
               <div className="text-xs font-extrabold text-[#f3c969] mt-0.5">
-                Заработано на рефералах: +{referralGpEarned} GP
+                Заработано с командой: +{referralGpEarned} GP
               </div>
             )}
           </div>
 
-          {user.referralCode && (
-            <div className="relative z-10 rounded-2xl p-3 bg-[#2b302e]/30 shadow-[inset_0_1px_1px_rgba(255,255,255,0.08)] flex items-center justify-between">
-              <span className="text-xs text-[#9aa3a0]">Реферальный код:</span>
-              <code className="text-sm font-extrabold text-[#8ce2c8] font-mono">
-                {user.referralCode}
-              </code>
-            </div>
-          )}
-
           <div className="relative z-10 flex flex-col gap-2.5">
-            <Button variant="mint" block onClick={inviteFriend}>
+            <Button
+              variant="mint"
+              block
+              onClick={inviteFriend}
+              className="whitespace-nowrap px-4 text-[15px] sm:text-base"
+            >
               <IconUsers size={16} />
-              <span>Пригласить друга в команду (+100 GP)</span>
+              <span className="whitespace-nowrap">Позвать в команду (+100 GP)</span>
             </Button>
-            <Button variant="secondary" block onClick={shareProfile}>
+            <Button
+              variant="secondary"
+              block
+              onClick={shareProfile}
+              className="whitespace-nowrap px-4 text-[15px] sm:text-base"
+            >
               <IconShare size={16} />
-              <span>Поделиться профилем (+25 GP)</span>
+              <span className="whitespace-nowrap">Поделиться профилем (+25 GP)</span>
             </Button>
           </div>
         </div>
@@ -322,7 +323,15 @@ export function ProfileScreen() {
                   key={a.action}
                   type="button"
                   disabled={busy === a.action}
-                  onClick={() => void earn(a.action, a.label)}
+                  onClick={() => {
+                    if (a.action === 'invite_team') {
+                      void inviteFriend();
+                    } else if (a.action === 'share_achievement') {
+                      void shareProfile();
+                    } else {
+                      void earn(a.action, a.label);
+                    }
+                  }}
                   className="w-full flex items-center gap-3 p-3.5 rounded-2xl bg-[#2b302e]/30 shadow-[inset_0_1px_1px_rgba(255,255,255,0.08)] text-[#f4f7f5] text-xs font-bold active:scale-[0.97] transition-all duration-200 ease-out cursor-pointer border-0 disabled:opacity-50"
                 >
                   <div className="w-8 h-8 rounded-xl bg-[#8ce2c8]/12 text-[#8ce2c8] flex items-center justify-center shrink-0">

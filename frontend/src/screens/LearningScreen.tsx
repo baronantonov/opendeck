@@ -209,7 +209,7 @@ export function LearningScreen() {
             {/* Выпадающее содержимое спойлера (без горизонтальных полос border-t) */}
             <div className={`accordion-grid relative z-10 ${isPocketDjOpen ? 'open' : ''}`}>
               <div className="accordion-content-overflow">
-                <div className="flex flex-col gap-4 px-5 pb-5 pt-1">
+                <div className="flex flex-col gap-4 px-4 pb-4 pt-1">
                   {/* Плашка разблокировки полного курса / подарка */}
                   <div
                     className="flex flex-col gap-3 rounded-2xl p-4 shadow-[inset_0_1px_1px_rgba(255,255,255,0.12)]"
@@ -288,7 +288,7 @@ export function LearningScreen() {
                           onClick={() => handleOpenLesson(idx)}
                           role="button"
                           tabIndex={0}
-                          className="flex w-full cursor-pointer items-center gap-3 rounded-2xl p-3.5 shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)] active:scale-[0.97] transition-all duration-200 ease-out transform-gpu"
+                          className="flex w-full cursor-pointer items-center gap-2.5 rounded-2xl p-3 shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)] active:scale-[0.97] transition-all duration-200 ease-out transform-gpu"
                           style={{
                             background: isCurrent
                               ? 'color-mix(in srgb, var(--brand-mint) 12%, var(--color-surface-2))'
@@ -300,7 +300,7 @@ export function LearningScreen() {
                         >
                           {/* Индикатор шага */}
                           <div
-                            className="grid h-10 w-10 shrink-0 place-items-center rounded-xl text-sm font-extrabold shadow-[inset_0_1px_1px_rgba(255,255,255,0.14)]"
+                            className="grid h-9 w-9 shrink-0 place-items-center rounded-xl text-xs font-extrabold shadow-[inset_0_1px_1px_rgba(255,255,255,0.14)]"
                             style={{
                               background: completed
                                 ? 'var(--brand-mint)'
@@ -319,90 +319,92 @@ export function LearningScreen() {
                             }}
                           >
                             {completed ? (
-                              <CheckCircle2 size={20} strokeWidth={2.5} />
+                              <CheckCircle2 size={18} strokeWidth={2.5} />
                             ) : showPaywallBadge || !unlocked ? (
-                              <Lock size={16} />
+                              <Lock size={15} />
                             ) : isCurrent ? (
-                              <Play size={16} fill="currentColor" />
+                              <Play size={15} fill="currentColor" />
                             ) : (
                               <span>{stepNumber < 10 ? `0${stepNumber}` : stepNumber}</span>
                             )}
                           </div>
 
-                          {/* Текст урока */}
-                          <div className="min-w-0 flex-1 overflow-hidden">
-                            <div className="mb-0.5 flex items-center gap-1.5">
-                              {completed ? (
-                                <span className="text-[10px] font-extrabold uppercase tracking-wider text-[var(--brand-mint)]">
-                                  Пройден ✓
-                                </span>
-                              ) : isCurrent ? (
-                                <span className="inline-flex items-center gap-1 text-[10px] font-extrabold uppercase tracking-wider text-[var(--brand-mint)]">
-                                  <span className="animate-organic-pulse inline-block h-1.5 w-1.5 rounded-full bg-[var(--brand-mint)]" />
-                                  Текущий урок
-                                </span>
-                              ) : showPaywallBadge ? (
+                          {/* Текст урока во всю ширину карточки */}
+                          <div className="min-w-0 flex-1 flex flex-col gap-0.5">
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-1.5 min-w-0">
+                                {completed ? (
+                                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-[var(--brand-mint)] whitespace-nowrap">
+                                    Пройден ✓
+                                  </span>
+                                ) : isCurrent ? (
+                                  <span className="inline-flex items-center gap-1 text-[10px] font-extrabold uppercase tracking-wider text-[var(--brand-mint)] whitespace-nowrap">
+                                    <span className="animate-organic-pulse inline-block h-1.5 w-1.5 rounded-full bg-[var(--brand-mint)]" />
+                                    Текущий урок
+                                  </span>
+                                ) : showPaywallBadge ? (
+                                  <span
+                                    className="rounded-md px-1.5 py-0.5 text-[9.5px] font-extrabold uppercase tracking-wider text-[var(--brand-coral)] shadow-[inset_0_1px_1px_rgba(255,255,255,0.12)] whitespace-nowrap"
+                                    style={{
+                                      background: 'color-mix(in srgb, var(--brand-coral) 16%, transparent)',
+                                    }}
+                                  >
+                                    Pocket DJ
+                                  </span>
+                                ) : idx === 0 || idx === 1 ? (
+                                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-[var(--brand-mint)] whitespace-nowrap">
+                                    Бесплатный урок
+                                  </span>
+                                ) : (
+                                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-[var(--color-text-dim)] whitespace-nowrap">
+                                    Урок {stepNumber}
+                                  </span>
+                                )}
+
                                 <span
-                                  className="rounded-md px-1.5 py-0.5 text-[9.5px] font-extrabold uppercase tracking-wider text-[var(--brand-coral)] shadow-[inset_0_1px_1px_rgba(255,255,255,0.12)]"
+                                  className="text-[10px] font-bold whitespace-nowrap"
                                   style={{
-                                    background: 'color-mix(in srgb, var(--brand-coral) 16%, transparent)',
+                                    color: completed ? 'var(--color-text-dim)' : 'var(--brand-gold)',
                                   }}
                                 >
-                                  Pocket DJ
+                                  +50 GP
                                 </span>
-                              ) : idx === 0 || idx === 1 ? (
-                                <span className="text-[10px] font-extrabold uppercase tracking-wider text-[var(--brand-mint)]">
-                                  Бесплатный урок
-                                </span>
-                              ) : (
-                                <span className="text-[10px] font-extrabold uppercase tracking-wider text-[var(--color-text-dim)]">
-                                  Урок {stepNumber}
-                                </span>
-                              )}
+                              </div>
 
-                              <span
-                                className="text-[10px] font-bold"
-                                style={{
-                                  color: completed ? 'var(--color-text-dim)' : 'var(--brand-gold)',
-                                }}
-                              >
-                                +50 GP
-                              </span>
+                              {/* Компактный статус-пилл в верхней строке */}
+                              <div className="shrink-0">
+                                {isCurrent ? (
+                                  <span
+                                    className="inline-flex items-center whitespace-nowrap rounded-lg px-2 py-0.5 text-[10px] font-extrabold text-[#11322a] shadow-[inset_0_1px_1px_rgba(255,255,255,0.3)]"
+                                    style={{ background: 'var(--brand-mint)' }}
+                                  >
+                                    Смотреть
+                                  </span>
+                                ) : showPaywallBadge ? (
+                                  <span
+                                    className="inline-flex items-center gap-1 whitespace-nowrap rounded-lg px-2 py-0.5 text-[10px] font-extrabold text-[var(--brand-coral)] shadow-[inset_0_1px_1px_rgba(255,255,255,0.12)]"
+                                    style={{
+                                      background: 'color-mix(in srgb, var(--brand-coral) 14%, transparent)',
+                                    }}
+                                  >
+                                    <Lock size={10} />
+                                    <span>Открыть</span>
+                                  </span>
+                                ) : !unlocked ? (
+                                  <span className="inline-flex items-center justify-center rounded-lg bg-white/5 p-1 text-[var(--color-text-dim)]">
+                                    <Lock size={11} />
+                                  </span>
+                                ) : null}
+                              </div>
                             </div>
 
-                            <div className="truncate text-[13.5px] font-bold leading-snug text-[var(--color-text)]">
+                            <div className="whitespace-nowrap text-[13px] font-bold leading-snug tracking-[-0.01em] text-[var(--color-text)]">
                               {lesson.t}
                             </div>
 
-                            <div className="mt-0.5 truncate text-[11px] text-[var(--color-text-dim)]">
+                            <div className="whitespace-nowrap text-[11px] leading-snug tracking-[-0.01em] text-[var(--color-text-dim)]">
                               {lesson.d[0]}
                             </div>
-                          </div>
-
-                          {/* Статус справа */}
-                          <div className="shrink-0">
-                            {isCurrent ? (
-                              <div
-                                className="whitespace-nowrap rounded-xl px-2.5 py-1.5 text-[11px] font-extrabold text-[#11322a] shadow-[inset_0_1px_1px_rgba(255,255,255,0.3)]"
-                                style={{ background: 'var(--brand-mint)' }}
-                              >
-                                Смотреть
-                              </div>
-                            ) : showPaywallBadge ? (
-                              <div
-                                className="flex items-center gap-1 rounded-xl px-2.5 py-1.5 text-[11px] font-extrabold text-[var(--brand-coral)] shadow-[inset_0_1px_1px_rgba(255,255,255,0.12)]"
-                                style={{
-                                  background: 'color-mix(in srgb, var(--brand-coral) 14%, transparent)',
-                                }}
-                              >
-                                <Lock size={12} />
-                                <span>Открыть</span>
-                              </div>
-                            ) : !unlocked ? (
-                              <div className="grid place-items-center rounded-xl bg-white/5 p-2 text-[var(--color-text-dim)]">
-                                <Lock size={14} />
-                              </div>
-                            ) : null}
                           </div>
                         </div>
                       );

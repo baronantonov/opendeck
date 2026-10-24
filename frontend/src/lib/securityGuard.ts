@@ -337,8 +337,8 @@ export function guardLessonAccess(
       : { allowed: false, reason: 'needs_prev_lesson' };
   }
 
-  // Если сервер подтвердил покупку курса, синхронизируем локальное подписанное состояние
-  if (isPurchased) {
+  // Если сервер или подписанный стор подтвердил покупку курса, синхронизируем состояние
+  if (isPurchased || secured.isCoursePurchased) {
     if (!secured.isCoursePurchased) {
       saveSecuredProgress(userId, true, completedLessons);
     }
@@ -366,19 +366,44 @@ export function guardTribeAccess(
 ): { allowed: boolean; reason: 'ok' | 'needs_paywall' | 'tampered' } {
   if (adminMode) return { allowed: true, reason: 'ok' };
 
-  if (isPurchased) {
-    const secured = loadSecuredProgress(userId);
-    if (!secured.isCoursePurchased) {
-      saveSecuredProgress(userId, true, [1]);
-    }
-  } else {
-    return { allowed: false, reason: 'needs_paywall' };
-  }
-
   const secured = loadSecuredProgress(userId);
   if (secured.isTampered || !secured.isValid) {
     return { allowed: false, reason: 'tampered' };
   }
 
-  return { allowed: true, reason: 'ok' };
+  if (isPurchased || secured.isCoursePurchased) {
+    if (!secured.isCoursePurchased) {
+      const lessonsToKeep = secured.completedLessons.length > 0 ? secured.completedLessons : [1];
+      saveSecuredProgress(userId, true, lessonsToKeep);
+    }
+    return { allowed: true, reason: 'ok' };
+  }
+
+  return { allowed: false, reason: 'needs_paywall' };
+}
+
+/**
+ * Единый канонический реферальный код пользователя (совпадает с backend sha256(user_id)[:8]).
+ */
+export function getCanonicalReferralCode(
+  userId?: number | string | null,
+  referralCode?: string | null,
+): string {
+  const clean = (referralCode || '').trim();
+  if (clean && clean !== 'DJ2026' && clean !== 'opendeck') {
+    return clean;
+  }
+  const uid = userId || getEffectiveUserId() || 285754501;
+  return sha256Sync(String(uid)).slice(0, 8);
+}
+
+/**
+ * Единая каноническая реферальная ссылка Open Deck (с зашитым рефкодом).
+ */
+export function getCanonicalReferralUrl(
+  userId?: number | string | null,
+  referralCode?: string | null,
+): string {
+  const code = getCanonicalReferralCode(userId, referralCode);
+  return `https://t.me/OpenDeck_bot/app?startapp=ref_${code}`;
 }

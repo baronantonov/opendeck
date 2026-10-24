@@ -26,7 +26,7 @@ export interface LessonVideoData {
 export const POCKET_DJ_LESSONS: LessonVideoData[] = [
   {
     id: 1,
-    title: 'Интерфейс на телефоне: твой первый контроллер',
+    title: 'Интерфейс и первый контроллер',
     subtitle: 'Вводный урок · Архитектура пульта Rekordbox',
     summary: 'Пошаговый разбор элементов экрана: деки, частоты, кнопка Cue/Play, фейдеры и мастер-фильтр.',
     description: [
@@ -42,7 +42,7 @@ export const POCKET_DJ_LESSONS: LessonVideoData[] = [
   },
   {
     id: 2,
-    title: 'Знакомство с FREEDA: кто такой диджей',
+    title: 'Знакомство с FREEDA: кто такой DJ',
     subtitle: 'Практика · Философия и роль диджея',
     summary: 'Путь Таши (FREEDA DJ) от первых экспериментов до фестивалей и ключ к управлению энергией танцпола.',
     description: [
@@ -58,7 +58,7 @@ export const POCKET_DJ_LESSONS: LessonVideoData[] = [
   },
   {
     id: 3,
-    title: 'Направления и оборудование: где найти себя',
+    title: 'Стили и оборудование диджея',
     subtitle: 'PRO модуль · Выбор сетапа и стиля',
     summary: 'Коммерческий, ивент, андерграунд и фестивальный диджеинг. Разбор актуального оборудования.',
     description: [
@@ -74,7 +74,7 @@ export const POCKET_DJ_LESSONS: LessonVideoData[] = [
   },
   {
     id: 4,
-    title: 'Музыкальная теория: бит, ритм и колесо Камелота',
+    title: 'Теория: бит, ритм и Камелот',
     subtitle: 'PRO модуль · Гармоническое сведение',
     summary: 'Структура трека (интро, дроп, яма, аутро), сетка битов и гармоническая совместимость тональностей.',
     description: [
@@ -90,7 +90,7 @@ export const POCKET_DJ_LESSONS: LessonVideoData[] = [
   },
   {
     id: 5,
-    title: 'Основы сведения: BPM, темп и кнопка Sync',
+    title: 'Основы сведения: BPM и Sync',
     subtitle: 'PRO модуль · Первый бесшовный переход',
     summary: 'Выравнивание скоростей, подготовка точки входа Cue и применение Sync для идеального тайминга.',
     description: [
@@ -122,7 +122,7 @@ export const POCKET_DJ_LESSONS: LessonVideoData[] = [
   },
   {
     id: 7,
-    title: 'Лупы и Beat Jump: лёгкое сведение',
+    title: 'Лупы и Beat Jump в сведении',
     subtitle: 'PRO модуль · Контроль времени трека',
     summary: 'Зацикливание фраз (Auto/Manual Loops) и мгновенная навигация по тактам с помощью Beat Jump.',
     description: [
@@ -138,7 +138,7 @@ export const POCKET_DJ_LESSONS: LessonVideoData[] = [
   },
   {
     id: 8,
-    title: 'Эффекты и фильтр: краски твоего сета',
+    title: 'Эффекты и фильтр: краски сета',
     subtitle: 'PRO модуль · Sound Design в сете',
     summary: 'Применение Color FX (Filter, Noise) и Beat FX (Echo, Reverb, Flanger) для создания мощных дропов.',
     description: [

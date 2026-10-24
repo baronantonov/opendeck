@@ -159,26 +159,32 @@ export function CourseProgressProvider({ children }: { children: ReactNode }) {
     });
   }, [userId, setPaid, setCourse]);
 
+  const effectivePurchased = useMemo(() => {
+    if (adminMode || isPaid) return true;
+    const current = loadSecuredProgress(userId);
+    return Boolean(!current.isTampered && current.isValid && current.isCoursePurchased);
+  }, [adminMode, isPaid, userId]);
+
   const guardLessonAccess = useCallback(
     (lessonIndex: number) => {
       return guardLessonAccessInternal(
         lessonIndex,
         userId,
-        isPaid,
+        effectivePurchased,
         course.completedLessons,
         adminMode,
       );
     },
-    [userId, isPaid, course.completedLessons, adminMode],
+    [userId, effectivePurchased, course.completedLessons, adminMode],
   );
 
   const guardTribeAccess = useCallback(() => {
-    return guardTribeAccessInternal(userId, isPaid, adminMode);
-  }, [userId, isPaid, adminMode]);
+    return guardTribeAccessInternal(userId, effectivePurchased, adminMode);
+  }, [userId, effectivePurchased, adminMode]);
 
   const value = useMemo<CourseProgressContextValue>(
     () => ({
-      isCoursePurchased: isPaid,
+      isCoursePurchased: effectivePurchased,
       completedLessons: course.completedLessons,
       userId,
       username,
@@ -194,7 +200,7 @@ export function CourseProgressProvider({ children }: { children: ReactNode }) {
       guardTribeAccess,
     }),
     [
-      isPaid,
+      effectivePurchased,
       course.completedLessons,
       userId,
       username,

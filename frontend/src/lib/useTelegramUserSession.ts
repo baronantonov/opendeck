@@ -3,6 +3,7 @@ import type { CourseProgress, Lesson, User } from '../types';
 import { apiInit, apiLessons, apiLessonsBonus, apiProfile, apiProgress } from '../api/client';
 import { BONUS_LESSONS, COURSE_LESSONS } from './constants';
 import {
+  getCanonicalReferralCode,
   getEffectiveUserId,
   loadSecuredProgress,
   saveSecuredProgress,
@@ -165,13 +166,25 @@ export function useTelegramUserSession(): TelegramUserSession {
 
   const [isPaid, setIsPaid] = useState<boolean>(() => {
     if (securedInitial.current.isTampered) return false;
-    // Статус покупки валиден, только если криптографическая подпись подтверждает покупку
     const cachePaid = Boolean(cached.current?.isPaid);
-    const securedPaid = Boolean(securedInitial.current.isCoursePurchased);
-    return cachePaid && securedPaid;
+    const securedPaid = Boolean(
+      securedInitial.current.isValid && securedInitial.current.isCoursePurchased,
+    );
+    if (cachePaid && !securedPaid) {
+      saveSecuredProgress(
+        initialUid,
+        true,
+        securedInitial.current.completedLessons.length > 0
+          ? securedInitial.current.completedLessons
+          : [1],
+      );
+    }
+    return securedPaid || cachePaid;
   });
 
-  const [paidFull, setPaidFull] = useState<boolean>(() => cached.current?.paidFull ?? false);
+  const [paidFull, setPaidFull] = useState<boolean>(
+    () => Boolean(cached.current?.paidFull || securedInitial.current.isCoursePurchased),
+  );
   const [adminMode, setAdminMode] = useState(false);
   const [bonusDone, setBonusDone] = useState<number>(() => cached.current?.bonusDone ?? 0);
   const [referralFriends, setReferralFriends] = useState<number>(
@@ -203,7 +216,18 @@ export function useTelegramUserSession(): TelegramUserSession {
   const setPaid = useCallback((paid: boolean, full = false) => {
     setIsPaid(paid);
     setPaidFull(full || paid);
-    saveSecuredProgress(getEffectiveUserId(), paid, course.completedLessons);
+    const lessonsToSave = course.completedLessons.length > 0 ? course.completedLessons : [1];
+    saveSecuredProgress(getEffectiveUserId(), paid, lessonsToSave);
+    try {
+      const existing = readCachedSession();
+      if (existing) {
+        writeCachedSession({
+          ...existing,
+          isPaid: paid,
+          paidFull: full || paid,
+        });
+      }
+    } catch {}
   }, [course.completedLessons]);
 
   const setBonus = useCallback((done: number) => setBonusDone(done), []);
@@ -251,13 +275,23 @@ export function useTelegramUserSession(): TelegramUserSession {
 
     if (isPreview) {
       const tu = (window as any).Telegram?.WebApp?.initDataUnsafe?.user;
+      const uid = tu?.id || getEffectiveUserId();
+      const secured = loadSecuredProgress(uid);
+      const previewLessons =
+        !secured.isTampered && secured.completedLessons.length > 0
+          ? secured.completedLessons
+          : [1];
+      const previewPaid = Boolean(
+        !secured.isTampered && secured.isValid && secured.isCoursePurchased,
+      );
+
       const previewUser: User = {
         name: tu?.first_name || 'Антон',
         lastName: tu?.last_name || 'Евдокимов',
         username: tu?.username || 'baronantonov',
         archetype: 'Куратор Вайба',
         groovePoints: 120,
-        referralCode: 'DJ2026',
+        referralCode: getCanonicalReferralCode(uid),
         referralFriends: 2,
         referralGpEarned: 40,
         bonusLessons: 1,
@@ -265,13 +299,17 @@ export function useTelegramUserSession(): TelegramUserSession {
         isPremium: Boolean(tu?.is_premium),
       };
       const previewCourse: CourseProgress = {
-        currentLessonId: 1,
-        completedLessons: [1],
+        currentLessonId: previewLessons[previewLessons.length - 1] || 1,
+        completedLessons: previewLessons,
         freeLessons: 1,
       };
 
       setUserState(previewUser);
       setCourseState(previewCourse);
+      if (previewPaid) {
+        setIsPaid(true);
+        setPaidFull(true);
+      }
       setIsLoaded(true);
       return;
     }
@@ -303,6 +341,8 @@ export function useTelegramUserSession(): TelegramUserSession {
         } catch {}
       }
 
+      const currentUid = tu?.id || getEffectiveUserId();
+
       setUserState((prevUser) => {
         let nextUser = prevUser;
         if (init) {
@@ -310,7 +350,7 @@ export function useTelegramUserSession(): TelegramUserSession {
           if (effectivePhoto) void preloadUserpic(effectivePhoto);
           nextUser = {
             groovePoints: init.user.groove_points ?? 0,
-            referralCode: init.user.referral_code || '',
+            referralCode: getCanonicalReferralCode(currentUid, init.user.referral_code),
             referralFriends: init.referral_friends ?? init.user.referral_friends ?? 0,
             referralGpEarned: init.referral_gp_earned ?? init.user.referral_gp_earned ?? 0,
             bonusLessons: init.user.bonus_lessons ?? 0,
@@ -327,7 +367,7 @@ export function useTelegramUserSession(): TelegramUserSession {
           nextUser = {
             ...prevUser,
             groovePoints: profile.gp ?? 0,
-            referralCode: profile.referral_code || '',
+            referralCode: getCanonicalReferralCode(currentUid, profile.referral_code),
             referralFriends: profile.referral_friends ?? 0,
             referralGpEarned: profile.referral_gp_earned ?? 0,
             bonusLessons: profile.bonus_lessons ?? 0,
@@ -338,31 +378,58 @@ export function useTelegramUserSession(): TelegramUserSession {
             photoUrl: effectivePhoto,
             isPremium: Boolean(tu?.is_premium),
           };
+        } else {
+          nextUser = {
+            ...prevUser,
+            referralCode: getCanonicalReferralCode(currentUid, prevUser.referralCode),
+          };
         }
         return nextUser;
       });
 
+      const localSecured = loadSecuredProgress(currentUid);
+      const localPaidValid = Boolean(
+        !localSecured.isTampered && localSecured.isValid && localSecured.isCoursePurchased,
+      );
+
       setCourseState((prevCourse) => {
         let nextCourse = prevCourse;
         if (init) {
+          const merged = Array.from(
+            new Set([
+              ...(init.course.completed_lessons || []),
+              ...(localSecured.isTampered ? [] : localSecured.completedLessons),
+            ]),
+          ).sort((a, b) => a - b);
           nextCourse = {
-            completedLessons: (init.course.completed_lessons || []).slice(),
+            completedLessons: merged.length > 0 ? merged : [1],
             currentLessonId: init.course.current_lesson_id ?? null,
             freeLessons: init.course.free_lessons ?? 1,
           };
         }
         if (lessons?.completed) {
-          nextCourse = { ...nextCourse, completedLessons: lessons.completed.slice() };
+          const merged = Array.from(
+            new Set([
+              ...lessons.completed,
+              ...(localSecured.isTampered ? [] : localSecured.completedLessons),
+            ]),
+          ).sort((a, b) => a - b);
+          nextCourse = { ...nextCourse, completedLessons: merged.length > 0 ? merged : [1] };
         }
         return nextCourse;
       });
 
-      const isActuallyPaid = Boolean(init?.paid || lessons?.paid);
+      const isActuallyPaid = Boolean(init?.paid || lessons?.paid || localPaidValid);
       if (isActuallyPaid) {
         setIsPaid(true);
         setPaidFull(true);
-        const effectiveLessons = (init?.course.completed_lessons || lessons?.completed || [1]).slice();
-        saveSecuredProgress(getEffectiveUserId(), true, effectiveLessons);
+        const effectiveLessons = Array.from(
+          new Set([
+            ...(init?.course.completed_lessons || lessons?.completed || [1]),
+            ...(localSecured.isTampered ? [] : localSecured.completedLessons),
+          ]),
+        ).sort((a, b) => a - b);
+        saveSecuredProgress(currentUid, true, effectiveLessons);
       } else if (init) {
         setIsPaid(false);
         setPaidFull(false);
@@ -382,7 +449,7 @@ export function useTelegramUserSession(): TelegramUserSession {
         const u = tu
           ? {
               groovePoints: init?.user.groove_points ?? 0,
-              referralCode: init?.user.referral_code || '',
+              referralCode: getCanonicalReferralCode(currentUid, init?.user.referral_code),
               referralFriends: init?.referral_friends ?? init?.user.referral_friends ?? 0,
               referralGpEarned: init?.referral_gp_earned ?? init?.user.referral_gp_earned ?? 0,
               bonusLessons: init?.user.bonus_lessons ?? 0,
@@ -395,18 +462,19 @@ export function useTelegramUserSession(): TelegramUserSession {
             }
           : {
               ...defaultUser,
+              referralCode: getCanonicalReferralCode(currentUid),
               photoUrl: effectivePhoto,
             };
 
         writeCachedSession({
           user: u,
           course: {
-            completedLessons: (init?.course.completed_lessons || lessons?.completed || []).slice(),
+            completedLessons: (init?.course.completed_lessons || lessons?.completed || localSecured.completedLessons || [1]).slice(),
             currentLessonId: init?.course.current_lesson_id ?? null,
             freeLessons: init?.course.free_lessons ?? 1,
           },
-          isPaid: !!init?.paid || !!lessons?.paid,
-          paidFull: !!init?.paid_full || !!lessons?.paid,
+          isPaid: isActuallyPaid,
+          paidFull: Boolean(init?.paid_full || lessons?.paid || isActuallyPaid),
           bonusDone: bonus?.completed?.length ?? 0,
           referralFriends: u.referralFriends,
           referralGpEarned: u.referralGpEarned,

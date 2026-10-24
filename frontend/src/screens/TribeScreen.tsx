@@ -4,7 +4,6 @@ import { useApp } from '../state/store';
 import { useCourseProgress } from '../state/CourseProgressContext';
 import { getTelegramWebApp } from '../types';
 import { haptic } from '../lib/theme';
-import { useStarsCheckout } from '../payment/Paywall';
 import { PaywallModal } from '../components/PaywallModal';
 import {
   StaggerContainer,
@@ -25,7 +24,6 @@ import {
   HelpCircle,
   Headphones,
 } from 'lucide-react';
-import { apiLessons } from '../api/client';
 
 const CONFETTI_SHOWN_KEY = 'opendeck_tribe_confetti_shown';
 const CONFETTI_COLORS = ['#8ce2c8', '#f5926e', '#c0a0a8', '#f3c969', '#ffffff'];
@@ -180,18 +178,25 @@ function TribeCanvasConfetti({ onComplete }: { onComplete?: () => void }) {
  * Оформлен как эксклюзивный клубный пропуск в стиле Liquid Glass
  * с абстрактной геометрией и мощной акцентной кнопкой.
  */
+const DEFAULT_TRIBE_INVITE_URL = 'https://t.me/+S9cLCiFHbWQzY2Iy';
+
 export function TribeScreen() {
   const navigate = useNavigate();
-  const { course, adminMode } = useApp();
+  const { course, isPaid, adminMode } = useApp();
   const { guardTribeAccess, verifyIntegrity, isCoursePurchased } = useCourseProgress();
-  const { checkoutCourse } = useStarsCheckout();
   const [showConfetti, setShowConfetti] = useState(false);
   const [paywallOpen, setPaywallOpen] = useState(false);
 
   const tribeGuard = guardTribeAccess();
-  const hasAccess = tribeGuard.allowed && (isCoursePurchased || adminMode);
+  const hasAccess = Boolean(adminMode || isPaid || isCoursePurchased || tribeGuard.allowed);
   const isLesson1Done = course.completedLessons.includes(1);
   const isLesson2Done = course.completedLessons.includes(2);
+
+  useEffect(() => {
+    if (hasAccess && paywallOpen) {
+      setPaywallOpen(false);
+    }
+  }, [hasAccess, paywallOpen]);
 
   useEffect(() => {
     if (!hasAccess) return;
@@ -241,31 +246,22 @@ export function TribeScreen() {
     }
   }, [hasAccess]);
 
-  const handleJoinCamp = async () => {
+  const handleJoinCamp = () => {
     haptic('light');
     const guard = guardTribeAccess();
-    if (!guard.allowed) {
+    if (!hasAccess && !guard.allowed) {
       if (guard.reason === 'tampered') {
         verifyIntegrity();
       }
-      void checkoutCourse('dj-basics');
+      setPaywallOpen(true);
       return;
     }
 
-    let inviteUrl = sessionStorage.getItem('opendeck_tribe_link') || '';
-    if (!inviteUrl) {
-      const res = await apiLessons('dj-basics').catch(() => null);
-      if (res?.tribe_invite_link) {
-        inviteUrl = res.tribe_invite_link;
-        try {
-          sessionStorage.setItem('opendeck_tribe_link', inviteUrl);
-        } catch {}
-      }
-    }
-    if (!inviteUrl) {
-      void checkoutCourse('dj-basics');
-      return;
-    }
+    let inviteUrl = DEFAULT_TRIBE_INVITE_URL;
+    try {
+      const stored = sessionStorage.getItem('opendeck_tribe_link');
+      if (stored) inviteUrl = stored;
+    } catch {}
 
     const tg = getTelegramWebApp();
     try {

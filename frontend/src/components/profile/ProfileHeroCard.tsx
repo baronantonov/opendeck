@@ -1,9 +1,7 @@
 import { useApp } from '../../state/store';
 import { useCourseProgress } from '../../state/CourseProgressContext';
 import { getUserRank } from '../../lib/constants';
-import { Star, IconHeadphones, IconSparkles } from '../ui';
-import { useToast } from '../Toast';
-import { haptic } from '../../lib/theme';
+import { Star, IconHeadphones } from '../ui';
 import { UserAvatar } from '../UserAvatar';
 import { AbstractGeometryBg } from '../LiquidGlassGeometry';
 import { getTelegramWebApp } from '../../types';
@@ -69,7 +67,6 @@ export function ProfileHeroCardSkeleton() {
 export function ProfileHeroCard() {
   const { user, course, isPaid, loading } = useApp();
   const { isCoursePurchased, completedLessons } = useCourseProgress();
-  const { toast } = useToast();
 
   // 1. Получение нативных данных Telegram SDK
   const tgUser = getTelegramUser();
@@ -94,18 +91,6 @@ export function ProfileHeroCard() {
   const tc = 10;
   const progressPct = Math.round((dc / tc) * 100);
   const archetype = user.archetype || 'Куратор Вайба';
-
-  const copyReferral = (e: React.MouseEvent<HTMLButtonElement>) => {
-    e.stopPropagation();
-    haptic('light');
-    const code = user.referralCode || 'opendeck';
-    if (navigator.clipboard?.writeText) {
-      void navigator.clipboard.writeText(code);
-      toast('✓', `Код скопирован: ${code}`);
-    } else {
-      toast('✓', `Твой код: ${code}`);
-    }
-  };
 
   if (loading) {
     return <ProfileHeroCardSkeleton />;
@@ -188,18 +173,6 @@ export function ProfileHeroCard() {
               <IconHeadphones size={12} color="var(--brand-mauve)" />
               <span>{rank.title}</span>
             </div>
-
-            {user.referralCode && (
-              <button
-                type="button"
-                onClick={copyReferral}
-                title="Скопировать реферальный код"
-                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-white/[0.05] shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)] text-[10.5px] font-bold text-[#8ce2c8] active:scale-[0.97] transition-all duration-200 ease-out cursor-pointer border-0"
-              >
-                <IconSparkles size={11} color="var(--brand-mint)" />
-                <span>{user.referralCode}</span>
-              </button>
-            )}
           </div>
         </div>
       </div>

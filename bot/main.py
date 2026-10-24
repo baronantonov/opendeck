@@ -199,7 +199,7 @@ async def on_inline(query: InlineQuery):
         results=[
             InlineQueryResultArticle(
                 id="1",
-                title="🎧 Пригласить друга в Open Deck",
+                title="🎧 Позвать в команду Open Deck",
                 description=raw_text.split("\n", 1)[0][:120] if "\n" in raw_text else raw_text[:120],
                 input_message_content=InputTextMessageContent(
                     message_text=safe_text,

@@ -162,43 +162,36 @@ export function LessonScreen() {
   const canComplete = isFirstLesson || videoFinished || alreadyCompleted;
   const videoSourceUrl = resolveVideoSource(lesson);
   const fallbackLessonForDeck = COURSE_LESSONS[lessonIndex] || COURSE_LESSONS[0];
+  const tw = getTelegramWebApp();
+  const isInsideTelegram = Boolean(tw?.initData);
 
   return (
     <div
       className="h-full max-h-full w-full flex flex-col justify-between text-[#f4f7f5] bg-[#2b302e] overflow-hidden select-none"
       style={{
-        paddingTop: 'calc(env(safe-area-inset-top, 0px) + 8px)',
-        paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 12px)',
+        paddingTop:
+          'calc(max(env(safe-area-inset-top, 0px), var(--app-safe-top, 0px), var(--safe-top, 0px)) + 12px)',
+        paddingBottom:
+          'calc(max(env(safe-area-inset-bottom, 0px), var(--app-safe-bottom, 0px), var(--safe-bottom, 0px)) + 12px)',
         boxSizing: 'border-box',
       }}
     >
-      {/* ── ВЕРХНИЙ БАР (БЕЗ ПОЛОС, НА LIQUID GLASS ПИЛЛАХ) ── */}
-      <div className="flex items-center justify-between px-4 pb-2.5 shrink-0">
-        <button
-          type="button"
-          onClick={() => {
-            haptic('light');
-            navigate('/learn');
-          }}
-          className="liquid-glass-pill flex items-center gap-1.5 py-2 px-3.5 rounded-2xl text-xs font-bold text-[#f4f7f5] active:scale-[0.97] transition-all duration-200 ease-out cursor-pointer border-0"
-        >
-          <ArrowLeft size={14} />
-          <span>К урокам</span>
-        </button>
-
-        <div className="flex items-center gap-2">
-          <span className="liquid-glass-pill text-[11px] font-extrabold uppercase px-3 py-1.5 rounded-full text-[#8ce2c8] tracking-wider">
-            Pocket DJ · {lesson.id}/10
-          </span>
-
-          {alreadyCompleted && (
-            <span className="flex items-center gap-1 text-xs font-bold text-[#8ce2c8]">
-              <CheckCircle2 size={14} />
-              <span>Пройден</span>
-            </span>
-          )}
+      {/* Для браузера без нативного WebApp.BackButton показываем аккуратную кнопку возврата */}
+      {!isInsideTelegram && (
+        <div className="flex items-center px-4 pb-2.5 shrink-0">
+          <button
+            type="button"
+            onClick={() => {
+              haptic('light');
+              navigate('/learn');
+            }}
+            className="liquid-glass-pill flex items-center gap-1.5 py-2 px-3.5 rounded-2xl text-xs font-bold text-[#f4f7f5] active:scale-[0.97] transition-all duration-200 ease-out cursor-pointer border-0"
+          >
+            <ArrowLeft size={14} />
+            <span>К урокам</span>
+          </button>
         </div>
-      </div>
+      )}
 
       {/* ── КАСТОМНЫЙ ВИДЕОПЛЕЕР УРОКА С ЗАЩИТОЙ ОТ ПЕРЕМОТКИ (УРОКИ 2–10) ── */}
       {!isFirstLesson && (

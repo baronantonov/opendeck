@@ -104,31 +104,31 @@ export function LearningScreen() {
               background: 'color-mix(in srgb, var(--color-surface) 30%, transparent)',
             }}
           >
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 min-w-0">
               <span
-                className="animate-organic-pulse inline-block h-2 w-2 rounded-full"
+                className="animate-organic-pulse inline-block h-2 w-2 rounded-full shrink-0"
                 style={{
                   background: 'var(--brand-mint)',
                   boxShadow: '0 0 8px var(--brand-mint)',
                 }}
               />
-              <span className="text-[11px] font-extrabold uppercase tracking-wider text-[var(--brand-mint)]">
-                {hasFullAccess ? 'PRO ДОСТУП АКТИВЕН' : 'БАЗОВЫЙ ДОСТУП · 2 УРОКА ОТКРЫТО'}
+              <span className="text-[11px] font-extrabold uppercase tracking-wider text-[var(--brand-mint)] whitespace-nowrap truncate">
+                {hasFullAccess ? 'PRO ДОСТУП' : 'БАЗОВЫЙ ДОСТУП'}
               </span>
             </div>
 
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-extrabold text-[var(--color-text)]">
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="text-xs font-extrabold text-[var(--color-text)] whitespace-nowrap">
                 {dc} / {tc}
               </span>
               <div
-                className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-bold shadow-[inset_0_1px_1px_rgba(255,255,255,0.12)]"
+                className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-bold whitespace-nowrap shadow-[inset_0_1px_1px_rgba(255,255,255,0.12)]"
                 style={{
                   background: 'color-mix(in srgb, var(--brand-gold) 15%, var(--color-surface-2))',
                 }}
               >
                 <Star size={12} />
-                <span className="text-[var(--brand-gold)]">{user.groovePoints} GP</span>
+                <span className="text-[var(--brand-gold)] font-extrabold whitespace-nowrap">{user.groovePoints} GP</span>
               </div>
             </div>
           </div>
@@ -238,10 +238,10 @@ export function LearningScreen() {
                           shimmer
                           hapticFeedback="light"
                           onClick={() => setPaywallOpen(true)}
-                          className="h-13 py-3.5 rounded-2xl text-base font-bold"
+                          className="h-13 py-3.5 rounded-2xl text-[15px] sm:text-base font-bold whitespace-nowrap"
                         >
-                          <Sparkles size={18} />
-                          <span>Открыть полный курс · 2 500 Stars</span>
+                          <Sparkles size={18} className="shrink-0" />
+                          <span className="whitespace-nowrap">Открыть курс · 2 500 Stars</span>
                         </ShimmerButton>
                       )}
                       <button

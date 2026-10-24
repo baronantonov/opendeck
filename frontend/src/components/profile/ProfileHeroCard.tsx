@@ -121,24 +121,24 @@ export function ProfileHeroCard() {
       />
 
       {/* Верхняя плашка паспорта резидента */}
-      <div className="relative z-10 flex items-center justify-between gap-2">
-        <span className="text-[10.5px] font-extrabold uppercase tracking-[0.12em] text-[#9aa3a0]">
-          OPENDECK RESIDENT PASSPORT
+      <div className="relative z-10 flex items-center justify-between gap-2 min-w-0">
+        <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#9aa3a0] truncate min-w-0">
+          RESIDENT PASSPORT
         </span>
 
         <div
-          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10.5px] font-extrabold uppercase tracking-wider ${
+          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider whitespace-nowrap shrink-0 ${
             hasProAccess
               ? 'bg-[#8ce2c8]/15 text-[#8ce2c8] shadow-[inset_0_1px_1px_rgba(140,226,200,0.28)]'
               : 'bg-white/[0.06] text-[#f3c969] shadow-[inset_0_1px_1px_rgba(255,255,255,0.12)]'
           }`}
         >
           <span
-            className="w-1.5 h-1.5 rounded-full animate-organic-pulse"
+            className="w-1.5 h-1.5 rounded-full animate-organic-pulse shrink-0"
             style={{ background: hasProAccess ? 'var(--brand-mint)' : 'var(--brand-gold)' }}
           />
-          <ShieldCheck size={12} />
-          <span>{hasProAccess ? 'PRO ДОСТУП' : 'БАЗОВЫЙ ДОСТУП'}</span>
+          <ShieldCheck size={12} className="shrink-0" />
+          <span className="whitespace-nowrap">{hasProAccess ? 'PRO ДОСТУП' : 'БАЗОВЫЙ ДОСТУП'}</span>
         </div>
       </div>
 

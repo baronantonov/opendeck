@@ -1,57 +1,122 @@
 """FastAPI-бэкенд DJ School — PLAY API (GP + Referral).
 
-Эндпоинты:
-  GET  /                        — Mini App (index.html)
-  POST /api/init                — точка входа (создание юзера, рефссылка)
-  GET  /api/health              — healthcheck
-  GET  /api/profile             — профиль + referral_code
-  GET  /api/lessons             — список уроков (по оплате)
-  POST /api/progress            — завершить урок (+50 GP)
-  POST /api/referral/purchase   — инвайте купил → инвайтер +200 GP
-  POST /api/gp/apply            — списать GP на скидку MENTOR
-  POST /api/grant               — выдача доступа (внутренний)
-  POST /webhooks/prodamus       — вебхук оплаты
+Точка входа ASGI (`backend.main:app`). Все доменные роуты вынесены в `backend/routers/`,
+схемы — в `backend/schemas.py`, общие зависимости и константы — в `backend/deps.py`.
+Для 100% обратной совместимости с тестами и внешними вызовами все публичные и
+приватные символы реэкспортируются из этого модуля.
 """
 from __future__ import annotations
-import os, json, httpx, hmac, time, logging, re, secrets
-from pathlib import Path
+
+import logging
+import os
+
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
+
+from backend.auth import verify_init_data  # noqa: F401
+from backend.crm import router as crm_router
+import backend.db as db
+from backend.deps import (  # noqa: F401
+    AB_EXPERIMENTS,
+    BONUS_COURSE_ID,
+    BONUS_NEW_IDS,
+    BONUS_NEW_TO_OLD,
+    BONUS_OLD_IDS,
+    BONUS_OLD_TO_NEW,
+    BOT_TOKEN,
+    COURSE,
+    COURSE_BONUS,
+    COURSE_ID,
+    COURSE_MAIN,
+    FREE_LESSONS,
+    FULL_COURSE_PRICE,
+    INTERNAL_API_KEY,
+    MAIN_NEW_IDS,
+    MAIN_OLD_IDS,
+    MENTOR_FLOOR,
+    MENTOR_GP_CAP,
+    MENTOR_PRICE,
+    MINI_APP_DIR,
+    NEW_TO_OLD,
+    OLD_TO_NEW,
+    REWARD_ACTIONS,
+    TOTAL_BONUS,
+    TOTAL_MAIN,
+    TRIPWIRE_PRICE,
+    _GIFT_USERNAME_RE,
+    _STARS_INVOICE_CACHE,
+    _ab_price,
+    _bot_token,
+    _course_response,
+    _extract_gift_token,
+    _internal_api_key,
+    _load_courses,
+    _prodamus_secret,
+    _resolve_uid,
+    _send_telegram_notification,
+    _tribute_secret,
+    _user_id_from_init,
+    _user_response,
+    _verify_tribute_signature,
+    current_user,
+    require_internal_key,
+)
+import backend.prodamus_sign as prodamus_sign  # noqa: F401
+from backend.routers.ab_testing import ab_assign, ab_track, router as ab_router  # noqa: F401
+from backend.routers.economy import (  # noqa: F401
+    archetype_share,
+    gp_apply,
+    gp_earn,
+    gp_spend,
+    referral_purchase,
+    router as economy_router,
+)
+from backend.routers.lessons import (  # noqa: F401
+    lessons,
+    lessons_bonus,
+    progress,
+    router as lessons_router,
+)
+from backend.routers.payments import (  # noqa: F401
+    create_invoice,
+    gift_activate,
+    grant,
+    router as payments_router,
+)
+from backend.routers.session import (  # noqa: F401
+    api_init,
+    profile,
+    router as session_router,
+)
+from backend.routers.webhooks import (  # noqa: F401
+    prodamus_webhook,
+    router as webhooks_router,
+    tribute_webhook,
+)
+from backend.schemas import (  # noqa: F401
+    AbTrackRequest,
+    ArchetypeShareRequest,
+    CreateInvoice,
+    CreateInvoiceRequest,
+    GiftActivate,
+    GiftActivateRequest,
+    GpApplyRequest,
+    GpEarnRequest,
+    GpSpendRequest,
+    Grant,
+    GrantRequest,
+    InitRequest,
+    Progress,
+    ProgressRequest,
+    ReferralPurchaseRequest,
+)
 
 logger = logging.getLogger("opendeck.backend")
 
-try:
-    from dotenv import load_dotenv
-    load_dotenv()
-except ImportError:
-    pass
-
-from fastapi import FastAPI, Header, Request, Body
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, JSONResponse
-from pydantic import BaseModel
-
-from backend.auth import verify_init_data
-import backend.db as db
-import backend.prodamus_sign as prodamus_sign
-from backend.crm import router as crm_router
-
 db.init()
 
-BOT_TOKEN = os.getenv("BOT_TOKEN", "")
-if not BOT_TOKEN:
-    raise SystemExit("❌ BOT_TOKEN не задан! Установи переменную окружения.")
-INTERNAL_API_KEY = os.getenv("INTERNAL_API_KEY", "")
-if not INTERNAL_API_KEY:
-    raise SystemExit("❌ INTERNAL_API_KEY не задан! Без него /api/grant не защищён.")
-MINI_APP_DIR = Path(__file__).resolve().parent.parent  # корень проекта — один index.html
-COURSE_ID = "dj-basics"
-
-# Валидация Telegram username для подарков (совпадает с фронтендом)
-_GIFT_USERNAME_RE = re.compile(r"^[A-Za-z0-9_]{5,32}$")
-
 app = FastAPI(title="DJ School API")
-
-# CRM-админка (защищена ADMIN_KEY через подписанный cookie)
-app.include_router(crm_router)
 
 _DEFAULT_CORS_ORIGINS = [
     "https://baronantonov.github.io",
@@ -74,164 +139,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# --- Демо-курс ---
-COURSE = {
-    "dj-basics": [
-        {"id": 1, "title": "Знакомство: кто такой диджей и зачем он нужен"},
-        {"id": 2, "title": "История: от диско до наших дней"},
-        {"id": 3, "title": "Направления и оборудование: где найти себя"},
-        {"id": 4, "title": "Музыкальная теория: бит, ритм и колесо Камелота"},
-        {"id": 5, "title": "Интерфейс на телефоне: твой первый контроллер"},
-        {"id": 6, "title": "Основы сведения: BPM, темп и кнопка Sync"},
-        {"id": 7, "title": "Кроссфейдер и нюансы темпо"},
-        {"id": 8, "title": "Лупы и Beat Jump: лёгкое сведение"},
-        {"id": 9, "title": "Эффекты и фильтр: краски твоего сета"},
-        {"id": 10, "title": "Твой первый микс из 4–5 треков"},
-    ]
-}
-
-# --- PLAY remap: основной курс = старые уроки 5-10 (новые 1-6), бонусы = старые 1-4 ---
-MAIN_OLD_IDS = [5, 6, 7, 8, 9, 10]
-MAIN_NEW_IDS = [1, 2, 3, 4, 5, 6]
-BONUS_OLD_IDS = [1, 2, 3, 4]
-BONUS_NEW_IDS = [1, 2, 3, 4]
-BONUS_COURSE_ID = "dj-bonus"  # бонусы — отдельный course_id (C3), чтобы не конфликтовали с основным
-OLD_TO_NEW = {old: new for old, new in zip(MAIN_OLD_IDS, MAIN_NEW_IDS)}
-NEW_TO_OLD = {new: old for new, old in zip(MAIN_NEW_IDS, MAIN_OLD_IDS)}
-# бонусы: старые id 1-4 -> новые id 1-4 (прямое совпадение, но свой course_id)
-BONUS_OLD_TO_NEW = {i: i for i in BONUS_OLD_IDS}
-BONUS_NEW_TO_OLD = {i: i for i in BONUS_OLD_IDS}
-TOTAL_MAIN = len(MAIN_OLD_IDS)
-TOTAL_BONUS = len(BONUS_OLD_IDS)
-
-# A/B эксперимент: сколько основных уроков бесплатны (порог входа).
-# База = 1 (урок 1 как крючок, tripwire-воронка). Поднять до 2 дало бы
-# больше «вкуса» перед paywall — НО это снижает Day-0 конверсию (Adapty: 90%
-# trial в первой сессии). Держим 1, флаг готов к A/B через assign_ab_variant.
-FREE_LESSONS = 1
-
-COURSE_MAIN = [
-    {"id": i + 1, "title": COURSE[COURSE_ID][MAIN_OLD_IDS[i] - 1]["title"]}
-    for i in range(TOTAL_MAIN)
-]
-COURSE_BONUS = [
-    {"id": i + 1, "title": COURSE[COURSE_ID][i]["title"], "bonus": True}
-    for i in range(4)
-]
-
-
-# ---------------------------------------------------------------------------
-# helpers
-# ---------------------------------------------------------------------------
-
-class Grant(BaseModel):
-    user_id: int
-    course_id: str
-    provider: str
-
-class Progress(BaseModel):
-    course_id: str = COURSE_ID
-    lesson_id: int
-    bonus: bool = False  # C3: фронт помечает бонусный урок явно
-
-class InitRequest(BaseModel):
-    init_data: str | None = None
-    user_id: int | None = None
-    start_param: str | None = None
-
-def _user_id_from_init(init_data: str) -> int | None:
-    """Валидировать init_data, вернуть telegram_id."""
-    data = verify_init_data(init_data, BOT_TOKEN)
-    if not data:
-        return None
-    try:
-        u = json.loads(data["user"])
-        uid = u.get("id")
-        if not uid or not isinstance(uid, int):
-            return None
-        db.upsert_user(
-            uid,
-            first_name=u.get("first_name"),
-            username=u.get("username"),
-            photo_url=u.get("photo_url"),
-        )
-        return uid
-    except Exception:
-        return None
-
-
-def _resolve_uid(
-    x_init_data: str,
-    authorization: str | None,
-    body: dict | None = None,
-) -> int | None:
-    """Определить telegram_id запроса двумя путями:
-
-    1) Фронт (Mini App): заголовок X-Init-Data (подписан TG).
-    2) Бот (server-to-server): заголовок Authorization: Bearer INTERNAL_API_KEY
-       + JSON-поле user_id. Бот НЕ имеет init_data пользователя, поэтому
-       шлёт свой внутренний ключ и явный user_id.
-
-    Возвращает telegram_id или None (если ни один путь не прошёл).
-    """
-    uid = _user_id_from_init(x_init_data)
-    if uid is not None:
-        return uid
-    # путь бота: проверяем internal key (constant-time), затем берём user_id из тела
-    if authorization and hmac.compare_digest(authorization, f"Bearer {INTERNAL_API_KEY}") and body:
-        uid = body.get("user_id")
-        if uid is not None:
-            try:
-                return int(uid)
-            except (TypeError, ValueError):
-                return None
-    return None
-
-
-def _user_response(uid: int) -> dict:
-    """Собрать блок user для /api/init."""
-    u = db.get_user(uid)
-    if not u:
-        return {}
-    return {
-        "id": str(u["user_id"]),
-        "name": u["first_name"] or "",
-        "photo_url": u["photo_url"] or "",
-        "referral_code": u["referral_code"] or "",
-        "referred_by": u["referred_by"],
-        "archetype": u["archetype"] or "Куратор Вайба",
-        "groove_points": db.get_gp(uid),
-        "bonus_lessons": _course_response(uid)["bonus_lessons"],
-        "last_seen": u.get("last_seen") or "",
-    }
-
-
-def _course_response(uid: int) -> dict:
-    """Собрать блок course."""
-    raw_completed = db.get_completed(uid, COURSE_ID)
-    remap_main = lambda ids: [OLD_TO_NEW[x] for x in ids if x in MAIN_OLD_IDS]
-    main_completed = remap_main(raw_completed)
-    main_total = TOTAL_MAIN
-    current = (max(main_completed) + 1) if main_completed else 1
-    if current > main_total:
-        current = main_total
-    bonus_completed = len([x for x in db.get_completed(uid, BONUS_COURSE_ID) if x in BONUS_OLD_IDS])
-    bonus_total = len(BONUS_OLD_IDS)
-    return {
-        "course_id": COURSE_ID,
-        "completed_lessons": main_completed,
-        "total_lessons": main_total,
-        "current_lesson_id": current,
-        "bonus_lessons": bonus_completed,
-        "total_bonus_lessons": bonus_total,
-        "bonus_unlocked": len(main_completed) >= main_total,
-        "free_lessons": FREE_LESSONS,
-    }
-
-
-# ---------------------------------------------------------------------------
-# endpoints
-# ---------------------------------------------------------------------------
 
 @app.get("/api/health")
 async def health():
@@ -251,874 +158,10 @@ async def index():
     )
 
 
-# ---- POST /api/init (core PLAY) ----
-
-@app.post("/api/init")
-async def api_init(
-    body: InitRequest,
-    authorization: str | None = Header(None),
-):
-    if authorization and hmac.compare_digest(authorization, f"Bearer {INTERNAL_API_KEY}") and body.user_id:
-        uid = int(body.user_id)
-        existing = db.get_user(uid)
-        return {
-            "user": _user_response(uid) if existing else {},
-            "course": _course_response(uid),
-            "bonus": None,
-            "referral_friends": db.get_referral_stats(uid)["friends_count"],
-            "referral_gp_earned": db.get_referral_stats(uid)["gp_earned"],
-            "paid_full": db.has_paid(uid, COURSE_ID),
-            "paid_tripwire": db.has_paid(uid, "tripwire"),
-            "paid": db.has_paid(uid, COURSE_ID) or db.has_paid(uid, "tripwire"),
-        }
-
-    if not body.init_data:
-        return JSONResponse({"error": "bad_init_data"}, status_code=401)
-    data = verify_init_data(body.init_data, BOT_TOKEN)
-    if not data:
-        return JSONResponse({"error": "bad_init_data"}, status_code=401)
-
-    try:
-        tu = json.loads(data["user"])
-    except (KeyError, json.JSONDecodeError):
-        return JSONResponse({"error": "bad_user_data"}, status_code=400)
-
-    uid = tu.get("id")
-    first_name = tu.get("first_name")
-    username = tu.get("username")
-    photo_url = tu.get("photo_url")
-
-    # проверить, существует ли пользователь
-    existing = db.get_user(uid)
-    if existing:
-        # upsert (обновить last_seen и т.д.)
-        db.upsert_user(uid, first_name, username, photo_url)
-    else:
-        # создать нового
-        db.create_user(uid, first_name, username, photo_url)
-
-    bonus = None
-
-    # обработка реферальной ссылки
-    sp = body.start_param or ""
-    if sp.startswith("ref_") and existing is None:
-        ref_code = sp[4:]  # "a1b2c3d4"
-        inviter = db.get_user_by_referral_code(ref_code)
-        if inviter and inviter["user_id"] != uid:
-            # записать referred_by
-            with db._conn() as c:
-                c.execute(
-                    "UPDATE users SET referred_by=? WHERE user_id=?",
-                    (ref_code, uid),
-                )
-            # начислить бонусы
-            inviter_code = db.apply_referral_signup(uid, inviter["user_id"])
-            if inviter_code:
-                bonus = {
-                    "type": "referral_signup",
-                    "amount": 100,
-                    "message": "🎁 Подарок от друга! Тебе начислено 100 GP",
-                }
-    elif sp.startswith("ref_") and existing and not existing.get("referred_by"):
-        # пользователь уже существовал, но реф ссылка не была привязана
-        # Защита от циклического реферала A <-> B: инвайтер не должен быть приглашён этим юзером
-        ref_code = sp[4:]
-        inviter = db.get_user_by_referral_code(ref_code)
-        my_code = existing.get("referral_code")
-        if (
-            inviter
-            and inviter["user_id"] != uid
-            and (not my_code or inviter.get("referred_by") != my_code)
-        ):
-            with db._conn() as c:
-                c.execute(
-                    "UPDATE users SET referred_by=? WHERE user_id=?",
-                    (ref_code, uid),
-                )
-            inviter_code = db.apply_referral_signup(uid, inviter["user_id"])
-    elif sp.startswith("gift_"):
-        # Подарок курса: активируется ТОЛЬКО если даритель реально оплатил
-        # Stars-инвойс (запись gifts: pending -> paid через /api/gift/activate)
-        # и подарок ещё не использован. Без оплаты — ничего не выдаём.
-        raw_gift = sp[5:].strip()
-        if "__" in raw_gift:
-            target_recipient, gift_token_arg = raw_gift.split("__", 1)
-        else:
-            target_recipient, gift_token_arg = raw_gift, None
-        target_recipient = target_recipient.lstrip("@").lower()
-        my_username = (username or "").strip().lower()
-        if target_recipient and (target_recipient == my_username or target_recipient == str(uid)):
-            if not db.has_paid(uid, COURSE_ID):
-                claimed = db.claim_gift(target_recipient, token=gift_token_arg)
-                if claimed:
-                    db.add_payment(uid, COURSE_ID, provider="gift", status="paid")
-                    bonus = {
-                        "type": "gift_accepted",
-                        "amount": 0,
-                        "message": "🎁 Тебе подарили полный курс Open Deck! Все уроки открыты.",
-                    }
-
-    is_paid = db.has_paid(uid, COURSE_ID) or db.has_paid(uid, "tripwire")
-    return {
-        "user": _user_response(uid),
-        "course": _course_response(uid),
-        "bonus": bonus,
-        "referral_friends": db.get_referral_stats(uid)["friends_count"],
-        "referral_gp_earned": db.get_referral_stats(uid)["gp_earned"],
-        # PLAY A: флаги оплаты для фронт-пейвола (курс иначе проходится бесплатно)
-        "paid_full": db.has_paid(uid, COURSE_ID),
-        "paid_tripwire": db.has_paid(uid, "tripwire"),
-        "paid": is_paid,
-        "tribe_invite_link": os.getenv("TRIBE_INVITE_LINK", "https://t.me/+S9cLCiFHbWQzY2Iy") if is_paid else None,
-    }
-
-
-# ---- GET /api/profile (extended) ----
-
-@app.get("/api/profile")
-async def profile(x_init_data: str = Header("", alias="X-Init-Data")):
-    uid = _user_id_from_init(x_init_data)
-    if uid is None:
-        return JSONResponse({"error": "bad_init_data"}, status_code=401)
-    user = db.get_user(uid)
-    gp = db.get_gp(uid)
-    completed = db.get_completed(uid, COURSE_ID)
-    badges = db.get_badges(uid, COURSE_ID)
-    main_completed = [OLD_TO_NEW[x] for x in completed if x in MAIN_OLD_IDS]
-    ref_stats = db.get_referral_stats(uid)
-    return {
-        "user": user,
-        "gp": gp,
-        "completed": main_completed,
-        "total_lessons": TOTAL_MAIN,
-        "badges": badges,
-        "referral_code": user["referral_code"] if user else "",
-        "referred_by": user["referred_by"] if user else None,
-        "referral_friends": ref_stats["friends_count"],
-        "referral_gp_earned": ref_stats["gp_earned"],
-        "archetype": user["archetype"] if user else "Куратор Вайба",
-        "bonus_lessons": len([x for x in db.get_completed(uid, "dj-bonus") if x in BONUS_OLD_IDS]),
-    }
-
-
-# ---- GET /api/lessons /api/lessons-bonus — основная часть / бонусы ----
-@app.get("/api/lessons")
-async def lessons(
-    x_init_data: str = Header("", alias="X-Init-Data"),
-    course_id: str = COURSE_ID,
-):
-    uid = _user_id_from_init(x_init_data)
-    if uid is None:
-        return JSONResponse({"error": "bad_init_data", "paid": False}, status_code=401)
-    completed = [OLD_TO_NEW[x] for x in db.get_completed(uid, course_id) if x in MAIN_OLD_IDS]
-    paid = db.has_paid(uid, course_id) or (course_id == COURSE_ID and db.has_paid(uid, "tripwire"))
-    return {
-        "paid": paid,
-        "course_id": course_id,
-        "lessons": COURSE_MAIN,
-        "completed": completed,
-        "total": TOTAL_MAIN,
-        "tribe_invite_link": os.getenv("TRIBE_INVITE_LINK", "https://t.me/+S9cLCiFHbWQzY2Iy") if paid else None,
-    }
-
-
-@app.get("/api/lessons-bonus")
-async def lessons_bonus(
-    x_init_data: str = Header("", alias="X-Init-Data"),
-):
-    uid = _user_id_from_init(x_init_data)
-    if uid is None:
-        return JSONResponse({"error": "bad_init_data"}, status_code=401)
-    # Бонусы ВИДНЫ всегда, но открываются по порядку от прогресса основного курса:
-    #   Бонус 1 — доступен сразу.
-    #   Бонус N (N>=2) — открывается после прохождения урока N-1 основного курса.
-    # unlocked_count = min(пройдено_основных + 1, всего_бонусов).
-    main_completed = len([x for x in db.get_completed(uid, COURSE_ID) if x in MAIN_OLD_IDS])
-    unlocked_count = min(main_completed + 1, TOTAL_BONUS)
-    completed = [
-        BONUS_OLD_TO_NEW[x]
-        for x in db.get_completed(uid, BONUS_COURSE_ID)
-        if x in BONUS_OLD_IDS
-    ]
-    return {
-        "course_id": BONUS_COURSE_ID,
-        "lessons": COURSE_BONUS,
-        "completed": completed,
-        "unlocked_count": unlocked_count,
-        "total_main": TOTAL_MAIN,
-        "bonus_unlocked": unlocked_count >= TOTAL_BONUS,  # true только когда все 4 открыты
-    }
-
-
-
-# ---- POST /api/progress (existing, +GP) ----
-
-@app.post("/api/progress")
-async def progress(
-    p: Progress,
-    x_init_data: str = Header("", alias="X-Init-Data"),
-):
-    uid = _user_id_from_init(x_init_data)
-    if uid is None:
-        return JSONResponse({"error": "bad_init_data"}, status_code=401)
-
-    # ---- БОНУСЫ (C3): отдельный course_id, открываются по порядку от прогресса основного курса ----
-    if p.course_id == BONUS_COURSE_ID or p.bonus:
-        course_id = BONUS_COURSE_ID
-        if p.lesson_id not in BONUS_NEW_IDS and p.lesson_id not in BONUS_OLD_IDS:
-            return JSONResponse({"error": "bad_lesson_id"}, status_code=400)
-        new_bonus_id = BONUS_OLD_TO_NEW.get(p.lesson_id, p.lesson_id)
-        main_completed = len([x for x in db.get_completed(uid, COURSE_ID) if x in MAIN_OLD_IDS])
-        unlocked_count = min(main_completed + 1, TOTAL_BONUS)
-        if new_bonus_id > unlocked_count:
-            return JSONResponse(
-                {"error": "bonus_locked", "unlocked_count": unlocked_count},
-                status_code=403,
-            )
-        old_id = BONUS_NEW_TO_OLD.get(p.lesson_id, p.lesson_id)
-        gp = db.complete_lesson(uid, course_id, old_id)
-        completed = [
-            BONUS_OLD_TO_NEW[x]
-            for x in db.get_completed(uid, course_id)
-            if x in BONUS_OLD_IDS
-        ]
-        return {"gp": gp, "completed": completed, "bonus": True}
-
-    # ---- ОСНОВНОЙ КУРС (платный доступ) ----
-    if p.course_id == COURSE_ID:
-        if p.lesson_id not in MAIN_NEW_IDS and p.lesson_id not in MAIN_OLD_IDS:
-            return JSONResponse({"error": "bad_lesson_id"}, status_code=400)
-        new_lesson_id = OLD_TO_NEW.get(p.lesson_id, p.lesson_id)
-        is_free_lesson = (new_lesson_id <= FREE_LESSONS)
-        paid_full = db.has_paid(uid, p.course_id)
-        paid_tw = db.has_paid(uid, "tripwire")
-        if not paid_full and not paid_tw and not is_free_lesson:
-            return JSONResponse({"error": "not_paid", "paid": False}, status_code=403)
-    else:
-        return JSONResponse({"error": "bad_course_id"}, status_code=400)
-
-    old_id = NEW_TO_OLD.get(p.lesson_id, p.lesson_id)
-    gp = db.complete_lesson(uid, p.course_id, old_id)
-    completed = [
-        OLD_TO_NEW[x]
-        for x in db.get_completed(uid, p.course_id)
-        if x in MAIN_OLD_IDS
-    ]
-    return {
-        "gp": gp,
-        "completed": completed,
-    }
-
-
-# ---- POST /api/referral/purchase ----
-
-@app.post("/api/referral/purchase")
-async def referral_purchase(
-    req: Request,
-    authorization: str | None = Header(None),
-):
-    if not authorization or not hmac.compare_digest(authorization, f"Bearer {INTERNAL_API_KEY}"):
-        return JSONResponse({"error": "unauthorized"}, status_code=403)
-    body = {}
-    try:
-        body = await req.json()
-    except Exception:
-        body = {}
-    uid = _resolve_uid("", authorization, body)
-    if uid is None:
-        return JSONResponse({"error": "bad_init_data"}, status_code=401)
-
-    inviter_id = db.apply_referral_purchase(uid)
-    if inviter_id is None:
-        return {
-            "inviter_bonus": 0,
-            "inviter_id": None,
-            "gp": db.get_gp(uid),
-        }
-
-    inviter = db.get_user(inviter_id)
-    # реально начисленный базовый бонус инвайтеру за этого invitee (500)
-    with db._conn() as _c:
-        earned = _c.execute(
-            "SELECT COALESCE(SUM(amount),0) FROM transactions "
-            "WHERE user_id=? AND action_type='referral_purchase' AND ref_user_id=?",
-            (inviter_id, uid),
-        ).fetchone()[0]
-    return {
-        "inviter_bonus": int(earned),
-        "inviter_id": inviter_id,
-        "inviter_code": inviter["referral_code"] if inviter else "",
-        "gp": db.get_gp(uid),
-    }
-
-
-# ---- POST /api/gp/apply ----
-
-@app.post("/api/gp/apply")
-async def gp_apply(
-    req: Request,
-    authorization: str | None = Header(None),
-):
-    if not authorization or not hmac.compare_digest(authorization, f"Bearer {INTERNAL_API_KEY}"):
-        return JSONResponse({"error": "unauthorized"}, status_code=403)
-    body = {}
-    try:
-        body = await req.json()
-    except Exception:
-        body = {}
-
-    # charge_id: у бота это telegram_payment_charge_id (идемпотентность)
-    charge_id = body.get("charge_id")
-    uid = _resolve_uid("", authorization, body)
-    if uid is None:
-        return JSONResponse({"error": "bad_init_data"}, status_code=401)
-
-    # amount: либо из тела, либо бот считает его сам из GP пользователя
-    amount = body.get("amount")
-    if amount is None:
-        amount = min(db.get_gp(uid), 7000)
-
-    result = db.apply_gp_spend(uid, amount, charge_id=charge_id)
-    if result is None:
-        return JSONResponse({"error": "insufficient_gp"}, status_code=400)
-    return result
-
-
-# ---- POST /api/gp/spend ----
-@app.post("/api/gp/spend")
-async def gp_spend(
-    req: Request,
-    x_init_data: str = Header("", alias="X-Init-Data"),
-):
-    """Произвольное списание GP (streak freeze и т.п.). Требует валидный init_data."""
-    body = {}
-    try:
-        body = await req.json()
-    except Exception:
-        body = {}
-    amount = body.get("amount")
-    if isinstance(amount, bool) or not isinstance(amount, int) or amount <= 0 or amount > 10000:
-        return JSONResponse({"error": "bad_amount"}, status_code=400)
-    reason = str(body.get("reason", "spend"))[:32]
-    uid = _resolve_uid(x_init_data, None, body)
-    if uid is None:
-        return JSONResponse({"error": "bad_init_data"}, status_code=401)
-    result = db.spend_gp(uid, amount, reason=reason)
-    if result is None:
-        return JSONResponse({"error": "user_not_found"}, status_code=404)
-    return result
-
-
-# ---- POST /api/gp/earn ----
-REWARD_ACTIONS = {
-    "share": 25,              # поделился курсом — +25 GP
-    "share_achievement": 25,  # поделился достижением — +25 GP
-    "invite_team": 50,        # пригласил друга в команду — +50 GP
-    "daily": 25,              # ежедневный бонус — +25 GP
-    "review": 50,             # отзыв — +50 GP
-}
-@app.post("/api/gp/earn")
-async def gp_earn(
-    req: Request,
-    x_init_data: str = Header("", alias="X-Init-Data"),
-):
-    """Rewarded-механика: начислить GP за действие (шер/ежедневный бонус/отзыв).
-
-    ЗАЩИТА ОТ ФЕРМЫ: одно действие — не чаще 1 раза в 24ч (атомарно под BEGIN IMMEDIATE).
-    """
-    body = {}
-    try:
-        body = await req.json()
-    except Exception:
-        body = {}
-    action = body.get("action")
-    if action not in REWARD_ACTIONS:
-        return JSONResponse({"error": "bad_action"}, status_code=400)
-    uid = _resolve_uid(x_init_data, None, body)
-    if uid is None:
-        return JSONResponse({"error": "bad_init_data"}, status_code=401)
-    amount = REWARD_ACTIONS[action]
-    result = db.add_gp(uid, amount, action_type=f"reward_{action}", cooldown_hours=24)
-    if result.get("cooldown"):
-        return JSONResponse({"error": "cooldown", "hint": "доступно через 24ч"}, status_code=429)
-    result["amount"] = amount
-    result["action"] = action
-    return result
-
-
-# ---- POST /api/archetype/share — Share-your-archetype Team Loop ----
-
-@app.post("/api/archetype/share")
-async def archetype_share(
-    req: Request,
-    x_init_data: str = Header("", alias="X-Init-Data"),
-):
-    """Пользователь поделился карточкой своего архетипа (DJ-персоны).
-
-    Фронтенд рендерит карточку (canvas) и шерит её через TG shareToStory /
-    Web Share API / clipboard, а ПОСЛЕ этого зовёт этот эндпоинт, чтобы
-    сервер начислил +20 GP ЗА ОДИН РАЗ (idempotent, см. db.apply_archetype_share).
-
-    Сервер — единственный авторитет по GP: фронт НЕ начисляет сам (иначе
-    двойная выплата при реплее/двойном тапе). Награда привязана к факту
-    шера карточки, что поднимает виральность без спам-брибов.
-    """
-    uid = _resolve_uid(x_init_data, None, {})
-    if uid is None:
-        return JSONResponse({"error": "bad_init_data"}, status_code=401)
-    result = db.apply_archetype_share(uid)
-    return result
-
-
-# ---- Цены в Stars ----
-# 1 Star ≈ $0.0143 для покупателя ($300 = 21000 Stars, см. MENTOR_PRICE).
-# Комиссия Stars: 30% платёж + 10% вывод = 40% → Creator нет 60% (≈$0.0086/Star).
-# Цель: net Фриды за менторство ≥ $200 → gross ≥ $333 ≈ 23333⭐ → FLOOR 23400.
-TRIPWIRE_PRICE = 2500     # 2500 Stars (единый пейвол после 1 урока + 1 бонуса)
-FULL_COURSE_PRICE = 2500  # 2500 Stars
-MENTOR_PRICE = 28000      # $250 эквивалент
-MENTOR_FLOOR = 23400      # floor защищает net $190
-MENTOR_GP_CAP = 500       # макс 500 GP скидка ($50 / 4100 руб)
-
-# ---- A/B эксперименты (Adapty: локализация +62% LTV, структура trial +59%) ----
-# Варианты цен для tripwire/full. Если эксперимент ВЫКЛЮЧЕН (active=False) —
-# используется базовая цена (TRIPWIRE_PRICE / FULL_COURSE_PRICE).
-AB_EXPERIMENTS = {
-    "price_tripwire": {
-        "active": False,   # ← включить True для запуска эксперимента
-        "variants": {
-            "control": TRIPWIRE_PRICE,   # 500⭐ (база)
-            "low": 300,                  # 300⭐ (дешевле порог входа)
-            "bundle": 700,               # 700⭐ (уроки 1-4 + бонус-пак)
-        },
-    },
-    "price_full": {
-        "active": False,
-        "variants": {
-            "control": FULL_COURSE_PRICE,  # 2100⭐
-            "discount": 1700,              # 1700⭐ (−19%)
-            "premium": 2500,               # 2500⭐ (+бонусы в описании)
-        },
-    },
-    "localization": {
-        "active": False,
-        "variants": {
-            "ru": "ru",
-            "en": "en",
-        },
-    },
-}
-
-
-def _ab_price(course_id: str, uid: int | None) -> tuple[int, str]:
-    """Вернуть (цена, variant_label) с учётом A/B-эксперимента.
-
-    control/база — если эксперимент выключен или юзер не назначен.
-    """
-    if course_id == "tripwire":
-        exp, base = "price_tripwire", TRIPWIRE_PRICE
-    elif course_id == COURSE_ID:
-        exp, base = "price_full", FULL_COURSE_PRICE
-    else:
-        return MENTOR_PRICE, "control"  # менторство пока вне эксперимента
-    cfg = AB_EXPERIMENTS.get(exp)
-    if not cfg or not cfg.get("active") or uid is None:
-        return base, "control"
-    variant = db.assign_ab_variant(uid, exp, list(cfg["variants"].keys()))
-    return cfg["variants"][variant], variant
-
-
-# ---- POST /api/create-invoice — Telegram Stars invoice ----
-_STARS_INVOICE_CACHE: dict[tuple[str, int], str] = {}
-
-class CreateInvoice(BaseModel):
-    course_id: str = "dj-basics"
-    price: int | None = None  # если передан — переопределяет цену по-умолчанию
-    provider: str = "stars"   # stars | prodamus | ton
-    points: int | None = None  # выбор количества списываемых GP (для менторства)
-    gift_recipient: str | None = None  # если задан — это подарок курса (только Stars)
-
-@app.post("/api/create-invoice")
-async def create_invoice(
-    body: CreateInvoice,
-    x_init_data: str = Header("", alias="X-Init-Data"),
-):
-    uid = _user_id_from_init(x_init_data)
-    if uid is None:
-        return JSONResponse({"error": "bad_init_data"}, status_code=401)
-
-    course_id = body.course_id
-    # ⚠️ ЦЕНА ВСЕГДА СЧИТАЕТСЯ НА СЕРВЕРЕ (C2).
-    # Клиентский body.price ИГНОРИРУЕТСЯ — иначе юзер мог передать price:1
-    # и купить менторство за 1 Star.
-    variant = "control"
-    price_usd = 30
-    custom_order_id = None
-    if course_id in ("tripwire", COURSE_ID):
-        if body.provider == "tribute":
-            return JSONResponse(
-                {"error": "tribute_course_not_supported",
-                 "detail": "Оплата курса через Tribute недоступна (только менторство). Используй Stars или Prodamus (Карта/СБП)"},
-                status_code=400,
-            )
-        price, variant = _ab_price(course_id, uid)
-        label = "Pocket DJ: Полный курс"
-        custom_order_id = f"{uid}:{course_id}:0:{int(time.time())}"
-    elif course_id == "mentoring":
-        if body.provider == "stars":
-            return JSONResponse(
-                {"error": "stars_not_allowed_for_mentoring",
-                 "detail": "Оплата менторства доступна только через Prodamus или Tribute (без 40% комиссии Stars)"},
-                status_code=400,
-            )
-        gp = db.get_gp(uid)
-        max_gp = min(max(gp, 0), MENTOR_GP_CAP)
-        if body.points is not None:
-            capped_gp = min(max(int(body.points), 0), max_gp)
-        else:
-            capped_gp = max_gp
-        # База: 23 900 руб ($250), скидка до 4 100 руб ($50), пол: 19 800 руб ($200) -> чистыми $190
-        discount_rub = round(capped_gp * 8.2)
-        price_rub = max(19800, 23900 - discount_rub)
-        price_usd = max(200, 250 - round(capped_gp * 0.1))
-        price = price_rub
-        label = f"Персональное менторство FREEDA DJ (${price_usd})"
-        custom_order_id = f"{uid}:mentoring:{capped_gp}:{int(time.time())}"
-    else:
-        return JSONResponse({"error": "unknown_course"}, status_code=400)
-
-    # --- Подарок курса (только Stars): токен в payload инвойса + запись pending ---
-    gift_payload = None
-    gift_token = None
-    if body.gift_recipient:
-        if body.provider != "stars":
-            return JSONResponse({"error": "gift_stars_only"}, status_code=400)
-        if course_id not in ("tripwire", COURSE_ID):
-            return JSONResponse({"error": "gift_course_only"}, status_code=400)
-        recipient = body.gift_recipient.strip().lstrip("@").lower()
-        if not _GIFT_USERNAME_RE.fullmatch(recipient):
-            return JSONResponse({"error": "bad_gift_recipient"}, status_code=400)
-        gift_token = secrets.token_urlsafe(24)
-        gift_payload = f"gift:{gift_token}"
-        db.create_gift(uid, recipient, gift_token)
-
-    # --- Prodamus (карта/СБП РФ): внешний редирект, подтверждение по webhook ---
-    if body.provider == "prodamus":
-        from bot.payments.prodamus import ProdamusProvider
-        prov = ProdamusProvider()
-        rub = price if course_id == "mentoring" else max(1, round(price * 1.7))
-        inv = await prov.create_invoice(
-            uid,
-            course_id,
-            f"{rub} RUB",
-            order_id=custom_order_id,
-            product_name=label,
-        )
-        if inv.meta.get("not_configured"):
-            return JSONResponse(
-                {"error": "prodamus_not_configured",
-                 "detail": "Prodamus не настроен (нужны PAYFORM_URL, SECRET_KEY, SYS_CODE)"},
-                status_code=503,
-            )
-        if not inv.url_or_payload:
-            return JSONResponse(
-                {"error": "prodamus_invoice_failed", "detail": inv.meta},
-                status_code=502,
-            )
-        return {
-            "provider": "prodamus",
-            "pay_url": inv.url_or_payload,
-            "order_id": inv.meta.get("order_id"),
-            "title": label,
-            "price_rub": rub,
-        }
-
-    elif body.provider == "tribute":
-        from bot.payments.tribute import TributeProvider
-        prov = TributeProvider()
-        amount_str = f"{price_usd} USD" if course_id == "mentoring" else f"{price} XTR"
-        inv = await prov.create_invoice(uid, course_id, amount_str)
-        if inv.meta.get("not_configured"):
-            return JSONResponse(
-                {"error": "tribute_not_configured",
-                 "detail": "Tribute не настроен (нужны TRIBUTE_MENTOR_PRODUCT_ID)"},
-                status_code=503,
-            )
-        if not inv.url_or_payload:
-            return JSONResponse(
-                {"error": "tribute_invoice_failed", "detail": inv.meta},
-                status_code=502,
-            )
-        return {
-            "provider": "tribute",
-            "pay_url": inv.url_or_payload,
-            "order_id": inv.meta.get("order_id"),
-            "title": label,
-        }
-
-    cache_key = (course_id, price)
-    if gift_payload is None and cache_key in _STARS_INVOICE_CACHE:
-        return {
-            "invoice_link": _STARS_INVOICE_CACHE[cache_key],
-            "title": label,
-            "price": price,
-            "variant": variant,
-            "experiment": "price_tripwire" if course_id == "tripwire" else ("price_full" if course_id == COURSE_ID else None),
-        }
-
-    async with httpx.AsyncClient(timeout=10) as c:
-        resp = await c.post(
-            f"https://api.telegram.org/bot{BOT_TOKEN}/createInvoiceLink",
-            json={
-                "title": label,
-                "description": "Полный доступ к курсу Open Deck DJ School: уроки 2-6 + все бонусы от FREEDA DJ",
-                "payload": gift_payload or course_id,
-                "provider_token": "",
-                "currency": "XTR",
-                "prices": [{"label": label, "amount": price}],
-            },
-        )
-        data = resp.json()
-    if not data.get("ok"):
-        return JSONResponse({"error": "telegram_api_error", "detail": data}, status_code=502)
-    if gift_payload is None:
-        _STARS_INVOICE_CACHE[cache_key] = data["result"]
-    res = {
-        "invoice_link": data["result"],
-        "title": label,
-        "price": price,
-        "variant": variant,
-        "experiment": "price_tripwire" if course_id == "tripwire" else ("price_full" if course_id == COURSE_ID else None),
-    }
-    if gift_token:
-        res["gift_token"] = gift_token
-    return res
-
-
-# ---- GET /api/ab/assign ----
-@app.get("/api/ab/assign")
-async def ab_assign(
-    x_init_data: str = Header("", alias="X-Init-Data"),
-):
-    """Вернуть назначенные A/B-варианты юзера (для фронт-персонализации UI/локали)."""
-    uid = _user_id_from_init(x_init_data)
-    if uid is None:
-        return JSONResponse({"error": "bad_init_data"}, status_code=401)
-    result = {}
-    for exp_name, cfg in AB_EXPERIMENTS.items():
-        if not cfg.get("active"):
-            result[exp_name] = "control"
-            continue
-        variant = db.assign_ab_variant(uid, exp_name, list(cfg["variants"].keys()))
-        result[exp_name] = variant
-    return result
-
-
-# ---- POST /api/ab/track ----
-@app.post("/api/ab/track")
-async def ab_track(
-    req: Request,
-    authorization: str | None = Header(None),
-):
-    """Записать A/B-вариант покупки для LTV-аналитики.
-
-    Бот вызывает после successful_payment: передаёт user_id + course_id,
-    бэкенд резолвит вариант (из ab_assignments) и пишет в transactions.
-    """
-    if not authorization or not hmac.compare_digest(authorization, f"Bearer {INTERNAL_API_KEY}"):
-        return JSONResponse({"error": "unauthorized"}, status_code=403)
-    body = {}
-    try:
-        body = await req.json()
-    except Exception:
-        body = {}
-    uid = body.get("user_id")
-    course_id = body.get("course_id")
-    if not uid or not course_id:
-        return JSONResponse({"error": "bad_body"}, status_code=400)
-    exp = "price_tripwire" if course_id == "tripwire" else ("price_full" if course_id == COURSE_ID else None)
-    variant = db.get_ab_variant(uid, exp) if exp else None
-    if variant:
-        db.add_payment(uid, course_id, "ab_track", status="ab_track", ab_variant=f"{exp}:{variant}")
-    return {"ok": True, "variant": variant}
-
-
-# ---- POST /api/grant (internal) ----
-
-@app.post("/api/grant")
-async def grant(
-    g: Grant,
-    authorization: str | None = Header(None),
-):
-    if not authorization or not hmac.compare_digest(authorization, f"Bearer {INTERNAL_API_KEY}"):
-        return JSONResponse({"error": "unauthorized"}, status_code=403)
-    db.add_payment(g.user_id, g.course_id, g.provider, status="paid")
-    return {"ok": True}
-
-
-class GiftActivate(BaseModel):
-    token: str
-    user_id: int
-
-
-# ---- POST /api/gift/activate (internal) ----
-# Бот после successful_payment (payload = "gift:<token>") подтверждает оплату
-# подарка: status pending -> paid. Без этого /api/init не активирует gift-ссылку.
-@app.post("/api/gift/activate")
-async def gift_activate(
-    g: GiftActivate,
-    authorization: str | None = Header(None),
-):
-    if not authorization or not hmac.compare_digest(authorization, f"Bearer {INTERNAL_API_KEY}"):
-        return JSONResponse({"error": "unauthorized"}, status_code=403)
-    result = db.activate_gift(g.token, g.user_id)
-    if result is None:
-        return JSONResponse({"error": "bad_token"}, status_code=400)
-    return result
-
-
-# ---- POST /webhooks/prodamus ----
-# Prodamus шлёт POST form-data + заголовок `Sign` (подпись HMAC-SHA256).
-# Алгоритм проверки — как в мануале Hmac::verify: берём все поля КРОМЕ
-# signature/Sign, сортируем ключи, json, экранируем '/', sha256 секретом.
-# Подтверждение оплаты = только этот webhook с валидной подписью.
-
-@app.post("/webhooks/prodamus")
-async def prodamus_webhook(req: Request, sign: str = Header(None, alias="Sign")):
-    secret_raw = os.getenv("PRODAMUS_SECRET_KEY", "")
-    if not secret_raw:
-        return JSONResponse({"error": "webhook_not_configured"}, status_code=500)
-
-    raw_bytes = await req.body()
-    if len(raw_bytes) > 65536:
-        return JSONResponse({"error": "payload_too_large"}, status_code=413)
-
-    # Prodamus присылает form-data (application/x-www-form-urlencoded).
-    # Парсим тело вручную (без зависимости от python-multipart), т.к.
-    # в рантайме uvicorn его может не быть -> AssertionError на req.form().
-    from urllib.parse import parse_qs
-    raw = raw_bytes.decode("utf-8", "ignore")
-    parsed = parse_qs(raw, keep_blank_values=True)
-    form_dict = {k: (v[0] if isinstance(v, list) and v else "") for k, v in parsed.items()}
-
-    if not prodamus_sign.verify_webhook(form_dict, secret_raw, sign):
-        return JSONResponse({"error": "bad_signature"}, status_code=400)
-
-    # Prodamus присылает статус оплаты в поле `status` (например "paid").
-    status = form_dict.get("status") or form_dict.get("payment_status")
-    order_id = form_dict.get("order_id") or ""
-
-    if status == "paid" and order_id:
-        try:
-            parts = order_id.split(":")
-            user_id = int(parts[0])
-            cid = parts[1]
-            gp_spent = int(parts[2]) if len(parts) > 2 and parts[2].isdigit() else 0
-        except (ValueError, IndexError):
-            logger.warning(f"Invalid Prodamus order_id format: {order_id}")
-            return JSONResponse({"error": "bad_order_id"}, status_code=400)
-
-        if cid not in ("dj-basics", "tripwire", "mentoring"):
-            return JSONResponse({"error": "bad_course_id"}, status_code=400)
-
-        # Сверка фактически оплаченной суммы (защита от покупки тарифа за 1 ₽)
-        sum_raw = form_dict.get("sum") or form_dict.get("amount")
-        paid_rub: int | None = None
-        if sum_raw is not None or len(parts) >= 3 or cid == "mentoring":
-            try:
-                paid_val = float(sum_raw or 0)
-            except (TypeError, ValueError):
-                return JSONResponse({"error": "bad_amount"}, status_code=400)
-            min_rub = 19800.0 if cid == "mentoring" else 1500.0
-            if cid == "mentoring" and gp_spent > 0 and db.get_gp(user_id) < gp_spent:
-                min_rub = 23900.0
-            if paid_val < min_rub:
-                logger.warning(f"Prodamus underpayment rejected: order={order_id} sum={paid_val} min={min_rub}")
-                return JSONResponse({"error": "underpaid"}, status_code=400)
-            paid_rub = int(round(paid_val))
-
-        # Атомарный захват идемпотентности (защита от параллельных ретраев)
-        if not db.claim_webhook_order(order_id):
-            return {"ok": True, "duplicate": True}
-
-        try:
-            if gp_spent > 0:
-                db.spend_gp(user_id, gp_spent, reason=f"{cid}_discount")
-            db.add_payment(
-                user_id,
-                cid,
-                "prodamus",
-                amount=paid_rub,
-                currency="RUB",
-                status="paid",
-                raw=json.dumps(form_dict, ensure_ascii=False)[:4000],
-            )
-            db.apply_referral_purchase(user_id)
-        except Exception:
-            db.unclaim_webhook_order(order_id)
-            logger.exception("Error processing Prodamus webhook")
-            return JSONResponse({"error": "internal_error"}, status_code=500)
-    return {"ok": True}
-
-
-# ---- POST /webhooks/tribute ----
-# Tribute шлёт webhook new_digital_product при успешной оплате digital-продукта
-# (менторство FREEDA DJ). Подтверждение оплаты = только этот webhook со строгой HMAC-SHA256 подписью.
-@app.post("/webhooks/tribute")
-async def tribute_webhook(req: Request, x_signature: str = Header(None, alias="X-Signature")):
-    api_key = os.getenv("TRIBUTE_API_KEY", "")
-    if not api_key:
-        return JSONResponse({"error": "webhook_not_configured"}, status_code=500)
-
-    if not x_signature:
-        return JSONResponse({"error": "missing_signature"}, status_code=400)
-
-    import hashlib
-    raw = await req.body()
-    if len(raw) > 65536:
-        return JSONResponse({"error": "payload_too_large"}, status_code=413)
-    computed = hmac.new(api_key.encode(), raw, hashlib.sha256).hexdigest()
-    if not hmac.compare_digest(computed, x_signature):
-        return JSONResponse({"error": "bad_signature"}, status_code=400)
-
-    try:
-        body = json.loads(raw.decode("utf-8", "ignore"))
-    except Exception:
-        return JSONResponse({"error": "bad_json"}, status_code=400)
-
-    # Игнорируем события отмены / возврата
-    event_name = str(body.get("name") or body.get("event") or "").lower()
-    if event_name and any(w in event_name for w in ("cancel", "refund", "fail", "expire")):
-        return {"ok": True, "ignored": True}
-
-    # Tribute webhook payload содержит purchase_id и поля продукта/юзера.
-    purchase_id = str(body.get("purchase_id") or body.get("id") or "")
-    if not purchase_id:
-        return JSONResponse({"error": "no_purchase_id"}, status_code=400)
-
-    # Курс менторства — единственный Tribute-продукт в этом проекте.
-    user_id = (
-        body.get("user_id")
-        or body.get("telegram_id")
-        or (body.get("payload") or {}).get("user", {}).get("telegram_id")
-        or (body.get("payload") or {}).get("telegram_id")
-        or (body.get("customer") or {}).get("telegram_id")
-    )
-    if not user_id:
-        return JSONResponse({"error": "missing_user_id"}, status_code=400)
-
-    # Атомарный захват идемпотентности
-    if not db.claim_webhook_order(purchase_id):
-        return {"ok": True, "duplicate": True}
-
-    course_id = "mentoring"
-    try:
-        uid = int(user_id)
-        db.add_payment(uid, course_id, "tribute", status="paid",
-                       raw=json.dumps(body, ensure_ascii=False)[:4000])
-        db.apply_referral_purchase(uid)
-    except Exception:
-        db.unclaim_webhook_order(purchase_id)
-        logger.exception("Error processing Tribute webhook")
-        return JSONResponse({"error": "internal_error"}, status_code=500)
-    return {"ok": True}
+app.include_router(crm_router)
+app.include_router(session_router)
+app.include_router(lessons_router)
+app.include_router(economy_router)
+app.include_router(payments_router)
+app.include_router(ab_router)
+app.include_router(webhooks_router)

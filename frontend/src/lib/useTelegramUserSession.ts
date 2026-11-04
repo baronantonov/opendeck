@@ -1,104 +1,30 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import type { CourseProgress, Lesson, User } from '../types';
-import { apiInit, apiLessons, apiLessonsBonus, apiProfile, apiProgress } from '../api/client';
+import { apiProgress } from '../api/client';
 import { BONUS_LESSONS, COURSE_LESSONS } from './constants';
+import { getEffectiveUserId, loadSecuredProgress, saveSecuredProgress } from './securityGuard';
 import {
-  getCanonicalReferralCode,
-  getEffectiveUserId,
-  loadSecuredProgress,
-  saveSecuredProgress,
-} from './securityGuard';
-import { preloadUserpic } from './avatarPreload';
-
-export const USER_SESSION_STORAGE_KEY = 'opendeck_user_session_v1';
-
-
-export interface CachedSessionData {
-  user: User;
-  course: CourseProgress;
-  isPaid: boolean;
-  paidFull: boolean;
-  bonusDone: number;
-  referralFriends: number;
-  referralGpEarned: number;
-  timestamp: number;
-}
-
-const defaultUser: User = {
-  name: 'DJ',
-  archetype: 'Куратор Вайба',
-  groovePoints: 0,
-  referralCode: '',
-  referralFriends: 0,
-  referralGpEarned: 0,
-  bonusLessons: 0,
-  photoUrl: '',
-};
-
-const defaultCourse: CourseProgress = {
-  currentLessonId: null,
-  completedLessons: [],
-  freeLessons: 1,
-};
-
-/**
- * Читает мгновенные данные из нативного Telegram WebApp моста (синхронно, без задержек)
- */
-function getTelegramBridgeUser(): Partial<User> | null {
-  if (typeof window === 'undefined') return null;
-  try {
-    const tu = (window as any).Telegram?.WebApp?.initDataUnsafe?.user;
-    const earlyPhoto = (window as any).__opendeck_userpic_url || '';
-    if (!tu && !earlyPhoto) return null;
-    const photo = tu?.photo_url || earlyPhoto || '';
-    if (photo) {
-      void preloadUserpic(photo);
-    }
-    return {
-      name: tu?.first_name || 'DJ',
-      lastName: tu?.last_name || '',
-      username: tu?.username || '',
-      photoUrl: photo,
-      isPremium: Boolean(tu?.is_premium),
-    };
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Считывает кэшированную сессию из localStorage
- */
-function readCachedSession(): CachedSessionData | null {
-  if (typeof window === 'undefined') return null;
-  try {
-    const raw = localStorage.getItem(USER_SESSION_STORAGE_KEY);
-    if (!raw) return null;
-    const data = JSON.parse(raw) as CachedSessionData;
-    if (data?.user?.photoUrl) {
-      void preloadUserpic(data.user.photoUrl);
-    }
-    return data;
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Сохраняет снимок сессии в localStorage
- */
-function writeCachedSession(data: Omit<CachedSessionData, 'timestamp'>) {
-  if (typeof window === 'undefined') return;
-  try {
-    const payload: CachedSessionData = {
-      ...data,
-      timestamp: Date.now(),
-    };
-    localStorage.setItem(USER_SESSION_STORAGE_KEY, JSON.stringify(payload));
-  } catch {
-    /* ignore storage quota or private mode errors */
-  }
-}
+  USER_SESSION_STORAGE_KEY,
+  type CachedSessionData,
+  type CachedUserSession,
+  defaultUser,
+  defaultCourse,
+  readTelegramWebAppUser,
+  getTelegramBridgeUser,
+  readCachedSession,
+  writeCachedSession,
+  isPreviewMockMode,
+  buildPreviewMockSession,
+  saveSessionSnapshot,
+} from './session/sessionStorage';
+import {
+  fetchBackendSessionBundle,
+  reconcileInitialCourse,
+  reconcileInitialPaid,
+  reconcileUserFromBackend,
+  reconcileCourseFromBackend,
+  reconcileSecuredProgress,
+} from './session/sessionReconcile';
 
 export interface TelegramUserSession {
   isLoaded: boolean;
@@ -113,7 +39,6 @@ export interface TelegramUserSession {
   referralGpEarned: number;
   startParam: string | null;
   welcomeBonus: { type: string; amount: number; message: string } | null;
-
   setUser: (patch: Partial<User>) => void;
   setCourse: (
     patch: Partial<CourseProgress> | ((prev: CourseProgress) => Partial<CourseProgress>),
@@ -131,57 +56,28 @@ export function useTelegramUserSession(): TelegramUserSession {
   const cached = useRef<CachedSessionData | null>(readCachedSession());
   const bridgeUser = useRef<Partial<User> | null>(getTelegramBridgeUser());
 
-  // Мгновенная синхронная инициализация: кэш + актуальные данные из Telegram WebApp bridge
   const [user, setUserState] = useState<User>(() => {
     const base = cached.current?.user || defaultUser;
-    if (bridgeUser.current) {
-      return {
-        ...base,
-        name: bridgeUser.current.name || base.name,
-        lastName: bridgeUser.current.lastName || base.lastName,
-        username: bridgeUser.current.username || base.username,
-        photoUrl: bridgeUser.current.photoUrl || base.photoUrl,
-        isPremium: bridgeUser.current.isPremium ?? base.isPremium,
-      };
-    }
-    return base;
+    if (!bridgeUser.current) return base;
+    return {
+      ...base,
+      name: bridgeUser.current.name || base.name,
+      lastName: bridgeUser.current.lastName || base.lastName,
+      username: bridgeUser.current.username || base.username,
+      photoUrl: bridgeUser.current.photoUrl || base.photoUrl,
+      isPremium: bridgeUser.current.isPremium ?? base.isPremium,
+    };
   });
 
   const initialUid = getEffectiveUserId();
   const securedInitial = useRef(loadSecuredProgress(initialUid));
 
-  const [course, setCourseState] = useState<CourseProgress>(() => {
-    const base = cached.current?.course || defaultCourse;
-    if (securedInitial.current.isTampered) {
-      return { ...base, completedLessons: [1] };
-    }
-    const mergedLessons = securedInitial.current.completedLessons.length > 0
-      ? securedInitial.current.completedLessons
-      : base.completedLessons;
-    return {
-      ...base,
-      completedLessons: mergedLessons,
-    };
-  });
-
-  const [isPaid, setIsPaid] = useState<boolean>(() => {
-    if (securedInitial.current.isTampered) return false;
-    const cachePaid = Boolean(cached.current?.isPaid);
-    const securedPaid = Boolean(
-      securedInitial.current.isValid && securedInitial.current.isCoursePurchased,
-    );
-    if (cachePaid && !securedPaid) {
-      saveSecuredProgress(
-        initialUid,
-        true,
-        securedInitial.current.completedLessons.length > 0
-          ? securedInitial.current.completedLessons
-          : [1],
-      );
-    }
-    return securedPaid || cachePaid;
-  });
-
+  const [course, setCourseState] = useState<CourseProgress>(() =>
+    reconcileInitialCourse(cached.current?.course || defaultCourse, securedInitial.current),
+  );
+  const [isPaid, setIsPaid] = useState<boolean>(() =>
+    reconcileInitialPaid(initialUid, Boolean(cached.current?.isPaid), securedInitial.current),
+  );
   const [paidFull, setPaidFull] = useState<boolean>(
     () => Boolean(cached.current?.paidFull || securedInitial.current.isCoursePurchased),
   );
@@ -195,9 +91,11 @@ export function useTelegramUserSession(): TelegramUserSession {
   );
   const [bonusLessonsData] = useState<Lesson[]>(BONUS_LESSONS);
   const [startParam, setStartParam] = useState<string | null>(null);
-  const [welcomeBonus, setWelcomeBonus] = useState<{ type: string; amount: number; message: string } | null>(null);
-
-  // Флаг окончания инициализации данных сессии (true строго после выполнения reload / fallback)
+  const [welcomeBonus, setWelcomeBonus] = useState<{
+    type: string;
+    amount: number;
+    message: string;
+  } | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
 
   const setUser = useCallback((patch: Partial<User>) => {
@@ -213,44 +111,43 @@ export function useTelegramUserSession(): TelegramUserSession {
     [],
   );
 
-  const setPaid = useCallback((paid: boolean, full = false) => {
-    setIsPaid(paid);
-    setPaidFull(full || paid);
-    const lessonsToSave = course.completedLessons.length > 0 ? course.completedLessons : [1];
-    saveSecuredProgress(getEffectiveUserId(), paid, lessonsToSave);
-    try {
-      const existing = readCachedSession();
-      if (existing) {
-        writeCachedSession({
-          ...existing,
-          isPaid: paid,
-          paidFull: full || paid,
-        });
-      }
-    } catch {}
-  }, [course.completedLessons]);
+  const setPaid = useCallback(
+    (paid: boolean, full = false) => {
+      setIsPaid(paid);
+      setPaidFull(full || paid);
+      const lessonsToSave = course.completedLessons.length > 0 ? course.completedLessons : [1];
+      saveSecuredProgress(getEffectiveUserId(), paid, lessonsToSave);
+      try {
+        const existing = readCachedSession();
+        if (existing) writeCachedSession({ ...existing, isPaid: paid, paidFull: full || paid });
+      } catch {}
+    },
+    [course.completedLessons],
+  );
 
   const setBonus = useCallback((done: number) => setBonusDone(done), []);
-
   const setReferral = useCallback((friends: number, gp: number) => {
     setReferralFriends(friends);
     setReferralGpEarned(gp);
   }, []);
 
-  const completeLesson = useCallback((lessonId: number) => {
-    setCourseState((s) => {
-      if (s.completedLessons.includes(lessonId)) return s;
-      const next = [...s.completedLessons, lessonId];
-      saveSecuredProgress(getEffectiveUserId(), isPaid, next);
-      return { ...s, completedLessons: next };
-    });
-    setUserState((u) => ({ ...u, groovePoints: u.groovePoints + 50 }));
-    void apiProgress('dj-basics', lessonId, false).then((res) => {
-      if (res && typeof res.gp === 'number') {
-        setUserState((u) => ({ ...u, groovePoints: res.gp }));
-      }
-    }).catch(() => {});
-  }, [isPaid]);
+  const completeLesson = useCallback(
+    (lessonId: number) => {
+      setCourseState((s) => {
+        if (s.completedLessons.includes(lessonId)) return s;
+        const next = [...s.completedLessons, lessonId];
+        saveSecuredProgress(getEffectiveUserId(), isPaid, next);
+        return { ...s, completedLessons: next };
+      });
+      setUserState((u) => ({ ...u, groovePoints: u.groovePoints + 50 }));
+      void apiProgress('dj-basics', lessonId, false)
+        .then((res) => {
+          if (res && typeof res.gp === 'number') setUserState((u) => ({ ...u, groovePoints: res.gp }));
+        })
+        .catch(() => {});
+    },
+    [isPaid],
+  );
 
   const completeBonusLesson = useCallback((bonusId: number) => {
     setBonusDone((prev) => {
@@ -258,55 +155,19 @@ export function useTelegramUserSession(): TelegramUserSession {
       setUserState((u) => ({ ...u, groovePoints: u.groovePoints + 30 }));
       return bonusId;
     });
-    void apiProgress('dj-bonus', bonusId, true).then((res) => {
-      if (res && typeof res.gp === 'number') {
-        setUserState((u) => ({ ...u, groovePoints: res.gp }));
-      }
-    }).catch(() => {});
+    void apiProgress('dj-bonus', bonusId, true)
+      .then((res) => {
+        if (res && typeof res.gp === 'number') setUserState((u) => ({ ...u, groovePoints: res.gp }));
+      })
+      .catch(() => {});
   }, []);
 
   const reload = useCallback(async () => {
-    const isPreview =
-      (window as any).__PREVIEW__ ||
-      (typeof window !== 'undefined' &&
-        (window.location.search.includes('preview') ||
-          window.location.search.includes('noWelcome') ||
-          !(window as any).Telegram?.WebApp?.initData));
-
-    if (isPreview) {
-      const tu = (window as any).Telegram?.WebApp?.initDataUnsafe?.user;
-      const uid = tu?.id || getEffectiveUserId();
-      const secured = loadSecuredProgress(uid);
-      const previewLessons =
-        !secured.isTampered && secured.completedLessons.length > 0
-          ? secured.completedLessons
-          : [1];
-      const previewPaid = Boolean(
-        !secured.isTampered && secured.isValid && secured.isCoursePurchased,
-      );
-
-      const previewUser: User = {
-        name: tu?.first_name || 'Антон',
-        lastName: tu?.last_name || 'Евдокимов',
-        username: tu?.username || 'baronantonov',
-        archetype: 'Куратор Вайба',
-        groovePoints: 120,
-        referralCode: getCanonicalReferralCode(uid),
-        referralFriends: 2,
-        referralGpEarned: 40,
-        bonusLessons: 1,
-        photoUrl: tu?.photo_url || '',
-        isPremium: Boolean(tu?.is_premium),
-      };
-      const previewCourse: CourseProgress = {
-        currentLessonId: previewLessons[previewLessons.length - 1] || 1,
-        completedLessons: previewLessons,
-        freeLessons: 1,
-      };
-
-      setUserState(previewUser);
-      setCourseState(previewCourse);
-      if (previewPaid) {
+    if (isPreviewMockMode()) {
+      const preview = buildPreviewMockSession();
+      setUserState(preview.user);
+      setCourseState(preview.course);
+      if (preview.isPaid) {
         setIsPaid(true);
         setPaidFull(true);
       }
@@ -315,189 +176,52 @@ export function useTelegramUserSession(): TelegramUserSession {
     }
 
     try {
-      const tu = (window as any).Telegram?.WebApp?.initDataUnsafe?.user;
+      const tu = readTelegramWebAppUser();
       const sp = (window as any).Telegram?.WebApp?.initDataUnsafe?.start_param || null;
       setStartParam(sp);
 
-      // Запрашиваем инициализацию с таймаутом
-      const init = await apiInit(sp);
-
-      let profile = null;
-      if (!init) {
-        try {
-          profile = await apiProfile();
-        } catch {
-          /* ignore */
-        }
-      }
-
-      const lessons = await apiLessons('dj-basics').catch(() => null);
-      const bonus = await apiLessonsBonus().catch(() => null);
-
-      const tribeLink = init?.tribe_invite_link || lessons?.tribe_invite_link;
-      if (tribeLink && typeof window !== 'undefined') {
-        try {
-          sessionStorage.setItem('opendeck_tribe_link', tribeLink);
-        } catch {}
-      }
-
+      const { init, profile, lessons, bonus } = await fetchBackendSessionBundle(sp);
       const currentUid = tu?.id || getEffectiveUserId();
-
-      setUserState((prevUser) => {
-        let nextUser = prevUser;
-        if (init) {
-          const effectivePhoto = tu?.photo_url || init.user.photo_url || prevUser.photoUrl || '';
-          if (effectivePhoto) void preloadUserpic(effectivePhoto);
-          nextUser = {
-            groovePoints: init.user.groove_points ?? 0,
-            referralCode: getCanonicalReferralCode(currentUid, init.user.referral_code),
-            referralFriends: init.referral_friends ?? init.user.referral_friends ?? 0,
-            referralGpEarned: init.referral_gp_earned ?? init.user.referral_gp_earned ?? 0,
-            bonusLessons: init.user.bonus_lessons ?? 0,
-            archetype: init.user.archetype || 'Куратор Вайба',
-            name: tu?.first_name || init.user.first_name || prevUser.name,
-            lastName: tu?.last_name || '',
-            username: tu?.username || init.user.username || '',
-            photoUrl: effectivePhoto,
-            isPremium: Boolean(tu?.is_premium),
-          };
-        } else if (profile) {
-          const effectivePhoto = tu?.photo_url || profile.user?.photo_url || prevUser.photoUrl || '';
-          if (effectivePhoto) void preloadUserpic(effectivePhoto);
-          nextUser = {
-            ...prevUser,
-            groovePoints: profile.gp ?? 0,
-            referralCode: getCanonicalReferralCode(currentUid, profile.referral_code),
-            referralFriends: profile.referral_friends ?? 0,
-            referralGpEarned: profile.referral_gp_earned ?? 0,
-            bonusLessons: profile.bonus_lessons ?? 0,
-            archetype: profile.archetype || 'Куратор Вайба',
-            name: tu?.first_name || profile.user?.first_name || prevUser.name,
-            lastName: tu?.last_name || '',
-            username: tu?.username || profile.user?.username || '',
-            photoUrl: effectivePhoto,
-            isPremium: Boolean(tu?.is_premium),
-          };
-        } else {
-          nextUser = {
-            ...prevUser,
-            referralCode: getCanonicalReferralCode(currentUid, prevUser.referralCode),
-          };
-        }
-        return nextUser;
-      });
+      setUserState((prev) => reconcileUserFromBackend(prev, currentUid, tu, init, profile));
 
       const localSecured = loadSecuredProgress(currentUid);
-      const localPaidValid = Boolean(
-        !localSecured.isTampered && localSecured.isValid && localSecured.isCoursePurchased,
-      );
+      setCourseState((prev) => reconcileCourseFromBackend(prev, init, lessons, localSecured));
 
-      setCourseState((prevCourse) => {
-        let nextCourse = prevCourse;
-        if (init) {
-          const merged = Array.from(
-            new Set([
-              ...(init.course.completed_lessons || []),
-              ...(localSecured.isTampered ? [] : localSecured.completedLessons),
-            ]),
-          ).sort((a, b) => a - b);
-          nextCourse = {
-            completedLessons: merged.length > 0 ? merged : [1],
-            currentLessonId: init.course.current_lesson_id ?? null,
-            freeLessons: init.course.free_lessons ?? 1,
-          };
-        }
-        if (lessons?.completed) {
-          const merged = Array.from(
-            new Set([
-              ...lessons.completed,
-              ...(localSecured.isTampered ? [] : localSecured.completedLessons),
-            ]),
-          ).sort((a, b) => a - b);
-          nextCourse = { ...nextCourse, completedLessons: merged.length > 0 ? merged : [1] };
-        }
-        return nextCourse;
-      });
-
-      const isActuallyPaid = Boolean(init?.paid || lessons?.paid || localPaidValid);
+      const isActuallyPaid = reconcileSecuredProgress(currentUid, init, lessons, localSecured);
       if (isActuallyPaid) {
         setIsPaid(true);
         setPaidFull(true);
-        const effectiveLessons = Array.from(
-          new Set([
-            ...(init?.course.completed_lessons || lessons?.completed || [1]),
-            ...(localSecured.isTampered ? [] : localSecured.completedLessons),
-          ]),
-        ).sort((a, b) => a - b);
-        saveSecuredProgress(currentUid, true, effectiveLessons);
       } else if (init) {
         setIsPaid(false);
         setPaidFull(false);
       }
 
-      if (init?.bonus) {
-        setWelcomeBonus(init.bonus);
-      }
+      if (init?.bonus) setWelcomeBonus(init.bonus);
+      if (bonus?.completed) setBonusDone(bonus.completed.length);
 
-      if (bonus?.completed) {
-        setBonusDone(bonus.completed.length);
-      }
-
-      // Сохраняем снимок в localStorage
       setTimeout(() => {
-        const effectivePhoto = tu?.photo_url || init?.user?.photo_url || cached.current?.user?.photoUrl || defaultUser.photoUrl || '';
-        const u = tu
-          ? {
-              groovePoints: init?.user.groove_points ?? 0,
-              referralCode: getCanonicalReferralCode(currentUid, init?.user.referral_code),
-              referralFriends: init?.referral_friends ?? init?.user.referral_friends ?? 0,
-              referralGpEarned: init?.referral_gp_earned ?? init?.user.referral_gp_earned ?? 0,
-              bonusLessons: init?.user.bonus_lessons ?? 0,
-              archetype: init?.user.archetype || 'Куратор Вайба',
-              name: tu?.first_name || 'DJ',
-              lastName: tu?.last_name || '',
-              username: tu?.username || '',
-              photoUrl: effectivePhoto,
-              isPremium: Boolean(tu?.is_premium),
-            }
-          : {
-              ...defaultUser,
-              referralCode: getCanonicalReferralCode(currentUid),
-              photoUrl: effectivePhoto,
-            };
-
-        writeCachedSession({
-          user: u,
-          course: {
-            completedLessons: (init?.course.completed_lessons || lessons?.completed || localSecured.completedLessons || [1]).slice(),
-            currentLessonId: init?.course.current_lesson_id ?? null,
-            freeLessons: init?.course.free_lessons ?? 1,
-          },
-          isPaid: isActuallyPaid,
-          paidFull: Boolean(init?.paid_full || lessons?.paid || isActuallyPaid),
-          bonusDone: bonus?.completed?.length ?? 0,
-          referralFriends: u.referralFriends,
-          referralGpEarned: u.referralGpEarned,
+        saveSessionSnapshot({
+          tu,
+          currentUid,
+          init,
+          lessons,
+          bonus,
+          localSecuredCompleted: localSecured.completedLessons,
+          cachedPhotoUrl: cached.current?.user?.photoUrl,
+          isActuallyPaid,
         });
       }, 0);
     } finally {
-      // Флаг окончания загрузки переключается строго после обработки ответа или fallback
       setIsLoaded(true);
     }
   }, []);
 
-  // Первоначальный вызов reload с гарантированным таймаутом-страховкой
   useEffect(() => {
     let active = true;
     void reload();
-
-    // Страховочный таймаут: даже если сеть зависла наглухо, через 2.5с снимаем экран загрузки
     const safetyTimer = window.setTimeout(() => {
-      if (active) {
-        setIsLoaded(true);
-      }
+      if (active) setIsLoaded(true);
     }, 2500);
-
     return () => {
       active = false;
       window.clearTimeout(safetyTimer);
@@ -505,28 +229,12 @@ export function useTelegramUserSession(): TelegramUserSession {
   }, [reload]);
 
   return {
-    isLoaded,
-    user,
-    course,
-    isPaid,
-    paidFull,
-    adminMode,
-    bonusLessonsData,
-    bonusDone,
-    referralFriends,
-    referralGpEarned,
-    startParam,
-    welcomeBonus,
-    setUser,
-    setCourse,
-    setPaid,
-    setAdminMode,
-    setBonus,
-    setReferral,
-    reload,
-    completeLesson,
-    completeBonusLesson,
+    isLoaded, user, course, isPaid, paidFull, adminMode,
+    bonusLessonsData, bonusDone, referralFriends, referralGpEarned,
+    startParam, welcomeBonus, setUser, setCourse, setPaid,
+    setAdminMode, setBonus, setReferral, reload, completeLesson, completeBonusLesson,
   };
 }
 
-export { COURSE_LESSONS };
+export { USER_SESSION_STORAGE_KEY, COURSE_LESSONS };
+export type { CachedSessionData, CachedUserSession };

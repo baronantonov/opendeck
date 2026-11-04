@@ -5,7 +5,7 @@ import {
   useMemo,
   type ReactNode,
 } from 'react';
-import { useApp } from './store';
+import { useApp } from './AppContext';
 import {
   getEffectiveUserId,
   guardLessonAccess as guardLessonAccessInternal,

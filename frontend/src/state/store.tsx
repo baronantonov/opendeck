@@ -1,26 +1,18 @@
 import {
-  createContext,
-  useContext,
   useMemo,
   type ReactNode,
 } from 'react';
 import type { CourseProgress, Lesson, User } from '../types';
 import { COURSE_LESSONS } from '../lib/constants';
 import { useTelegramUserSession, type TelegramUserSession } from '../lib/useTelegramUserSession';
+import { AppContext, useApp, type AppState } from './AppContext';
 import {
   CourseProgressProvider,
   useCourseProgress,
   type CourseProgressContextValue,
 } from './CourseProgressContext';
 
-export interface AppState extends TelegramUserSession {
-  /**
-   * Обратная совместимость для компонентов: loading = !isLoaded
-   */
-  loading: boolean;
-}
-
-const Ctx = createContext<AppState | null>(null);
+export type { AppState };
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const session = useTelegramUserSession();
@@ -34,18 +26,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
   );
 
   return (
-    <Ctx.Provider value={value}>
+    <AppContext.Provider value={value}>
       <CourseProgressProvider>{children}</CourseProgressProvider>
-    </Ctx.Provider>
+    </AppContext.Provider>
   );
 }
 
-export function useApp(): AppState {
-  const ctx = useContext(Ctx);
-  if (!ctx) throw new Error('useApp must be used within AppProvider');
-  return ctx;
-}
-
-export { COURSE_LESSONS, useTelegramUserSession, CourseProgressProvider, useCourseProgress };
+export { useApp, COURSE_LESSONS, useTelegramUserSession, CourseProgressProvider, useCourseProgress };
 export type { TelegramUserSession, CourseProgress, Lesson, User, CourseProgressContextValue };
 

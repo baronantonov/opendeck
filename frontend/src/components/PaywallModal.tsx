@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import { haptic } from '../lib/theme';
 import { useRegisterModal } from '../lib/navigation';
-import { useStarsCheckout } from '../payment/Paywall';
+import { useStarsCheckout } from '../payment/starsCheckout';
 import { ShimmerButton } from './MotionWrappers';
 import { AbstractGeometryBg } from './LiquidGlassGeometry';
 import { GiftCourseModal } from './GiftCourseModal';

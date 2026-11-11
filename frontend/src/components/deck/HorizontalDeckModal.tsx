@@ -1,12 +1,23 @@
 import { createPortal } from 'react-dom';
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { CheckCircle2, Sparkles } from 'lucide-react';
-import { audioEngine, DeckId } from '../../audio/AudioEngine';
+import { DeckId, djEngine, PLATTER_DEG_PER_SEC } from '../../audio/dj/DjEngine';
+import { AUDIO_ACCEPT } from '../../audio/dj/library';
+import { loadDemoToDeck, loadFileToDeck } from '../../audio/dj/trackLoader';
 import { useApp } from '../../state/store';
 import { haptic as rawHaptic } from '../../lib/theme';
 import { triggerCelebrationConfetti } from '../ConfettiEffect';
 import type { Lesson } from '../../types';
-import { drawOverview, drawVertical, generateTrack, isKickAt, levelAt, TrackWave } from './waveform';
+import { drawOverview, drawVertical, levelAt } from './waveform';
+import {
+  DeckFxPanel,
+  DeckPadPanel,
+  DeckTempoPanel,
+  HapticHelper,
+  MixerOverlay,
+  ScratchJogWheel,
+  TrackBrowserOverlay,
+} from './DeckPanels';
 import { useRegisterModal } from '../../lib/navigation';
 import { useSafeArea } from '../../lib/safeArea';
 import { apiProgress } from '../../api/client';
@@ -17,26 +28,15 @@ interface HorizontalDeckModalProps {
   lesson?: Lesson | any;
 }
 
-const BPM = 128;
+type DeckViewMode = 'jog' | 'fx' | 'pad' | 'tempo';
+
 const ORANGE = '#f39321';
-const GREEN = '#f5926e'; // Replaced with Coral as per user request
+const GREEN = '#f5926e';
+const MINT = '#00f0b5';
 const SYNC_BLUE = '#1a73e8';
 
-const TRACKS: Record<DeckId, { title: string; artist: string; key: string; beats: number; style: 'acid' | 'hypno'; seed: number }> = {
-  A: { title: 'Berlin Vault', artist: 'Open Deck Records', key: '4A', beats: 368, style: 'acid', seed: 7 },
-  B: { title: 'Dark Matter', artist: 'FREEDA', key: '4A', beats: 272, style: 'hypno', seed: 21 },
-};
-
-interface DeckRuntime {
-  playing: boolean;
-  pos: number; // beats
-  cue: number; // beats
-  angle: number; // jog platter angle
-  level: number; // smoothed meter level
-}
-
-const fmtRemain = (beats: number) => {
-  const secs = Math.max(0, (beats * 60) / BPM);
+const fmtRemain = (secsInput: number) => {
+  const secs = Math.max(0, secsInput);
   const m = Math.floor(secs / 60);
   const s = Math.floor(secs % 60);
   return `-${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
@@ -64,88 +64,37 @@ const MixerIcon = () => (
 );
 
 const PadIcon = ({ className = 'h-[52%] w-[64%]' }: { className?: string }) => (
-  <svg viewBox="0 0 28 14" className={className} fill="#d6d6d6">
+  <svg viewBox="0 0 28 14" className={className} fill="currentColor">
     {[0, 1].map((r) => [0, 1, 2, 3].map((c) => <rect key={`${r}${c}`} x={c * 7 + 0.5} y={r * 7 + 0.5} width="6" height="6" rx="0.8" />))}
   </svg>
 );
 
-const VinylArt = () => (
-  <svg viewBox="0 0 40 40" className="h-full w-full">
-    <rect width="40" height="40" fill="#3a3a3a" />
-    <circle cx="20" cy="20" r="14" fill="#262626" />
-    <circle cx="20" cy="20" r="10.5" fill="none" stroke="#323232" strokeWidth="0.6" />
-    <circle cx="20" cy="20" r="7.5" fill="none" stroke="#323232" strokeWidth="0.6" />
-    <circle cx="20" cy="20" r="4.5" fill="#3a3a3a" />
-    <circle cx="20" cy="20" r="1" fill="#1d1d1d" />
+const FolderMusicIcon = () => (
+  <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2.1">
+    <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z" strokeLinejoin="round" />
+    <path d="M12 15.5V11l4-1v4.5" strokeLinecap="round" strokeLinejoin="round" />
+    <circle cx="10.8" cy="15.5" r="1.3" fill="currentColor" />
+    <circle cx="14.8" cy="14.5" r="1.3" fill="currentColor" />
   </svg>
 );
+
+const VinylArt: React.FC<{ artUrl?: string }> = ({ artUrl }) =>
+  artUrl ? (
+    <img src={artUrl} alt="" className="h-full w-full object-cover" />
+  ) : (
+    <svg viewBox="0 0 40 40" className="h-full w-full">
+      <rect width="40" height="40" fill="#3a3a3a" />
+      <circle cx="20" cy="20" r="14" fill="#262626" />
+      <circle cx="20" cy="20" r="10.5" fill="none" stroke="#323232" strokeWidth="0.6" />
+      <circle cx="20" cy="20" r="7.5" fill="none" stroke="#323232" strokeWidth="0.6" />
+      <circle cx="20" cy="20" r="4.5" fill="#3a3a3a" />
+      <circle cx="20" cy="20" r="1" fill="#1d1d1d" />
+    </svg>
+  );
 
 const PlayGlyph = () => (
   <svg viewBox="0 0 24 24" className="h-[38%] w-[38%]" fill="currentColor">
     <path d="M7 4.5v15l12.5-7.5L7 4.5Z" />
-  </svg>
-);
-
-// ------------------------------------------------------------------ jog wheel (rekordbox mobile style)
-
-const GROOVES = Array.from({ length: 15 }, (_, i) => 16.5 + i * 1.3);
-
-interface JogProps {
-  id: string;
-  markerRef: React.RefObject<any>;
-  ringRef: React.RefObject<any>;
-  highlight: boolean;
-  onTouch: () => void;
-}
-
-const JogWheel: React.FC<JogProps> = ({ id, markerRef, ringRef, highlight, onTouch }) => (
-  <svg
-    viewBox="0 0 100 100"
-    className="h-full w-full"
-    preserveAspectRatio="xMidYMid meet"
-    onPointerDown={onTouch}
-    style={{ filter: highlight ? `drop-shadow(0 0 10px ${ORANGE}88)` : undefined }}
-  >
-    <defs>
-      <linearGradient id={`sheen-${id}`} x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0" stopColor="#fff" stopOpacity="0" />
-        <stop offset="0.45" stopColor="#fff" stopOpacity="0.07" />
-        <stop offset="0.55" stopColor="#fff" stopOpacity="0.02" />
-        <stop offset="1" stopColor="#fff" stopOpacity="0" />
-      </linearGradient>
-    </defs>
-    {/* base */}
-    <circle cx="50" cy="50" r="49.5" fill="#141414" />
-    {/* remaining-time ring (depletes clockwise from 12 o'clock) */}
-    <circle cx="50" cy="50" r="45" fill="none" stroke="#3a3a3a" strokeWidth="7" />
-    <circle
-      ref={ringRef}
-      cx="50"
-      cy="50"
-      r="45"
-      fill="none"
-      stroke="#c7c7c7"
-      strokeWidth="7"
-      pathLength={100}
-      strokeDasharray="100 100"
-      transform="rotate(-90 50 50)"
-    />
-    {/* inner dark band */}
-    <circle cx="50" cy="50" r="41.4" fill="#2b2b2b" />
-    {/* vinyl */}
-    <circle cx="50" cy="50" r="36" fill="#0c0c0c" />
-    {GROOVES.map((r) => (
-      <circle key={r} cx="50" cy="50" r={r} fill="none" stroke="#1c1c1c" strokeWidth="0.35" />
-    ))}
-    <circle cx="50" cy="50" r="36" fill={`url(#sheen-${id})`} />
-    {/* centre label */}
-    <circle cx="50" cy="50" r="14" fill="#3b3b3b" />
-    <circle cx="50" cy="50" r="13.2" fill="none" stroke="#2e2e2e" strokeWidth="0.6" />
-    <circle cx="50" cy="50" r="1.7" fill="#171717" />
-    {/* rotating position marker */}
-    <g ref={markerRef}>
-      <rect x="46.4" y="1.4" width="7.2" height="8.4" rx="0.6" fill={ORANGE} stroke="#000" strokeWidth="0.5" />
-    </g>
   </svg>
 );
 
@@ -159,33 +108,50 @@ const SideButton: React.FC<{ active?: boolean; activeColor?: string; onClick?: (
 }) => (
   <button
     onClick={onClick}
-    className="flex h-[16%] min-h-[26px] w-full items-center justify-center rounded-[3px] text-[11px] tracking-wide transition-colors active:brightness-125"
+    className="flex h-[16%] min-h-[26px] w-full items-center justify-center rounded-[3px] text-[11px] font-semibold tracking-wide transition-colors active:brightness-125"
     style={{ background: active ? activeColor : '#383838', color: active ? '#fff' : '#d4d4d4' }}
   >
     {children}
   </button>
 );
 
-const BpmBox: React.FC<{ mirrored?: boolean; keyName: string }> = ({ mirrored, keyName }) => {
+const BpmBox: React.FC<{
+  mirrored?: boolean;
+  bpmValue: number;
+  tempoPct: number;
+  keyName: string;
+  active?: boolean;
+  onClick?: () => void;
+}> = ({ mirrored, bpmValue, tempoPct, keyName, active, onClick }) => {
+  const whole = Math.floor(bpmValue);
+  const tenths = Math.floor(Math.round((bpmValue - whole) * 10)) % 10;
+  const pctStr = `${tempoPct >= 0 ? '+' : ''}${(tempoPct * 100).toFixed(1)}%`;
+
   const bpm = (
-    <div className="flex min-w-[88px] items-center justify-center px-3">
-      <span className="text-[22px] font-light leading-none tabular-nums text-white">
-        128<span className="text-[13px]">.0</span>
+    <div className="flex min-w-[78px] items-center justify-center px-2.5">
+      <span className="text-[20px] font-light leading-none tabular-nums text-white">
+        {whole}
+        <span className="text-[12px]">.{tenths}</span>
       </span>
     </div>
   );
   const info = (
-    <div className="flex flex-col items-center justify-center px-3 text-[11px] leading-[1.15] text-white">
-      <span>0%</span>
-      <span>{keyName}</span>
+    <div className="flex flex-col items-center justify-center px-2 text-[10px] leading-[1.15] text-white tabular-nums">
+      <span style={{ color: Math.abs(tempoPct) > 0.001 ? MINT : '#fff' }}>{pctStr}</span>
+      <span className="text-[#aaa]">{keyName}</span>
     </div>
   );
   return (
-    <div className="flex h-[78%] max-h-[38px] items-stretch rounded-[3px] border border-[#3c3c3c] bg-[#0b0b0b]">
+    <button
+      onClick={onClick}
+      title="Настройка темпа (Pitch)"
+      className="flex h-[78%] max-h-[38px] items-stretch rounded-[3px] border bg-[#0b0b0b] transition-colors active:brightness-125"
+      style={{ borderColor: active ? MINT : '#3c3c3c' }}
+    >
       {mirrored ? info : bpm}
       <div className="w-px bg-[#3c3c3c]" />
       {mirrored ? bpm : info}
-    </div>
+    </button>
   );
 };
 
@@ -193,8 +159,8 @@ const BpmBox: React.FC<{ mirrored?: boolean; keyName: string }> = ({ mirrored, k
 
 export const HorizontalDeckModal: React.FC<HorizontalDeckModalProps> = ({ isOpen, onClose, lesson }) => {
   const { completeLesson, course } = useApp();
-  const haptic = useMemo(() => {
-    const fn = (kind: any = 'light') => rawHaptic(kind);
+  const haptic = useMemo<HapticHelper>(() => {
+    const fn = ((kind: any = 'light') => rawHaptic(kind)) as HapticHelper;
     fn.light = () => rawHaptic('light');
     fn.medium = () => rawHaptic('medium');
     fn.heavy = () => rawHaptic('heavy');
@@ -204,30 +170,26 @@ export const HorizontalDeckModal: React.FC<HorizontalDeckModalProps> = ({ isOpen
     return fn;
   }, []);
 
-  const tracks = useMemo<Record<DeckId, TrackWave>>(
-    () => ({
-      A: generateTrack(TRACKS.A.style, TRACKS.A.beats, TRACKS.A.seed),
-      B: generateTrack(TRACKS.B.style, TRACKS.B.beats, TRACKS.B.seed),
-    }),
-    [],
-  );
+  // Subscribe to DjEngine reactive store
+  useSyncExternalStore(djEngine.subscribe, djEngine.getVersion);
+  const deckA = djEngine.decks.A;
+  const deckB = djEngine.decks.B;
+  const playingA = deckA.playing;
+  const playingB = deckB.playing;
 
-  const [playingA, setPlayingA] = useState(false);
-  const [playingB, setPlayingB] = useState(false);
-  const [sync, setSync] = useState<Record<DeckId, boolean>>({ A: true, B: true });
-  const [fx, setFx] = useState<Record<DeckId, boolean>>({ A: false, B: false });
-  const [slip, setSlip] = useState<Record<DeckId, boolean>>({ A: false, B: false });
   const [crossfader, setCrossfader] = useState(0);
   const [isMatched, setIsMatched] = useState(false);
+  const [viewMode, setViewMode] = useState<Record<DeckId, DeckViewMode>>({ A: 'jog', B: 'jog' });
+  const [mixerOpen, setMixerOpen] = useState(false);
+  const [browserDeck, setBrowserDeck] = useState<DeckId | null>(null);
 
-  // runtime (mutated every frame, no re-render)
-  const rt = useRef<Record<DeckId, DeckRuntime>>({
-    A: { playing: false, pos: 0, cue: 0, angle: 0, level: 0 },
-    B: { playing: false, pos: 0, cue: 0, angle: 0, level: 0 },
-  });
+  const angleRef = useRef<Record<DeckId, number>>({ A: 0, B: 0 });
+  const meterSmoothRef = useRef<Record<DeckId, number>>({ A: 0, B: 0 });
+  const initPromiseRef = useRef<Promise<void> | null>(null);
+  const quickFileTargetRef = useRef<DeckId>('A');
+  const quickFileInputRef = useRef<HTMLInputElement | null>(null);
+
   const xfRef = useRef(0);
-  const syncRef = useRef(sync);
-  syncRef.current = sync;
   const isLessonDone = (lesson as any)?.isCompleted ?? course.completedLessons.includes(1);
   const claimedRef = useRef(isLessonDone);
   const lastHapticXf = useRef(0);
@@ -241,6 +203,8 @@ export const HorizontalDeckModal: React.FC<HorizontalDeckModalProps> = ({ isOpen
   const jogB = useRef<SVGGElement>(null);
   const ringA = useRef<SVGCircleElement>(null);
   const ringB = useRef<SVGCircleElement>(null);
+  const speedA = useRef<SVGTextElement>(null);
+  const speedB = useRef<SVGTextElement>(null);
   const timeA = useRef<HTMLSpanElement>(null);
   const timeB = useRef<HTMLSpanElement>(null);
   const barsA = useRef<HTMLSpanElement>(null);
@@ -272,132 +236,171 @@ export const HorizontalDeckModal: React.FC<HorizontalDeckModalProps> = ({ isOpen
     return () => observer.disconnect();
   }, [isOpen]);
 
-  const setDeckPlaying = useCallback(
-    (d: DeckId, next: boolean) => {
-      const r = rt.current;
-      const me = r[d];
-      const other = r[d === 'A' ? 'B' : 'A'];
-      if (next) {
-        if (me.pos >= tracks[d].totalBeats - 0.05) me.pos = me.cue;
-        if (other.playing && syncRef.current[d]) {
-          // BEAT SYNC: lock phase to the playing deck
-          me.pos = Math.floor(me.pos) + (other.pos % 1);
-        } else if (!other.playing) {
-          // sequencer restarts on a beat → snap to the grid
-          me.pos = Math.round(me.pos);
-        }
-      }
-      me.playing = next;
-      audioEngine.setDeckActive(d, next);
-      audioEngine.setKickMuted(d, !isKickAt(tracks[d], me.pos));
-      if (r.A.playing || r.B.playing) {
-        audioEngine.startPlayback();
-        audioEngine.setCrossfader(xfRef.current);
-      } else {
-        audioEngine.stopPlayback();
-      }
-      (d === 'A' ? setPlayingA : setPlayingB)(next);
-    },
-    [tracks],
-  );
-
-  // open / close lifecycle
+  // Open / close lifecycle: load default Rekordbox school tracks if decks are empty
   useEffect(() => {
     if (!isOpen) return;
-    audioEngine.setDeckActive('A', false);
-    audioEngine.setDeckActive('B', false);
     claimedRef.current = isLessonDone;
     setIsMatched(false);
-    const runtime = rt.current;
+    djEngine.setCrossfader(xfRef.current);
+
+    const tasks: Promise<void>[] = [];
+    if (!djEngine.decks.A.track && !djEngine.decks.A.loading) {
+      tasks.push(loadDemoToDeck('A', 'berlin-vault'));
+    }
+    if (!djEngine.decks.B.track && !djEngine.decks.B.loading) {
+      tasks.push(loadDemoToDeck('B', 'dark-matter'));
+    }
+    if (tasks.length > 0) {
+      initPromiseRef.current = Promise.all(tasks).then(() => {});
+    }
+
     return () => {
-      audioEngine.stopPlayback();
-      audioEngine.setDeckActive('A', true);
-      audioEngine.setDeckActive('B', true);
-      audioEngine.setKickMuted('A', false);
-      audioEngine.setKickMuted('B', false);
-      runtime.A.playing = false;
-      runtime.B.playing = false;
-      setPlayingA(false);
-      setPlayingB(false);
+      djEngine.suspend();
     };
   }, [isOpen, isLessonDone]);
 
-  // render loop
+  // 60fps render loop for waveforms, platter angle, time & VU meters
   useEffect(() => {
     if (!isOpen) return;
     let raf = 0;
     let last = performance.now();
 
-    const decks: { d: DeckId; ov: typeof ovA; v: typeof vA; jog: typeof jogA; ring: typeof ringA; time: typeof timeA; bars: typeof barsA; meter: typeof meterA; side: 'left' | 'right'; phase: string }[] = [
-      { d: 'A', ov: ovA, v: vA, jog: jogA, ring: ringA, time: timeA, bars: barsA, meter: meterA, side: 'left', phase: '#e8322b' },
-      { d: 'B', ov: ovB, v: vB, jog: jogB, ring: ringB, time: timeB, bars: barsB, meter: meterB, side: 'right', phase: '#e6e6e6' },
+    const decks: {
+      d: DeckId;
+      ov: typeof ovA;
+      v: typeof vA;
+      jog: typeof jogA;
+      ring: typeof ringA;
+      speed: typeof speedA;
+      time: typeof timeA;
+      bars: typeof barsA;
+      meter: typeof meterA;
+      side: 'left' | 'right';
+      phase: string;
+    }[] = [
+      { d: 'A', ov: ovA, v: vA, jog: jogA, ring: ringA, speed: speedA, time: timeA, bars: barsA, meter: meterA, side: 'left', phase: '#e8322b' },
+      { d: 'B', ov: ovB, v: vB, jog: jogB, ring: ringB, speed: speedB, time: timeB, bars: barsB, meter: meterB, side: 'right', phase: '#e6e6e6' },
     ];
 
     const loop = (now: number) => {
       const dt = Math.min(0.1, (now - last) / 1000);
       last = now;
-      const xf = xfRef.current;
 
       for (const k of decks) {
-        const deck = rt.current[k.d];
-        const track = tracks[k.d];
+        const deck = djEngine.decks[k.d];
+        const track = deck.track;
+        const pos = djEngine.getPos(k.d);
+        const spd = djEngine.getSpeed(k.d);
 
-        if (deck.playing) {
-          deck.pos += (dt * BPM) / 60;
-          deck.angle = (deck.angle + dt * 200) % 360; // 33⅓ rpm
-          if (deck.pos >= track.totalBeats) {
-            deck.pos = track.totalBeats;
-            setDeckPlaying(k.d, false);
-          }
-          audioEngine.setKickMuted(k.d, !isKickAt(track, deck.pos));
+        if (!deck.scratching && Math.abs(spd) > 0.001) {
+          angleRef.current[k.d] = (angleRef.current[k.d] + dt * spd * PLATTER_DEG_PER_SEC) % 360;
         }
 
-        if (k.ov.current) drawOverview(k.ov.current, track, deck.pos, deck.cue);
-        if (k.v.current) drawVertical(k.v.current, track, deck.pos, deck.cue, { markerSide: k.side, phaseColor: k.phase });
+        if (k.ov.current) drawOverview(k.ov.current, track, pos, deck.cue, deck.loop, deck.hotCues);
+        if (k.v.current) {
+          drawVertical(k.v.current, track, pos, deck.cue, {
+            markerSide: k.side,
+            phaseColor: k.phase,
+            loop: deck.loop,
+            hotCues: deck.hotCues,
+          });
+        }
 
-        const progress = deck.pos / track.totalBeats;
-        k.jog.current?.setAttribute('transform', `rotate(${deck.angle} 50 50)`);
+        const total = track?.duration || 1;
+        const progress = Math.max(0, Math.min(1, pos / total));
+        const ang = ((angleRef.current[k.d] % 360) + 360) % 360;
+        k.jog.current?.setAttribute('transform', `rotate(${ang} 50 50)`);
         k.ring.current?.setAttribute('stroke-dasharray', `${(1 - progress) * 100} 100`);
         k.ring.current?.setAttribute('transform', `rotate(${-90 + progress * 360} 50 50)`);
-        if (k.time.current) k.time.current.textContent = fmtRemain(track.totalBeats - deck.pos);
+        if (k.speed.current) {
+          k.speed.current.textContent = `${spd >= 0 ? '' : ''}${spd.toFixed(2)}x`;
+        }
+        if (k.time.current) {
+          k.time.current.textContent = track ? fmtRemain(track.duration - pos) : '-00:00';
+        }
 
         if (k.bars.current) {
-          const next = track.cues.find((c) => c > deck.pos + 0.01);
-          if (next === undefined) k.bars.current.textContent = '--.- Bars';
-          else {
-            const left = next - deck.pos;
-            k.bars.current.textContent = `${Math.floor(left / 4)}.${Math.floor(left % 4) + 1} Bars`;
+          if (!track) {
+            k.bars.current.textContent = '--.- Bars';
+          } else {
+            const next = track.cues.find((c) => c > pos + 0.05);
+            if (next === undefined) k.bars.current.textContent = '--.- Bars';
+            else {
+              const beatLen = 60 / Math.max(40, track.bpm);
+              const leftBeats = Math.max(0, (next - pos) / beatLen);
+              k.bars.current.textContent = `${Math.floor(leftBeats / 4)}.${Math.floor(leftBeats % 4) + 1} Bars`;
+            }
           }
         }
 
-        // channel level meter (post-crossfader)
-        const gain = k.d === 'A' ? Math.cos(xf * 0.5 * Math.PI) : Math.cos((1 - xf) * 0.5 * Math.PI);
-        const target = deck.playing ? levelAt(track, deck.pos) * gain : 0;
-        deck.level = target > deck.level ? target : deck.level * 0.88 + target * 0.12;
-        if (k.meter.current) k.meter.current.style.height = `${Math.min(100, deck.level * 100)}%`;
+        // Channel level meter (real audio analyser + waveform envelope fallback)
+        const aud = djEngine.audibility(k.d);
+        const liveLvl = djEngine.getLevel(k.d);
+        const waveLvl = deck.playing || deck.scratching ? levelAt(track, pos) : 0;
+        const target = Math.max(liveLvl * 1.35, waveLvl) * aud;
+        const prev = meterSmoothRef.current[k.d];
+        const nextLvl = target > prev ? target : prev * 0.86 + target * 0.14;
+        meterSmoothRef.current[k.d] = nextLvl;
+        if (k.meter.current) k.meter.current.style.height = `${Math.min(100, nextLvl * 100)}%`;
       }
 
       raf = requestAnimationFrame(loop);
     };
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
-  }, [isOpen, tracks, setDeckPlaying]);
+  }, [isOpen]);
 
-  const togglePlay = (d: DeckId) => {
+  const togglePlay = async (d: DeckId) => {
     haptic.medium();
-    setDeckPlaying(d, !rt.current[d].playing);
+    djEngine.resume();
+    if (!djEngine.decks[d].track && initPromiseRef.current) {
+      await initPromiseRef.current;
+    }
+    djEngine.togglePlay(d);
   };
 
-  // CDJ-style CUE: while playing → return to cue & pause; while paused → set cue here
-  const handleCue = (d: DeckId) => {
+  const handleCueDown = (d: DeckId) => {
     haptic.heavy();
-    const me = rt.current[d];
-    if (me.playing) {
-      setDeckPlaying(d, false);
-      me.pos = me.cue;
+    djEngine.cueDown(d);
+  };
+
+  const handleCueUp = (d: DeckId) => {
+    djEngine.cueUp(d);
+  };
+
+  const handleOverviewSeek = (d: DeckId, e: React.PointerEvent<HTMLCanvasElement>) => {
+    e.stopPropagation();
+    const track = djEngine.decks[d].track;
+    if (!track) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    let frac = 0;
+    if (rect.height > rect.width) {
+      frac = flip180 ? (rect.bottom - e.clientY) / rect.height : (e.clientY - rect.top) / rect.height;
     } else {
-      me.cue = Math.max(0, Math.round(me.pos));
-      me.pos = me.cue;
+      frac = (e.clientX - rect.left) / rect.width;
+    }
+    djEngine.seek(d, Math.max(0, Math.min(1, frac)) * track.duration);
+    haptic.selection();
+  };
+
+  const triggerQuickFilePick = (d: DeckId, e: React.MouseEvent) => {
+    e.stopPropagation();
+    haptic.light();
+    quickFileTargetRef.current = d;
+    quickFileInputRef.current?.click();
+  };
+
+  const handleQuickFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    const d = quickFileTargetRef.current;
+    haptic.medium();
+    try {
+      await loadFileToDeck(d, file);
+      haptic.success();
+    } catch {
+      haptic.error();
     }
   };
 
@@ -421,23 +424,17 @@ export const HorizontalDeckModal: React.FC<HorizontalDeckModalProps> = ({ isOpen
       const rect = track.getBoundingClientRect();
 
       let val = 0;
-      // Если дорожка фейдера на экране ориентирована вертикально (высота больше ширины, например в повернутом portrait-режиме)
       if (rect.height > rect.width) {
-        // При обычном portrait (rotate 90deg): верх фейдера на экране (top) — это дека A (0), низ (bottom) — это дека B (1)
-        // При flip180 (rotate -90deg): дека A находится снизу, дека B сверху
-        const raw = flip180
-          ? (rect.bottom - clientY) / rect.height
-          : (clientY - rect.top) / rect.height;
+        const raw = flip180 ? (rect.bottom - clientY) / rect.height : (clientY - rect.top) / rect.height;
         val = Math.max(0, Math.min(1, raw));
       } else {
-        // Горизонтальный фейдер на экране (landscape или десктоп)
         const raw = (clientX - rect.left) / rect.width;
         val = Math.max(0, Math.min(1, raw));
       }
 
       xfRef.current = val;
       setCrossfader(val);
-      audioEngine.setCrossfader(val);
+      djEngine.setCrossfader(val);
 
       if (
         Math.abs(val - lastHapticXf.current) > 0.05 ||
@@ -447,8 +444,7 @@ export const HorizontalDeckModal: React.FC<HorizontalDeckModalProps> = ({ isOpen
         haptic.selection();
       }
 
-      const r = rt.current;
-      if (!claimedRef.current && r.A.playing && r.B.playing && val >= 0.45 && val <= 0.55) {
+      if (!claimedRef.current && djEngine.decks.A.playing && djEngine.decks.B.playing && val >= 0.45 && val <= 0.55) {
         handleSuccessfulBeatmatch();
       }
     },
@@ -461,7 +457,9 @@ export const HorizontalDeckModal: React.FC<HorizontalDeckModalProps> = ({ isOpen
     isDraggingXf.current = true;
     try {
       e.currentTarget.setPointerCapture(e.pointerId);
-    } catch {}
+    } catch {
+      /* ignore */
+    }
     updateCrossfaderFromPointer(e.clientX, e.clientY);
   };
 
@@ -479,7 +477,9 @@ export const HorizontalDeckModal: React.FC<HorizontalDeckModalProps> = ({ isOpen
       if (e.currentTarget.hasPointerCapture(e.pointerId)) {
         e.currentTarget.releasePointerCapture(e.pointerId);
       }
-    } catch {}
+    } catch {
+      /* ignore */
+    }
   };
 
   const handlePointerCancel = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -488,7 +488,9 @@ export const HorizontalDeckModal: React.FC<HorizontalDeckModalProps> = ({ isOpen
       if (e.currentTarget.hasPointerCapture(e.pointerId)) {
         e.currentTarget.releasePointerCapture(e.pointerId);
       }
-    } catch {}
+    } catch {
+      /* ignore */
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
@@ -499,10 +501,9 @@ export const HorizontalDeckModal: React.FC<HorizontalDeckModalProps> = ({ isOpen
     e.preventDefault();
     xfRef.current = next;
     setCrossfader(next);
-    audioEngine.setCrossfader(next);
+    djEngine.setCrossfader(next);
     haptic.selection();
-    const r = rt.current;
-    if (!claimedRef.current && r.A.playing && r.B.playing && next >= 0.45 && next <= 0.55) {
+    if (!claimedRef.current && djEngine.decks.A.playing && djEngine.decks.B.playing && next >= 0.45 && next <= 0.55) {
       handleSuccessfulBeatmatch();
     }
   };
@@ -512,14 +513,14 @@ export const HorizontalDeckModal: React.FC<HorizontalDeckModalProps> = ({ isOpen
   const step = isMatched ? 'matched' : !playingA ? 'play_a' : !playingB ? 'play_b' : 'crossfade';
   const hint =
     step === 'play_a'
-      ? { text: 'Шаг 1 · Нажми PLAY на левой деке', color: ORANGE }
+      ? { text: 'Шаг 1 · Нажми PLAY на левой деке (крути джог для скретча)', color: ORANGE }
       : step === 'play_b'
       ? { text: 'Шаг 2 · Нажми PLAY на правой деке', color: ORANGE }
       : step === 'crossfade'
       ? {
           text: portrait
-            ? 'Шаг 3 · Свайпай фейдер к центру — введи второй трек'
-            : 'Шаг 3 · Двигай кроссфейдер к центру — введи второй трек',
+            ? 'Шаг 3 · Свайпай фейдер к центру – сведи два трека'
+            : 'Шаг 3 · Двигай кроссфейдер к центру – сведи два трека',
           color: '#8ce2c8',
         }
       : null;
@@ -537,7 +538,7 @@ export const HorizontalDeckModal: React.FC<HorizontalDeckModalProps> = ({ isOpen
 
   const playBtn = (d: DeckId, playing: boolean, coach: boolean) => (
     <button
-      onClick={() => togglePlay(d)}
+      onClick={() => void togglePlay(d)}
       className={`flex aspect-square h-[68%] min-h-[44px] min-w-[44px] max-h-[52px] items-center justify-center rounded-full border-[1.5px] transition-colors active:scale-95 ${coach ? 'animate-pulse' : ''}`}
       style={{
         borderColor: playing ? GREEN : coach ? GREEN : '#8a8a8a',
@@ -552,49 +553,183 @@ export const HorizontalDeckModal: React.FC<HorizontalDeckModalProps> = ({ isOpen
 
   const cueBtn = (d: DeckId, playing: boolean) => (
     <button
-      onClick={() => handleCue(d)}
+      onPointerDown={() => handleCueDown(d)}
+      onPointerUp={() => handleCueUp(d)}
+      onPointerCancel={() => handleCueUp(d)}
       className="flex aspect-square h-[68%] min-h-[44px] min-w-[44px] max-h-[52px] items-center justify-center rounded-full border-[1.5px] text-[12px] tracking-wide active:scale-95 active:brightness-150"
       style={{ borderColor: playing ? '#8a8a8a' : ORANGE + 'aa', color: ORANGE }}
+      aria-label={`Cue deck ${d}`}
     >
       CUE
     </button>
   );
 
-  const sideButtons = (d: DeckId) => (
-    <div className="flex h-full w-[46px] shrink-0 flex-col justify-around py-[2%]">
-      <SideButton active={sync[d]} onClick={() => { haptic.light(); setSync((s) => ({ ...s, [d]: !s[d] })); }}>
-        SYNC
-      </SideButton>
-      <SideButton onClick={() => haptic.light()}>
-        <PadIcon />
-      </SideButton>
-      <SideButton active={fx[d]} activeColor="#5a5a5a" onClick={() => { haptic.light(); setFx((s) => ({ ...s, [d]: !s[d] })); }}>
-        FX
-      </SideButton>
-      <SideButton active={slip[d]} activeColor="#5a5a5a" onClick={() => { haptic.light(); setSlip((s) => ({ ...s, [d]: !s[d] })); }}>
-        SLIP
-      </SideButton>
-    </div>
-  );
+  const toggleDeckView = (d: DeckId, target: DeckViewMode) => {
+    setViewMode((prev) => {
+      const next = prev[d] === target ? 'jog' : target;
+      // When opening FX panel for the first time, engage Beat FX immediately so user hears it
+      if (target === 'fx' && next === 'fx' && !djEngine.decks[d].fx.on) {
+        djEngine.setFx(d, { on: true });
+      }
+      return { ...prev, [d]: next };
+    });
+  };
 
-  const header = (d: DeckId) => (
-    <div className="flex min-w-0 flex-1 flex-col">
-      <div className="flex items-baseline justify-between leading-none">
-        <span className="truncate text-[13px] text-white">{TRACKS[d].title}</span>
-        <span ref={d === 'A' ? timeA : timeB} className="ml-2 text-[13px] tabular-nums text-white">
-          -00:00
-        </span>
+  const sideButtons = (d: DeckId) => {
+    const deck = djEngine.decks[d];
+    const mode = viewMode[d];
+    return (
+      <div className="flex h-full w-[46px] shrink-0 flex-col justify-around py-[2%]">
+        <SideButton
+          active={deck.sync}
+          activeColor={SYNC_BLUE}
+          onClick={() => {
+            haptic.light();
+            djEngine.setSync(d, !deck.sync);
+          }}
+        >
+          SYNC
+        </SideButton>
+        <SideButton
+          active={mode === 'pad' || deck.loop !== null}
+          activeColor={deck.loop ? ORANGE : SYNC_BLUE}
+          onClick={() => {
+            haptic.light();
+            toggleDeckView(d, 'pad');
+          }}
+        >
+          <PadIcon />
+        </SideButton>
+        <SideButton
+          active={deck.fx.on || mode === 'fx'}
+          activeColor={deck.fx.on ? ORANGE : '#5a5a5a'}
+          onClick={() => {
+            haptic.light();
+            toggleDeckView(d, 'fx');
+          }}
+        >
+          FX
+        </SideButton>
+        <SideButton
+          active={deck.slip}
+          activeColor="#e04040"
+          onClick={() => {
+            haptic.light();
+            djEngine.setSlip(d, !deck.slip);
+          }}
+        >
+          SLIP
+        </SideButton>
       </div>
-      <span className="mt-[2px] truncate text-[10px] leading-none text-[#8c8c8c]">{TRACKS[d].artist}</span>
-      <canvas ref={d === 'A' ? ovA : ovB} className="mt-[4px] block min-h-0 w-full flex-1" />
-    </div>
-  );
+    );
+  };
+
+  const header = (d: DeckId) => {
+    const deck = djEngine.decks[d];
+    const tr = deck.track;
+    const title = deck.loading || tr?.title || (d === 'A' ? 'Berlin Vault' : 'Dark Matter');
+    const artist = tr?.artist || (d === 'A' ? 'Open Deck Records' : 'FREEDA');
+    return (
+      <div className="flex min-w-0 flex-1 flex-col">
+        <div className="flex items-center justify-between gap-1 leading-none">
+          <button
+            onClick={() => {
+              haptic.light();
+              setBrowserDeck(d);
+            }}
+            title={`Выбрать трек для деки ${d}`}
+            className="flex min-w-0 items-center gap-1 text-left hover:opacity-90 active:scale-[0.99]"
+          >
+            <span className="truncate text-[12px] font-semibold text-white">{title}</span>
+          </button>
+
+          <div className="flex shrink-0 items-center gap-1.5">
+            <button
+              onClick={(e) => triggerQuickFilePick(d, e)}
+              title={`Загрузить аудиофайл с телефона в деку ${d}`}
+              aria-label={`Load file deck ${d}`}
+              className="flex items-center gap-1 rounded-[3px] border border-[#00f0b5]/50 bg-[#00f0b5]/15 px-1.5 py-[2px] text-[9px] font-bold text-[#00f0b5] active:scale-95"
+            >
+              <FolderMusicIcon />
+              <span>ФАЙЛ</span>
+            </button>
+            <span ref={d === 'A' ? timeA : timeB} className="text-[12px] tabular-nums text-white">
+              -00:00
+            </span>
+          </div>
+        </div>
+        <div className="mt-[1px] flex items-center justify-between">
+          <span className="truncate text-[9px] leading-none text-[#8c8c8c]">{artist}</span>
+          {(deck.fx.on || Math.abs(deck.filter) > 0.04 || deck.loop) && (
+            <span className="text-[8px] font-bold uppercase tracking-wider text-[#f39321]">
+              {[
+                deck.fx.on ? deck.fx.type.toUpperCase() : '',
+                deck.filter < -0.04 ? 'LPF' : deck.filter > 0.04 ? 'HPF' : '',
+                deck.loop ? `LOOP ${deck.loop.beats}B` : '',
+              ]
+                .filter(Boolean)
+                .join(' · ')}
+            </span>
+          )}
+        </div>
+        <canvas
+          ref={d === 'A' ? ovA : ovB}
+          onPointerDown={(e) => handleOverviewSeek(d, e)}
+          className="mt-[3px] block min-h-0 w-full flex-1 cursor-pointer"
+        />
+      </div>
+    );
+  };
+
+  const renderDeckCenter = (d: DeckId) => {
+    const deck = djEngine.decks[d];
+    const mode = viewMode[d];
+    if (mode === 'fx') {
+      return <DeckFxPanel deck={deck} haptic={haptic} onClosePanel={() => setViewMode((s) => ({ ...s, [d]: 'jog' }))} />;
+    }
+    if (mode === 'pad') {
+      return <DeckPadPanel deck={deck} haptic={haptic} onClosePanel={() => setViewMode((s) => ({ ...s, [d]: 'jog' }))} />;
+    }
+    if (mode === 'tempo') {
+      return <DeckTempoPanel deck={deck} haptic={haptic} onClosePanel={() => setViewMode((s) => ({ ...s, [d]: 'jog' }))} />;
+    }
+    return (
+      <ScratchJogWheel
+        id={d}
+        markerRef={d === 'A' ? jogA : jogB}
+        ringRef={d === 'A' ? ringA : ringB}
+        speedTextRef={d === 'A' ? speedA : speedB}
+        highlight={(d === 'A' && step === 'play_a') || (d === 'B' && step === 'play_b')}
+        scratching={deck.scratching}
+        fxActive={deck.fx.on}
+        loopActive={deck.loop !== null}
+        haptic={haptic}
+        onRotationDelta={(dDeg) => {
+          angleRef.current[d] = (angleRef.current[d] + dDeg) % 360;
+          const marker = d === 'A' ? jogA.current : jogB.current;
+          const ang = ((angleRef.current[d] % 360) + 360) % 360;
+          marker?.setAttribute('transform', `rotate(${ang} 50 50)`);
+        }}
+      />
+    );
+  };
+
+  const hasEqOrFilter =
+    Math.abs(deckA.filter) > 0.04 ||
+    Math.abs(deckB.filter) > 0.04 ||
+    Math.abs(deckA.eq.low) > 0.04 ||
+    Math.abs(deckB.eq.low) > 0.04 ||
+    Math.abs(deckA.eq.mid) > 0.04 ||
+    Math.abs(deckB.eq.mid) > 0.04 ||
+    Math.abs(deckA.eq.hi) > 0.04 ||
+    Math.abs(deckB.eq.hi) > 0.04;
 
   const modalContent = (
     <div
       ref={containerRef}
-      className="fixed inset-0 z-50 touch-none select-none overflow-hidden bg-black"
+      className="fixed inset-0 z-[9999] touch-none select-none overflow-hidden bg-black"
       style={{
+        zIndex: 9999,
         paddingTop: `max(env(safe-area-inset-top, 0px), var(--app-safe-top, ${safeArea.top}px))`,
         paddingBottom: `max(env(safe-area-inset-bottom, 0px), var(--app-safe-bottom, ${safeArea.bottom}px))`,
         paddingLeft: `max(env(safe-area-inset-left, 0px), var(--app-safe-left, ${safeArea.left}px))`,
@@ -602,16 +737,32 @@ export const HorizontalDeckModal: React.FC<HorizontalDeckModalProps> = ({ isOpen
         fontFamily: '"Helvetica Neue", Roboto, "Segoe UI", Arial, sans-serif',
       }}
     >
+      {/* Hidden file input for 1-tap smartphone audio loading */}
+      <input
+        ref={quickFileInputRef}
+        type="file"
+        accept={AUDIO_ACCEPT}
+        className="hidden"
+        onChange={(e) => void handleQuickFileChange(e)}
+      />
+
       <div
         ref={safeViewportRef}
         className="relative flex h-full w-full items-center justify-center overflow-hidden p-1 sm:p-2"
       >
-        <div style={frameStyle} className="flex flex-col overflow-hidden bg-black text-[#d6d6d6]">
+        <div style={frameStyle} className="relative flex flex-col overflow-hidden bg-black text-[#d6d6d6]">
           {/* ============ ROW 1 · track info + overview waveforms ============ */}
           <div className="flex shrink-0 items-stretch gap-2 px-3 pt-1.5" style={{ height: '15%' }}>
-            <div className="aspect-square h-full shrink-0 overflow-hidden rounded-[2px]">
-              <VinylArt />
-            </div>
+            <button
+              onClick={() => {
+                haptic.light();
+                setBrowserDeck('A');
+              }}
+              title="Открыть библиотеку треков (Дека A)"
+              className="aspect-square h-full shrink-0 overflow-hidden rounded-[2px] border border-[#3a3a3a] active:scale-95"
+            >
+              <VinylArt artUrl={deckA.track?.artUrl} />
+            </button>
             {header('A')}
             <div className="flex shrink-0 items-center justify-center gap-1.5">
               <button
@@ -639,16 +790,44 @@ export const HorizontalDeckModal: React.FC<HorizontalDeckModalProps> = ({ isOpen
               )}
             </div>
             {header('B')}
-            <div className="aspect-square h-full shrink-0 overflow-hidden rounded-[2px]">
-              <VinylArt />
-            </div>
+            <button
+              onClick={() => {
+                haptic.light();
+                setBrowserDeck('B');
+              }}
+              title="Открыть библиотеку треков (Дека B)"
+              className="aspect-square h-full shrink-0 overflow-hidden rounded-[2px] border border-[#3a3a3a] active:scale-95"
+            >
+              <VinylArt artUrl={deckB.track?.artUrl} />
+            </button>
           </div>
 
           {/* ============ ROW 2 · BPM / key / mixer ============ */}
           <div className="flex shrink-0 items-center justify-between px-3" style={{ height: '12%' }}>
-            <BpmBox keyName={TRACKS.A.key} />
-            <div className="flex h-full items-center gap-3">
-              <button className="flex aspect-square h-[72%] items-center justify-center rounded-[3px] bg-[#383838]" onClick={() => haptic.light()}>
+            <BpmBox
+              bpmValue={djEngine.effBpm('A') || 128}
+              tempoPct={deckA.tempo}
+              keyName={deckA.track?.key || '4A'}
+              active={viewMode.A === 'tempo'}
+              onClick={() => {
+                haptic.light();
+                toggleDeckView('A', 'tempo');
+              }}
+            />
+            <div className="flex h-full items-center gap-2.5">
+              <button
+                className="flex aspect-square h-[72%] items-center justify-center rounded-[3px] transition-colors"
+                style={{
+                  background: mixerOpen ? ORANGE : hasEqOrFilter ? '#4a3820' : '#383838',
+                  border: hasEqOrFilter ? `1px solid ${ORANGE}` : undefined,
+                }}
+                title="Открыть микшер (EQ и Фильтры)"
+                aria-label="Open mixer"
+                onClick={() => {
+                  haptic.light();
+                  setMixerOpen((o) => !o);
+                }}
+              >
                 <MixerIcon />
               </button>
               <div className="flex h-[72%] gap-[5px]">
@@ -657,23 +836,49 @@ export const HorizontalDeckModal: React.FC<HorizontalDeckModalProps> = ({ isOpen
                     <div
                       ref={ref}
                       className="absolute bottom-0 left-0 right-0"
-                      style={{ height: '0%', background: 'linear-gradient(to top, #2fbf4a 0%, #2fbf4a 55%, #f2d01c 78%, #ff3b30 100%)', backgroundSize: '100% 100%' }}
+                      style={{
+                        height: '0%',
+                        background: 'linear-gradient(to top, #2fbf4a 0%, #2fbf4a 55%, #f2d01c 78%, #ff3b30 100%)',
+                        backgroundSize: '100% 100%',
+                      }}
                     />
                   </div>
                 ))}
               </div>
-              <button className="flex aspect-square h-[72%] items-center justify-center rounded-[3px] bg-[#383838]" onClick={() => haptic.light()}>
-                <PadIcon className="h-[40%] w-[64%]" />
+              <button
+                className="flex aspect-square h-[72%] items-center justify-center rounded-[3px] text-[#d6d6d6]"
+                style={{
+                  background: browserDeck ? MINT : '#383838',
+                  color: browserDeck ? '#000' : '#d6d6d6',
+                }}
+                title="Открыть браузер треков со смартфона"
+                aria-label="Open track browser"
+                onClick={() => {
+                  haptic.light();
+                  setBrowserDeck((b) => (b ? null : 'A'));
+                }}
+              >
+                <FolderMusicIcon />
               </button>
             </div>
-            <BpmBox mirrored keyName={TRACKS.B.key} />
+            <BpmBox
+              mirrored
+              bpmValue={djEngine.effBpm('B') || 128}
+              tempoPct={deckB.tempo}
+              keyName={deckB.track?.key || '4A'}
+              active={viewMode.B === 'tempo'}
+              onClick={() => {
+                haptic.light();
+                toggleDeckView('B', 'tempo');
+              }}
+            />
           </div>
 
-          {/* ============ MAIN · side buttons, jogs, vertical waveforms ============ */}
+          {/* ============ MAIN · side buttons, jogs/panels, vertical waveforms ============ */}
           <div className="relative flex min-h-0 flex-1 items-center gap-1 px-3">
             {sideButtons('A')}
             <div className="flex h-full min-w-0 flex-1 items-center justify-center py-[1.2%]">
-              <JogWheel id="A" markerRef={jogA} ringRef={ringA} highlight={step === 'play_a'} onTouch={() => haptic.light()} />
+              {renderDeckCenter('A')}
             </div>
 
             <div className="flex h-full shrink-0 gap-[6px] py-[0.8%]" style={{ width: '17%' }}>
@@ -688,12 +893,22 @@ export const HorizontalDeckModal: React.FC<HorizontalDeckModalProps> = ({ isOpen
             </div>
 
             <div className="flex h-full min-w-0 flex-1 items-center justify-center py-[1.2%]">
-              <JogWheel id="B" markerRef={jogB} ringRef={ringB} highlight={step === 'play_b'} onTouch={() => haptic.light()} />
+              {renderDeckCenter('B')}
             </div>
             {sideButtons('B')}
 
+            {/* Mixer Overlay (3-Band EQ + Color Filter) */}
+            {mixerOpen && (
+              <MixerOverlay
+                deckA={deckA}
+                deckB={deckB}
+                haptic={haptic}
+                onClose={() => setMixerOpen(false)}
+              />
+            )}
+
             {/* Coach-mark hint */}
-            {hint && (
+            {hint && !mixerOpen && !browserDeck && (
               <div className="pointer-events-none absolute bottom-[3%] left-1/2 z-20 -translate-x-1/2 whitespace-nowrap">
                 <div
                   className="animate-pulse rounded-full border bg-black/85 px-3.5 py-1 text-[11px] font-semibold shadow-lg"
@@ -711,7 +926,7 @@ export const HorizontalDeckModal: React.FC<HorizontalDeckModalProps> = ({ isOpen
                 <div className="relative flex items-center gap-3 rounded-2xl border-2 border-[#8ce2c8] bg-black/85 px-5 py-3 shadow-[0_0_40px_rgba(140,226,200,0.55)]">
                   <CheckCircle2 className="h-6 w-6 shrink-0 text-[#8ce2c8]" />
                   <div>
-                    <div className="text-sm font-bold text-white">Твоё первое сведение — поздравляю! 🎉</div>
+                    <div className="text-sm font-bold text-white">Твоё первое сведение – в точку!</div>
                     <div className="mt-0.5 flex items-center gap-1 text-xs font-bold text-[#8ce2c8]">
                       <Sparkles className="h-3.5 w-3.5" /> +50 GP
                     </div>
@@ -744,7 +959,6 @@ export const HorizontalDeckModal: React.FC<HorizontalDeckModalProps> = ({ isOpen
               className="group relative h-[72%] flex-1 touch-none select-none cursor-pointer focus:outline-none"
               style={{ touchAction: 'none' }}
             >
-              {/* Расширенная зона взаимодействия для комфортного захвата пальцем */}
               <div className="absolute -inset-y-3 -inset-x-2" />
 
               {step === 'crossfade' && (
@@ -752,17 +966,13 @@ export const HorizontalDeckModal: React.FC<HorizontalDeckModalProps> = ({ isOpen
                   className="pointer-events-none absolute -top-[46%] z-10 -translate-x-1/2 animate-bounce whitespace-nowrap rounded-full bg-[#8ce2c8] px-2 py-[1px] text-[9px] font-bold text-black shadow-md"
                   style={{ left: `calc(${crossfader} * (100% - 16px) + 8px)` }}
                 >
-                  {portrait ? '↕ СВАЙП' : '← →'}
+                  {portrait ? 'СВАЙП' : 'К ЦЕНТРУ'}
                 </div>
               )}
-              {/* Ограничители трека */}
               <div className="absolute bottom-[8%] left-0 top-[8%] w-[2px] bg-[#cfcfcf]" />
               <div className="absolute bottom-[8%] right-0 top-[8%] w-[2px] bg-[#cfcfcf]" />
-              {/* Направляющая линия */}
               <div className="absolute left-0 right-0 top-1/2 h-[3px] -translate-y-1/2 rounded-[1px] bg-[#5c5c5c]" />
-              {/* Центральная засечка */}
               <div className="absolute bottom-[30%] left-1/2 top-[30%] w-px -translate-x-1/2 bg-[#777]" />
-              {/* Скользящий бегунок кроссфейдера */}
               <div
                 className="pointer-events-none absolute bottom-[4%] top-[4%] flex w-[16px] justify-between rounded-[2px]"
                 style={{
@@ -780,6 +990,16 @@ export const HorizontalDeckModal: React.FC<HorizontalDeckModalProps> = ({ isOpen
               {playBtn('B', playingB, step === 'play_b')}
             </div>
           </div>
+
+          {/* Track Browser Modal (for loading smartphone audio files & switching tracks) */}
+          {browserDeck && (
+            <TrackBrowserOverlay
+              targetDeck={browserDeck}
+              haptic={haptic}
+              onSelectDeck={(d) => setBrowserDeck(d)}
+              onClose={() => setBrowserDeck(null)}
+            />
+          )}
         </div>
       </div>
     </div>

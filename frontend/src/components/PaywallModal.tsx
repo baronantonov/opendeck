@@ -208,7 +208,7 @@ export function PaywallModal({
                 Практика на DJ-деке + Groove Points
               </div>
               <div className="text-xs text-[var(--color-text-dim)]">
-                +50 GP за каждый урок (до −$50 скидки на личное менторство с FREEDA DJ).
+                +50 GP за каждый урок (до −$100 скидки на личное менторство с FREEDA DJ).
               </div>
             </div>
           </div>

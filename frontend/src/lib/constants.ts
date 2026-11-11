@@ -137,29 +137,23 @@ export const ARCHETYPES: Record<string, string> = {
 
 // Pricing constants mirror backend/main.py
 export const PRICES = {
-  course: { stars: 2500, rub: '≈ 4 250 ₽', usd: '$30' },
-  'dj-basics': { stars: 2500, rub: '≈ 4 250 ₽', usd: '$30' },
-  tripwire: { stars: 2500, rub: '≈ 4 250 ₽', usd: '$30' },
+  course: { stars: 2500, usd: '$37' },
+  'dj-basics': { stars: 2500, usd: '$37' },
+  tripwire: { stars: 2500, usd: '$37' },
   mentor: {
-    grossUsd: 250,
-    floorUsd: 200, // чистыми $190 после комиссии Tribute (5%)
-    grossRub: 23900,
-    floorRub: 19800, // чистыми ~19 100 ₽ после комиссии Prodamus (3.5%)
-    gpCap: 500,      // макс скидка 500 GP = $50 / 4 100 ₽
-    gpRateUsd: 0.1,  // 1 GP = $0.10
-    gpRateRub: 8.2,  // 500 GP * 8.2 = 4 100 ₽ (23 900 - 4 100 = 19 800 ₽)
+    grossUsd: 300,
+    floorUsd: 200, // Founder's Offer $200 после полной скидки за прохождение ($100)
+    gpCap: 500,    // макс скидка 500 GP (10 уроков × 50 GP) = $100
+    gpRateUsd: 0.2, // 1 GP = $0.20 (500 GP = $100 скидки)
   },
 };
 
 export function mentorPrices(gp: number) {
   const cappedGp = Math.min(Math.max(gp, 0), PRICES.mentor.gpCap);
   const discountUsd = Math.round(cappedGp * PRICES.mentor.gpRateUsd);
-  const discountRub = Math.round(cappedGp * PRICES.mentor.gpRateRub);
   return {
     discountUsd,
-    discountRub,
-    finalUsd: PRICES.mentor.grossUsd - discountUsd,
-    finalRub: PRICES.mentor.grossRub - discountRub,
+    finalUsd: Math.max(PRICES.mentor.floorUsd, PRICES.mentor.grossUsd - discountUsd),
     cappedGp,
   };
 }

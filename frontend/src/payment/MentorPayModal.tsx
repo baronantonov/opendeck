@@ -43,7 +43,7 @@ export function MentorPay({
 
   const availableGp = Math.max(user.groovePoints, 0);
   const maxSpendableGp = Math.min(availableGp, PRICES.mentor.gpCap);
-  const { discountUsd, discountRub, finalUsd, finalRub, cappedGp } = mentorPrices(maxSpendableGp);
+  const { discountUsd, finalUsd, cappedGp } = mentorPrices(maxSpendableGp);
 
   useEffect(() => {
     if (!open) return;
@@ -295,7 +295,7 @@ export function MentorPay({
           <div className="flex items-center justify-between text-xs text-[var(--color-text-dim)]">
             <span>Базовая стоимость:</span>
             <span className={cappedGp > 0 ? 'line-through font-semibold' : 'font-semibold text-[var(--color-text)]'}>
-              ${PRICES.mentor.grossUsd} ({PRICES.mentor.grossRub.toLocaleString('ru-RU')} ₽)
+              ${PRICES.mentor.grossUsd}
             </span>
           </div>
 
@@ -309,7 +309,7 @@ export function MentorPay({
                 <span>Списано {cappedGp} Groove Points</span>
               </div>
               <span className="text-xs font-extrabold text-[var(--brand-gold)]">
-                −{discountRub.toLocaleString('ru-RU')} ₽ (−${discountUsd})
+                −${discountUsd}
               </span>
             </div>
           )}
@@ -318,12 +318,7 @@ export function MentorPay({
             <span className="text-sm font-bold text-[var(--color-text)]">Итого к оплате:</span>
             <div className="text-right">
               <span className="text-xl font-black tracking-tight text-[var(--color-text)]">
-                {selectedMethod === 'prodamus'
-                  ? `${finalRub.toLocaleString('ru-RU')} ₽`
-                  : `$${finalUsd}`}
-              </span>
-              <span className="ml-1.5 text-xs font-semibold text-[var(--color-text-dim)]">
-                ({selectedMethod === 'prodamus' ? `$${finalUsd}` : `${finalRub.toLocaleString('ru-RU')} ₽`})
+                ${finalUsd}
               </span>
             </div>
           </div>
@@ -385,11 +380,11 @@ export function MentorPay({
               <div className="flex shrink-0 items-center gap-2.5">
                 <div className="text-right">
                   <div className="text-sm font-extrabold text-[var(--color-text)]">
-                    {finalRub.toLocaleString('ru-RU')} ₽
+                    ${finalUsd}
                   </div>
-                  {discountRub > 0 && (
+                  {discountUsd > 0 && (
                     <div className="text-[10.5px] font-bold text-[var(--brand-mint)]">
-                      −{discountRub.toLocaleString('ru-RU')} ₽
+                      −${discountUsd}
                     </div>
                   )}
                 </div>
@@ -490,7 +485,7 @@ export function MentorPay({
             {busy !== null
               ? 'Подключаем платёжный шлюз...'
               : selectedMethod === 'prodamus'
-                ? `Оплатить через СБП / Карту · ${finalRub.toLocaleString('ru-RU')} ₽`
+                ? `Оплатить через СБП / Карту · $${finalUsd}`
                 : `Оплатить картой / USDT · $${finalUsd}`}
           </ShimmerButton>
 

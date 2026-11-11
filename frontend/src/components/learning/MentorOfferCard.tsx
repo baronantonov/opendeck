@@ -1,4 +1,4 @@
-import { mentorPrices } from '../../lib/constants';
+import { PRICES, mentorPrices } from '../../lib/constants';
 import { ShimmerButton } from '../MotionWrappers';
 import { AbstractGeometryBg } from '../LiquidGlassGeometry';
 import { ChevronDown, CheckCircle2, Sparkles, Award } from 'lucide-react';
@@ -23,7 +23,7 @@ export function MentorOfferCard({
   groovePoints,
   onOpenMentorPay,
 }: MentorOfferCardProps) {
-  const { discountUsd, discountRub, finalUsd, finalRub, cappedGp } = mentorPrices(groovePoints);
+  const { discountUsd, finalUsd, cappedGp } = mentorPrices(groovePoints);
 
   return (
     <div
@@ -52,7 +52,7 @@ export function MentorOfferCard({
           </div>
 
           <div className="text-[13.5px] font-extrabold text-[var(--brand-gold)]">
-            ${finalUsd} · {finalRub.toLocaleString('ru-RU')} ₽
+            ${finalUsd}
           </div>
         </div>
 
@@ -124,14 +124,14 @@ export function MentorOfferCard({
               <div className="flex justify-between text-xs text-[var(--color-text-dim)]">
                 <span>Базовая стоимость:</span>
                 <span className={discountUsd > 0 ? 'line-through' : ''}>
-                  $250 (23 900 ₽)
+                  ${PRICES.mentor.grossUsd}
                 </span>
               </div>
 
               {discountUsd > 0 && (
                 <div className="flex justify-between text-xs text-[var(--brand-mint)]">
                   <span>Скидка за {cappedGp} GP:</span>
-                  <b>−${discountUsd} (−{discountRub.toLocaleString('ru-RU')} ₽)</b>
+                  <b>−${discountUsd}</b>
                 </div>
               )}
 
@@ -140,7 +140,7 @@ export function MentorOfferCard({
                   Итого к оплате:
                 </span>
                 <span className="text-base font-extrabold text-[var(--brand-gold)]">
-                  ${finalUsd} · {finalRub.toLocaleString('ru-RU')} ₽
+                  ${finalUsd}
                 </span>
               </div>
             </div>

@@ -64,9 +64,9 @@ async def create_invoice(
             capped_gp = min(max(int(body.points), 0), max_gp)
         else:
             capped_gp = max_gp
-        discount_rub = round(capped_gp * 8.2)
-        price_rub = max(19800, 23900 - discount_rub)
-        price_usd = max(200, 250 - round(capped_gp * 0.1))
+        discount_rub = round(capped_gp * 18.2)
+        price_rub = max(19800, 28900 - discount_rub)
+        price_usd = max(200, 300 - round(capped_gp * 0.2))
         price = price_rub
         label = f"Персональное менторство FREEDA DJ (${price_usd})"
         custom_order_id = f"{uid}:mentoring:{capped_gp}:{int(time.time())}"

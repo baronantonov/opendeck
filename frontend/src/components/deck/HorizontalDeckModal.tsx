@@ -100,14 +100,18 @@ const PlayGlyph = () => (
 
 // ------------------------------------------------------------------ small building blocks
 
-const SideButton: React.FC<{ active?: boolean; activeColor?: string; onClick?: () => void; children: React.ReactNode }> = ({
-  active,
-  activeColor = SYNC_BLUE,
-  onClick,
-  children,
-}) => (
+const SideButton: React.FC<{
+  active?: boolean;
+  activeColor?: string;
+  onClick?: () => void;
+  title?: string;
+  ariaLabel?: string;
+  children: React.ReactNode;
+}> = ({ active, activeColor = SYNC_BLUE, onClick, title, ariaLabel, children }) => (
   <button
     onClick={onClick}
+    title={title}
+    aria-label={ariaLabel}
     className="flex h-[16%] min-h-[26px] w-full items-center justify-center rounded-[3px] text-[11px] font-semibold tracking-wide transition-colors active:brightness-125"
     style={{ background: active ? activeColor : '#383838', color: active ? '#fff' : '#d4d4d4' }}
   >
@@ -158,7 +162,7 @@ const BpmBox: React.FC<{
 // ================================================================== component
 
 export const HorizontalDeckModal: React.FC<HorizontalDeckModalProps> = ({ isOpen, onClose, lesson }) => {
-  const { completeLesson, course } = useApp();
+  const { completeLesson } = useApp();
   const haptic = useMemo<HapticHelper>(() => {
     const fn = ((kind: any = 'light') => rawHaptic(kind)) as HapticHelper;
     fn.light = () => rawHaptic('light');
@@ -223,6 +227,8 @@ export const HorizontalDeckModal: React.FC<HorizontalDeckModalProps> = ({ isOpen
   const [flip180, setFlip180] = useState(false);
 
   useRegisterModal('horizontal-deck-modal', isOpen, onClose);
+  useRegisterModal('deck-browser-modal', isOpen && browserDeck !== null, () => setBrowserDeck(null));
+  useRegisterModal('deck-mixer-modal', isOpen && mixerOpen, () => setMixerOpen(false));
 
   useEffect(() => {
     if (!safeViewportRef.current) return;
@@ -594,6 +600,8 @@ export const HorizontalDeckModal: React.FC<HorizontalDeckModalProps> = ({ isOpen
     return (
       <div className="flex h-full w-[46px] shrink-0 flex-col justify-around py-[2%]">
         <SideButton
+          title="Beat Sync"
+          ariaLabel={`Sync deck ${d}`}
           active={deck.sync}
           activeColor={SYNC_BLUE}
           onClick={() => {
@@ -604,6 +612,8 @@ export const HorizontalDeckModal: React.FC<HorizontalDeckModalProps> = ({ isOpen
           SYNC
         </SideButton>
         <SideButton
+          title="Hot Cue & Beat Loop"
+          ariaLabel={`Performance pads deck ${d}`}
           active={mode === 'pad' || deck.loop !== null}
           activeColor={deck.loop ? ORANGE : SYNC_BLUE}
           onClick={() => {
@@ -614,6 +624,8 @@ export const HorizontalDeckModal: React.FC<HorizontalDeckModalProps> = ({ isOpen
           <PadIcon />
         </SideButton>
         <SideButton
+          title="Beat FX"
+          ariaLabel={`Beat FX deck ${d}`}
           active={deck.fx.on || mode === 'fx'}
           activeColor={deck.fx.on ? ORANGE : '#5a5a5a'}
           onClick={() => {
@@ -624,6 +636,8 @@ export const HorizontalDeckModal: React.FC<HorizontalDeckModalProps> = ({ isOpen
           FX
         </SideButton>
         <SideButton
+          title="Slip Mode"
+          ariaLabel={`Slip mode deck ${d}`}
           active={deck.slip}
           activeColor="#e04040"
           onClick={() => {

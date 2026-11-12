@@ -201,7 +201,8 @@ export class BeatFx {
         lfo.type = 'square';
         lfo.frequency.value = 1 / Math.max(0.03, this.beats * this.beatSec);
         lfo.connect(this.transSmooth);
-        const start = Math.max(now + 0.005, this.nextBeatTime());
+        const nextB = this.nextBeatTime();
+        const start = Number.isFinite(nextB) && nextB > now ? nextB : now + 0.005;
         lfo.start(start);
         this.transLfo = lfo;
       }

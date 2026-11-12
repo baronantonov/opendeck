@@ -83,6 +83,15 @@ export const ScratchJogWheel: React.FC<ScratchJogProps> = ({
   const svgRef = useRef<SVGSVGElement | null>(null);
   const dragRef = useRef<JogDragState | null>(null);
 
+  useEffect(() => {
+    return () => {
+      if (dragRef.current) {
+        djEngine.scratchEnd(id);
+        dragRef.current = null;
+      }
+    };
+  }, [id]);
+
   const handlePointerDown = (e: React.PointerEvent<SVGSVGElement>) => {
     e.preventDefault();
     e.stopPropagation();
@@ -225,6 +234,7 @@ export const ScratchJogWheel: React.FC<ScratchJogProps> = ({
       onPointerMove={handlePointerMove}
       onPointerUp={endDrag}
       onPointerCancel={endDrag}
+      onLostPointerCapture={endDrag}
       style={{
         touchAction: 'none',
         filter: scratching
@@ -552,7 +562,7 @@ export const DeckPadPanel: React.FC<DeckPadPanelProps> = ({ deck, haptic, onClos
                     djEngine.deleteHotCue(id, idx);
                   }}
                   title="Удалить метку"
-                  className="absolute right-0.5 top-0.5 rounded bg-black/70 px-1 text-[8px] text-[#bbb] hover:text-white"
+                  className="absolute -top-1 -right-1 z-10 flex h-4 w-4 items-center justify-center rounded-full border border-[#555] bg-black/90 text-[9px] font-bold text-[#bbb] transition-transform active:scale-90 active:text-white"
                 >
                   ✕
                 </button>

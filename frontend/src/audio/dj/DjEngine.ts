@@ -386,7 +386,10 @@ class DjEngine {
     const sp = this.getSpeed(d);
     if (!k.track || !k.playing || sp < 0.2) return ctx.currentTime;
     const b = this.beatAt(d, this.getPos(d));
-    return ctx.currentTime + this.latency() + ((Math.ceil(b) - b) * this.beatLen(d)) / sp;
+    if (!Number.isFinite(b)) return ctx.currentTime;
+    const delta = Math.ceil(b) - b;
+    const nextDelta = delta < 0.02 ? delta + 1 : delta;
+    return ctx.currentTime + this.latency() + (nextDelta * this.beatLen(d)) / sp;
   }
 
   getLevel(d: DeckId): number {

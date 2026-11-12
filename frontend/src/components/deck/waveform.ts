@@ -42,9 +42,11 @@ function prepareCanvas(c: HTMLCanvasElement) {
   if (c.width !== pw || c.height !== ph) {
     c.width = pw;
     c.height = ph;
+    const ctx = c.getContext('2d');
+    if (ctx) ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return { ctx, w, h };
   }
   const ctx = c.getContext('2d');
-  if (ctx) ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   return { ctx, w, h };
 }
 

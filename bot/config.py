@@ -1,98 +1,73 @@
-"""Конфигурация бота.
+"""Bot configuration — minimal, version-busted Mini App URL + payment params.
 
-Все секреты — через переменные окружения. Для удобства локально можно
-положить их в .env (подхватит python-dotenv). Никогда не коммить .env!
-
-Ключевое для привязки Mini App:
-  MINI_APP_URL — ПУБЛИЧНЫЙ https, который отдаёт backend (GET /).
-  В BotFather -> /newapp -> Web App URL = тот же MINI_APP_URL.
+Principles (from config): no fallback logic, no overengineering, brevity,
+clarity on ambiguous scope, architectural changes not workarounds.
 """
 import os
+import subprocess as sp
+from datetime import date
 from dotenv import load_dotenv
+from pathlib import Path
 
 load_dotenv()
 
+# --- Essential bot config ---
 BOT_TOKEN = os.getenv("BOT_TOKEN", "")
 MINI_APP_URL = os.getenv("MINI_APP_URL", "https://ВАШ-ДОМЕН.tld")
 
-# --- Version-busting для Telegram WebView ---
-# Telegram агрессивно кэширует Mini App по URL. Чтобы новый дизайн/правки
-# показывались сразу (без ручного сброса кэша), добавляем ?v=<версия> к URL.
-# Версия: env MINI_APP_VERSION > git-short-hash HEAD > сегодняшняя дата.
-# GitHub Pages отдаёт тот же index.html при любом query, но Telegram видит
-# НОВЫЙ URL и перезагружает WebView.
-import datetime as _dt
-import subprocess as _sp
-from pathlib import Path as _Path
-
+# --- Version-busting: ?v=<git-hash> forces Telegram to reload WebView ---
 def _mini_app_version() -> str:
     v = os.getenv("MINI_APP_VERSION")
     if v:
         return v
     try:
-        r = _sp.run(
+        r = sp.run(
             ["git", "rev-parse", "--short", "HEAD"],
-            cwd=_Path(__file__).resolve().parent.parent,
+            cwd=Path(__file__).resolve().parent.parent,
             capture_output=True, text=True, timeout=3,
         )
         if r.returncode == 0 and r.stdout.strip():
             return r.stdout.strip()
     except Exception:
         pass
-    return _dt.date.today().isoformat()
+    return date.today().isoformat()
 
 def mini_app_url() -> str:
-    """Вернуть MINI_APP_URL с актуальным ?v=<git-hash>.
-
-    ВАЖНО: хэш вычисляется КАЖДЫЙ раз при вызове (а не при импорте модуля!),
-    иначе после git push новых правок бот продолжает отдавать старый ?v=,
-    и Telegram отдаёт закэшированную старую страницу Mini App.
+    """Return MINI_APP_URL with current ?v=<git-hash>.
+    Recalculated EVERY call (not at import), otherwise Telegram caches old URL.
     """
     url = MINI_APP_URL
     if url in ("https://ВАШ-ДОМЕН.tld", ""):
         return url
-    ver = _mini_app_version()
-    # убираем старый ?v=, если вдруг попал в .env
     base = url.split("?")[0]
-    return f"{base}?v={ver}"
+    return f"{base}?v={_mini_app_version()}"
 
-
-# Для обратной совместимости оставляем константу, но реальный URL
-# с актуальным хэшом берётся через mini_app_url().
 MINI_APP_URL = mini_app_url()
 
-# Telegram Stars: цена в Stars (XTR) за курс
-# Актуальные цены заданы в backend/main.py (TRIPWIRE_PRICE, FULL_COURSE_PRICE, MENTOR_PRICE)
-# ЗДЕСЬ ОПРЕДЕЛЯЮТСЯ ТОЛЬКО ПАРАМЕТРЫ ДЛЯ ПРЯМОЙ ОТПРАВКИ ИНВОЙСА ЧЕРЕЗ БОТА
-STARS_PRICE = 199  # полный курс (legacy — не используется, инвойс идёт через backend /api/create-invoice)
-MENTOR_PRICE = 300  # Stars за менторство
-MENTOR_GP_MAX = 1030  # максимальный списания GP
+# --- Payment params (prices in Stars/XTR) ---
+# Set in backend/main.py; here only for direct invoice-through-bot params.
+STARS_PRICE = 199   # legacy — not used, invoice via backend /api/create-invoice
+MENTOR_PRICE = 300  # Stars for mentoring
+MENTOR_GP_MAX = 1030  # max GP write-off
 
-# Ключ для internal API (бота -> бэкенд)
+# Internal API key (bot → backend)
 INTERNAL_API_KEY = os.getenv("INTERNAL_API_KEY", "")
 
-# TON Connect
+# --- TON Connect (optional) ---
 TON_NETWORK = os.getenv("TON_NETWORK", "mainnet")
 TON_MERCHANT_WALLET = os.getenv("TON_MERCHANT_WALLET", "")
 TON_RPC = os.getenv("TON_RPC", "https://toncenter.com/api/v2/jsonRPC")
 
-# Prodamus (внешний редирект через openLink) — реальный REST API payform.ru
-# URL платёжной страницы вида https://<поддомен>.payform.ru/ (из адресной строки)
+# --- Prodamus (fiat redirect via openLink) ---
 PRODAMUS_PAYFORM_URL = os.getenv("PRODAMUS_PAYFORM_URL", "")
-# Секретный ключ платёжной страницы (раздел «Где найти url для уведомлений и секретный ключ»)
 PRODAMUS_SECRET_KEY = os.getenv("PRODAMUS_SECRET_KEY", "")
-# Код интеграции SYS (согласуется с поддержкой Prodamus). Один на всех клиентов интеграции.
 PRODAMUS_SYS_CODE = os.getenv("PRODAMUS_SYS_CODE", "")
-# API-ключ (логи/доп. вызовы). НЕ используется при формировании ссылки.
 PRODAMUS_API_KEY = os.getenv("PRODAMUS_API_KEY", "")
 
 # Backend (где живёт раздача уроков / выдача доступа)
 BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
 
-# Tribute (карта / СБП / USDT) — платёжный провайдер для менторства.
-# Digital-продукт имеет фиксированную цену ($230, net Фриды ~$207 после 10% комиссии).
-# Динамическая GP-скидка НЕ применяется (Tribute API не умеет динамическую цену) —
-# скидка только в Stars-канале. Подтверждение оплаты — вебхук new_digital_product.
+# --- Tribute (card/SBP/USDT) for mentorship ---
 TRIBUTE_API_KEY = os.getenv("TRIBUTE_API_KEY", "")
 TRIBUTE_WEBHOOK_URL = os.getenv("TRIBUTE_WEBHOOK_URL", "")
 TRIBUTE_MENTOR_PRODUCT_ID = os.getenv("TRIBUTE_MENTOR_PRODUCT_ID", "")

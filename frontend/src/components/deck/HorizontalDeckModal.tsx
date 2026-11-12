@@ -186,11 +186,12 @@ export const HorizontalDeckModal: React.FC<HorizontalDeckModalProps> = ({ isOpen
   const angleRef = useRef<Record<DeckId, number>>({ A: 0, B: 0 });
   const meterSmoothRef = useRef<Record<DeckId, number>>({ A: 0, B: 0 });
   const initPromiseRef = useRef<Promise<void> | null>(null);
+  const celebrationTimerRef = useRef<number | null>(null);
   const quickFileTargetRef = useRef<DeckId>('A');
   const quickFileInputRef = useRef<HTMLInputElement | null>(null);
 
   const xfRef = useRef(0);
-  const isLessonDone = (lesson as any)?.isCompleted ?? course.completedLessons.includes(1);
+  const isLessonDone = lesson ? Boolean((lesson as any).isCompleted) : false;
   const claimedRef = useRef(isLessonDone);
   const lastHapticXf = useRef(0);
 
@@ -255,6 +256,10 @@ export const HorizontalDeckModal: React.FC<HorizontalDeckModalProps> = ({ isOpen
     }
 
     return () => {
+      if (celebrationTimerRef.current !== null) {
+        window.clearTimeout(celebrationTimerRef.current);
+        celebrationTimerRef.current = null;
+      }
       djEngine.suspend();
     };
   }, [isOpen, isLessonDone]);
@@ -341,7 +346,7 @@ export const HorizontalDeckModal: React.FC<HorizontalDeckModalProps> = ({ isOpen
         const prev = meterSmoothRef.current[k.d];
         const nextLvl = target > prev ? target : prev * 0.86 + target * 0.14;
         meterSmoothRef.current[k.d] = nextLvl;
-        if (k.meter.current) k.meter.current.style.height = `${Math.min(100, nextLvl * 100)}%`;
+        if (k.meter.current) k.meter.current.style.transform = `scaleY(${Math.min(1, nextLvl)})`;
       }
 
       raf = requestAnimationFrame(loop);
@@ -354,7 +359,11 @@ export const HorizontalDeckModal: React.FC<HorizontalDeckModalProps> = ({ isOpen
     haptic.medium();
     djEngine.resume();
     if (!djEngine.decks[d].track && initPromiseRef.current) {
-      await initPromiseRef.current;
+      try {
+        await initPromiseRef.current;
+      } catch {
+        /* ignore */
+      }
     }
     djEngine.togglePlay(d);
   };
@@ -412,7 +421,11 @@ export const HorizontalDeckModal: React.FC<HorizontalDeckModalProps> = ({ isOpen
     const lessonId = lesson?.id || 1;
     void apiProgress('dj-basics', lessonId).catch(() => {});
     completeLesson(lessonId);
-    window.setTimeout(() => {
+    if (celebrationTimerRef.current !== null) {
+      window.clearTimeout(celebrationTimerRef.current);
+    }
+    celebrationTimerRef.current = window.setTimeout(() => {
+      celebrationTimerRef.current = null;
       onClose();
     }, 2500);
   }, [completeLesson, haptic, lesson, onClose]);
@@ -835,9 +848,9 @@ export const HorizontalDeckModal: React.FC<HorizontalDeckModalProps> = ({ isOpen
                   <div key={i} className="relative h-full w-[5px] overflow-hidden rounded-[1px] bg-[#1e1e1e]">
                     <div
                       ref={ref}
-                      className="absolute bottom-0 left-0 right-0"
+                      className="absolute inset-0 h-full w-full origin-bottom"
                       style={{
-                        height: '0%',
+                        transform: 'scaleY(0)',
                         background: 'linear-gradient(to top, #2fbf4a 0%, #2fbf4a 55%, #f2d01c 78%, #ff3b30 100%)',
                         backgroundSize: '100% 100%',
                       }}

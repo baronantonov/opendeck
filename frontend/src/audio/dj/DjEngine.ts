@@ -838,7 +838,7 @@ class DjEngine {
     }
     const bl = 60 / info.bpm;
     const firstGrid = info.source === 'demo' ? 0 : info.firstBeat - Math.floor(info.firstBeat / bl) * bl;
-    this.patch(d, { track: info, loop: null, hotCues, cue: firstGrid, playing: false, scratching: false, bend: 0 });
+    this.patch(d, { track: info, loop: null, hotCues, cue: firstGrid, playing: false, scratching: false, bend: 0, loading: null });
     r.rpos = 0;
     r.rspeed = 0;
     r.rstamp = performance.now();

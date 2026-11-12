@@ -108,6 +108,9 @@ class DeckCore {
       if (this.loopS >= 0 && this.speed > 0 && this.pos >= this.loopE) {
         const w = this.loopE - this.loopS;
         this.pos -= w; this.anchor -= w; this.sPos -= w;
+      } else if (this.loopS >= 0 && this.speed < 0 && this.pos < this.loopS) {
+        const w = this.loopE - this.loopS;
+        this.pos += w; this.anchor += w; this.sPos += w;
       }
       if (this.pos < 0) { this.pos = 0; if (this.speed < 0) this.speed = 0; }
       else if (this.pos >= last) {

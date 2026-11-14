@@ -1,14 +1,13 @@
-// Open Deck DJ engine: 2 деки на AudioWorklet + микшер + Beat FX + sync.
+// Open Deck DJ engine: 2 деки на едином сэмпл-синхронном AudioWorklet + EQ микшер + постоянный Beat Sync.
 //
 // Цепь деки:
-//   od-deck (playhead/scratch/loop) → TRIM(+auto gain) → EQ LOW/MID/HI → COLOR FILTER (LPF/HPF)
-//   → Beat FX → CH FADER → CROSSFADER → MASTER → LIMITER → output
+//   od-dual-deck (playhead/scratch/loop/sync) → TRIM(+auto gain) → EQ LOW/MID/HI
+//   → CH FADER → CROSSFADER → MASTER → LIMITER → output
 //
 // UI подписывается через subscribe()/version (useSyncExternalStore), а позиции
 // читает каждый кадр через getPos() — без лишних ре-рендеров.
 
 import { WORKLET_SOURCE, createMainThreadDualCore } from './dspCore';
-import { BeatFx, FxType } from './fx';
 import type { WaveData } from './analysis';
 
 export type DeckId = 'A' | 'B';
@@ -16,7 +15,6 @@ export const DECK_IDS: DeckId[] = ['A', 'B'];
 /** 33⅓ об/мин — один оборот пластины = 1.8 сек аудио */
 export const PLATTER_DEG_PER_SEC = 200;
 export const TEMPO_RANGES = [0.06, 0.1, 0.16, 0.5];
-export const HOT_CUE_COUNT = 8;
 
 export interface TrackInfo {
   id: string;
@@ -44,22 +42,12 @@ export interface DeckState {
   tempoRange: number;
   bend: number;
   sync: boolean;
-  slip: boolean;
   quantize: boolean;
   scratching: boolean;
-  hotCues: (number | null)[];
   loop: { start: number; end: number; beats: number } | null;
   eq: { hi: number; mid: number; low: number };
-  filter: number;
   trim: number;
   fader: number;
-  fx: { type: FxType; on: boolean; beats: number; level: number };
-}
-
-interface SlipAnchor {
-  pos: number;
-  at: number;
-  rate: number;
 }
 
 interface CoreReport {
@@ -81,15 +69,10 @@ interface Runtime {
   nextSeq: number;
   halfMul: number;
   cuePreview: boolean;
-  slipScratch: SlipAnchor | null;
-  slipLoop: SlipAnchor | null;
   trim: GainNode;
   eqLow: BiquadFilterNode;
   eqMid: BiquadFilterNode;
   eqHigh: BiquadFilterNode;
-  lp: BiquadFilterNode;
-  hp: BiquadFilterNode;
-  fx: BeatFx;
   fader: GainNode;
   xf: GainNode;
   analyser: AnalyserNode;
@@ -97,7 +80,6 @@ interface Runtime {
 }
 
 const clamp = (v: number, a: number, b: number) => (v < a ? a : v > b ? b : v);
-const frac = (v: number) => v - Math.floor(v);
 const other = (d: DeckId): DeckId => (d === 'A' ? 'B' : 'A');
 
 /** Быстрая клубная кривая кроссфейдера: входящий трек открывается сразу от края, центр без провала. */
@@ -117,17 +99,13 @@ function initialDeck(id: DeckId): DeckState {
     tempo: 0,
     tempoRange: 0.1,
     bend: 0,
-    sync: false,
-    slip: false,
+    sync: true,
     quantize: true,
     scratching: false,
-    hotCues: Array(HOT_CUE_COUNT).fill(null),
     loop: null,
     eq: { hi: 0, mid: 0, low: 0 },
-    filter: 0,
     trim: 0.5,
     fader: 1,
-    fx: { type: 'echo', on: false, beats: 1, level: 0.6 },
   };
 }
 
@@ -278,13 +256,6 @@ class DjEngine {
       const eqHigh = ctx.createBiquadFilter();
       eqHigh.type = 'highshelf';
       eqHigh.frequency.value = 3800;
-      const lp = ctx.createBiquadFilter();
-      lp.type = 'lowpass';
-      lp.frequency.value = 22000;
-      const hp = ctx.createBiquadFilter();
-      hp.type = 'highpass';
-      hp.frequency.value = 10;
-      const fx = new BeatFx(ctx, () => this.nextBeatTime(d));
       const fader = ctx.createGain();
       const xf = ctx.createGain();
       const analyser = ctx.createAnalyser();
@@ -300,10 +271,7 @@ class DjEngine {
       trim.connect(eqLow);
       eqLow.connect(eqMid);
       eqMid.connect(eqHigh);
-      eqHigh.connect(lp);
-      lp.connect(hp);
-      hp.connect(fx.input);
-      fx.output.connect(fader);
+      eqHigh.connect(fader);
       fader.connect(xf);
       fader.connect(analyser);
       xf.connect(master);
@@ -319,15 +287,10 @@ class DjEngine {
         nextSeq: 0,
         halfMul: 1,
         cuePreview: false,
-        slipScratch: null,
-        slipLoop: null,
         trim,
         eqLow,
         eqMid,
         eqHigh,
-        lp,
-        hp,
-        fx,
         fader,
         xf,
         analyser,
@@ -462,19 +425,6 @@ class DjEngine {
     return Math.min(Math.max(0, tr.duration - 0.05), snapped);
   }
 
-  private nextBeatTime(d: DeckId): number {
-    const ctx = this.ctx;
-    if (!ctx) return 0;
-    const k = this.decks[d];
-    const sp = this.getSpeed(d);
-    if (!k.track || !k.playing || sp < 0.2) return ctx.currentTime;
-    const b = this.beatAt(d, this.getPos(d));
-    if (!Number.isFinite(b)) return ctx.currentTime;
-    const delta = Math.ceil(b) - b;
-    const nextDelta = delta < 0.02 ? delta + 1 : delta;
-    return ctx.currentTime + this.latency() + (nextDelta * this.beatLen(d)) / sp;
-  }
-
   getLevel(d: DeckId): number {
     const r = this.r(d);
     if (!r) return 0;
@@ -508,7 +458,6 @@ class DjEngine {
       align: opts?.align ?? false,
       alignFollower: opts?.alignFollower ?? false,
     });
-    r.fx.setBpm(this.effBpm(d) || 128);
   }
 
   play(d: DeckId) {
@@ -645,7 +594,6 @@ class DjEngine {
     if (!k.track || !r) return;
     this.resume();
     r.cuePreview = false;
-    if (k.slip && k.playing && this.ctx) r.slipScratch = { pos: this.getPos(d), at: this.ctx.currentTime, rate: 1 + k.tempo };
     r.post({ t: 'scratchStart' });
     this.patch(d, { scratching: true });
     this.emit();
@@ -662,13 +610,8 @@ class DjEngine {
     if (!r || !k.scratching) return;
     this.patch(d, { scratching: false });
     const o = this.decks[other(d)];
-    if (r.slipScratch && this.ctx) {
-      const s = r.slipScratch;
-      r.slipScratch = null;
-      if (k.playing) this.seek(d, s.pos + (this.ctx.currentTime - s.at) * s.rate, k.sync && this.master !== d && o.playing);
-    }
     const v = k.playing ? (1 + k.tempo) * clamp(1 + k.bend, 0.2, 4) : 0;
-    const align = k.sync && k.playing && o.playing && this.master !== d;
+    const align = k.playing && o.playing && this.master !== d;
     r.post({
       t: 'scratchEnd',
       playing: k.playing,
@@ -688,60 +631,48 @@ class DjEngine {
   }
 
   // ------------------------------------------------------------ tempo / sync
-  setTempo(d: DeckId, t: number, fromUser = true) {
+  private pushSyncFollower(follower: DeckId, masterDeck: DeckId, align: boolean) {
+    const halfMul = this.syncTempoUi(follower);
+    const rf = this.r(follower);
+    const kf = this.decks[follower];
+    if (!rf) return;
+    rf.post({
+      t: 'sync',
+      on: true,
+      master: masterDeck,
+      halfMul,
+      v: kf.playing ? (1 + this.decks[follower].tempo) * clamp(1 + kf.bend, 0.2, 4) : undefined,
+      align,
+    });
+  }
+
+  setTempo(d: DeckId, t: number, _fromUser = true) {
     const k = this.decks[d];
     const tempo = clamp(t, -k.tempoRange, k.tempoRange);
-    const p: Partial<DeckState> = { tempo };
+    this.patch(d, { tempo, sync: true });
     const oId = other(d);
-    if (fromUser && k.sync && this.master !== d && this.decks[oId].track) p.sync = false;
-    this.patch(d, p);
-    if (p.sync === false) {
-      this.master = this.decks[oId].sync ? d : this.master;
-      this.r(d)?.post({ t: 'sync', on: false, master: this.master, halfMul: 1 });
-    }
-    this.applySpeed(d, 0.02);
-    if (this.decks[oId].sync && this.master === d) {
-      const halfMul = this.syncTempoUi(oId);
-      const ro = this.r(oId);
-      const ko = this.decks[oId];
-      if (ro) {
-        ro.post({
-          t: 'sync',
-          on: true,
-          master: this.master,
-          halfMul,
-          v: ko.playing ? (1 + this.decks[oId].tempo) * clamp(1 + ko.bend, 0.2, 4) : undefined,
-          align: false,
-        });
-      }
+    if (this.decks[oId].track) {
+      this.master = d;
+      this.applySpeed(d, 0.02);
+      this.pushSyncFollower(oId, d, false);
+    } else {
+      this.applySpeed(d, 0.02);
     }
     this.emit();
   }
 
   setTempoRange(d: DeckId, range: number) {
     const k = this.decks[d];
-    this.patch(d, { tempoRange: range, tempo: clamp(k.tempo, -range, range) });
+    this.patch(d, { tempoRange: range, tempo: clamp(k.tempo, -range, range), sync: true });
     this.applySpeed(d, 0.02);
     const oId = other(d);
-    if (this.decks[oId].sync && this.master === d) {
-      const halfMul = this.syncTempoUi(oId);
-      const ro = this.r(oId);
-      const ko = this.decks[oId];
-      if (ro) {
-        ro.post({
-          t: 'sync',
-          on: true,
-          master: this.master,
-          halfMul,
-          v: ko.playing ? (1 + this.decks[oId].tempo) * clamp(1 + ko.bend, 0.2, 4) : undefined,
-          align: false,
-        });
-      }
+    if (this.decks[oId].track && this.master === d) {
+      this.pushSyncFollower(oId, d, false);
     }
     this.emit();
   }
 
-  /** Вычисляет pitch/halfMul ведомой деки относительно мастера и обновляет UI/FX без дрейфа в DSP. */
+  /** Вычисляет pitch/halfMul ведомой деки относительно мастера и обновляет UI без дрейфа в DSP. */
   private syncTempoUi(d: DeckId): number {
     const k = this.decks[d];
     const mId = this.master === d ? other(d) : this.master;
@@ -750,14 +681,13 @@ class DjEngine {
     if (!k.track || !m.track || !k.track.bpm || !m.track.bpm) return 1;
     const raw = (m.track.bpm * (1 + m.tempo)) / k.track.bpm;
     let halfMul = 1;
-    if (raw > 1.5) halfMul = 0.5;
-    else if (raw < 0.75) halfMul = 2;
+    while (raw * halfMul > 1.5 && halfMul > 0.25) halfMul *= 0.5;
+    while (raw * halfMul < 0.75 && halfMul < 4) halfMul *= 2;
     const t = clamp(raw * halfMul - 1, -0.5, 0.5);
     let range = k.tempoRange;
     if (Math.abs(t) > range) range = TEMPO_RANGES.find((x) => x >= Math.abs(t)) ?? 0.5;
     if (r) r.halfMul = halfMul;
-    this.patch(d, { tempo: t, tempoRange: range });
-    r?.fx.setBpm(k.track.bpm * (1 + t));
+    this.patch(d, { tempo: t, tempoRange: range, sync: true });
     return halfMul;
   }
 
@@ -766,44 +696,29 @@ class DjEngine {
     const o = this.decks[other(d)];
     const r = this.r(d);
     if (!k.track || !o.track || !r) return;
-    r.post({ t: 'sync', on: k.sync, master: this.master, halfMul: r.halfMul, align: true });
+    r.post({ t: 'sync', on: true, master: this.master, halfMul: r.halfMul, align: true });
   }
 
-  setSync(d: DeckId, on: boolean) {
+  /** SYNC всегда включён (для первого касания без рассинхрона): повторный тап выравнивает фазу. */
+  setSync(d: DeckId, _on = true) {
     const oId = other(d);
     const k = this.decks[d];
     const o = this.decks[oId];
     const r = this.r(d);
-    this.patch(d, { sync: on });
-    if (on && o.track) {
-      if (k.playing && !o.playing && o.sync) {
+    this.patch(d, { sync: true });
+    if (o.track) {
+      if (k.playing && !o.playing) {
         this.master = d;
-        const halfMul = this.syncTempoUi(oId);
-        this.r(oId)?.post({ t: 'sync', on: true, master: this.master, halfMul, align: false });
+        this.pushSyncFollower(oId, d, false);
         r?.post({ t: 'sync', on: true, master: this.master, halfMul: r.halfMul, align: false });
       } else {
         this.master = oId;
-        const halfMul = this.syncTempoUi(d);
-        const align = k.playing && o.playing;
-        const v = k.playing ? (1 + this.decks[d].tempo) * clamp(1 + k.bend, 0.2, 4) : undefined;
-        r?.post({ t: 'sync', on: true, master: this.master, halfMul, v, align });
+        this.pushSyncFollower(d, oId, k.playing && o.playing);
       }
-    } else if (!on) {
-      if (o.sync && o.track) this.master = d;
-      r?.post({ t: 'sync', on: false, master: this.master, halfMul: 1 });
-      this.applySpeed(d, 0.02);
-      if (o.sync && o.track && this.master === d) this.syncTempoUi(oId);
+    } else {
+      this.master = d;
+      r?.post({ t: 'sync', on: true, master: this.master, halfMul: 1, align: false });
     }
-    this.emit();
-  }
-
-  setSlip(d: DeckId, on: boolean) {
-    const r = this.r(d);
-    if (!on && r) {
-      r.slipScratch = null;
-      r.slipLoop = null;
-    }
-    this.patch(d, { slip: on });
     this.emit();
   }
 
@@ -812,51 +727,7 @@ class DjEngine {
     this.emit();
   }
 
-  // ------------------------------------------------------------ hot cues / loops
-  private hotCueKey(id: string) {
-    return `od_hotcues_${id}`;
-  }
-
-  private saveHotCues(d: DeckId) {
-    const k = this.decks[d];
-    if (!k.track) return;
-    try {
-      localStorage.setItem(this.hotCueKey(k.track.id), JSON.stringify(k.hotCues));
-    } catch {
-      /* ignore */
-    }
-  }
-
-  hotCue(d: DeckId, i: number): 'set' | 'jump' | null {
-    const k = this.decks[d];
-    if (!k.track) return null;
-    const c = k.hotCues[i];
-    if (c === null || c === undefined) {
-      const pos = this.getPos(d);
-      const hc = k.hotCues.slice();
-      hc[i] = k.quantize ? this.snapBeat(d, pos) : pos;
-      this.patch(d, { hotCues: hc });
-      this.saveHotCues(d);
-      this.emit();
-      return 'set';
-    }
-    if (k.loop) this.exitLoop(d, false);
-    let target = c;
-    if (k.quantize && k.playing) target = c + frac(this.beatAt(d, this.getPos(d))) * this.beatLen(d);
-    this.seek(d, target);
-    if (!this.decks[d].playing) this.play(d);
-    else this.emit();
-    return 'jump';
-  }
-
-  deleteHotCue(d: DeckId, i: number) {
-    const hc = this.decks[d].hotCues.slice();
-    hc[i] = null;
-    this.patch(d, { hotCues: hc });
-    this.saveHotCues(d);
-    this.emit();
-  }
-
+  // ------------------------------------------------------------ loops
   toggleBeatLoop(d: DeckId, beats: number) {
     const k = this.decks[d];
     const r = this.r(d);
@@ -876,7 +747,6 @@ class DjEngine {
       if (start >= k.track.duration - 0.05) {
         start = Math.max(0, k.track.duration - Math.max(0.05, beats * bl));
       }
-      if (k.slip && k.playing && this.ctx) r.slipLoop = { pos, at: this.ctx.currentTime, rate: 1 + k.tempo };
     }
     const end = Math.min(k.track.duration - 0.01, start + beats * bl);
     if (end - start < 0.04) start = Math.max(0, end - 0.04);
@@ -893,11 +763,6 @@ class DjEngine {
     const r = this.r(d);
     if (!r) return;
     r.post({ t: 'loop', s: -1 });
-    if (r.slipLoop && this.ctx) {
-      const s = r.slipLoop;
-      r.slipLoop = null;
-      if (this.decks[d].playing) this.seek(d, s.pos + (this.ctx.currentTime - s.at) * s.rate);
-    }
     this.patch(d, { loop: null });
     if (emit) this.emit();
   }
@@ -914,25 +779,6 @@ class DjEngine {
     r.eqLow.gain.setTargetAtTime(eqDb(k.eq.low), now, 0.015);
     r.eqMid.gain.setTargetAtTime(eqDb(k.eq.mid), now, 0.015);
     r.eqHigh.gain.setTargetAtTime(eqDb(k.eq.hi), now, 0.015);
-    const f = k.filter;
-    if (f < -0.02) {
-      const a = Math.min(1, (-f - 0.02) / 0.98);
-      r.lp.frequency.setTargetAtTime(20000 * Math.pow(180 / 20000, a), now, 0.02);
-      r.lp.Q.setTargetAtTime(0.7 + 2.2 * a, now, 0.02);
-      r.hp.frequency.setTargetAtTime(10, now, 0.02);
-      r.hp.Q.setTargetAtTime(0.7, now, 0.02);
-    } else if (f > 0.02) {
-      const a = Math.min(1, (f - 0.02) / 0.98);
-      r.hp.frequency.setTargetAtTime(20 * Math.pow(7000 / 20, a), now, 0.02);
-      r.hp.Q.setTargetAtTime(0.7 + 2.2 * a, now, 0.02);
-      r.lp.frequency.setTargetAtTime(22000, now, 0.02);
-      r.lp.Q.setTargetAtTime(0.7, now, 0.02);
-    } else {
-      r.lp.frequency.setTargetAtTime(22000, now, 0.02);
-      r.hp.frequency.setTargetAtTime(10, now, 0.02);
-      r.lp.Q.setTargetAtTime(0.7, now, 0.02);
-      r.hp.Q.setTargetAtTime(0.7, now, 0.02);
-    }
     r.fader.gain.setTargetAtTime(Math.pow(k.fader, 1.5), now, 0.012);
   }
 
@@ -947,12 +793,6 @@ class DjEngine {
 
   setEq(d: DeckId, band: 'hi' | 'mid' | 'low', v: number) {
     this.patch(d, { eq: { ...this.decks[d].eq, [band]: clamp(v, -1, 1) } });
-    this.applyMixer(d);
-    this.emit();
-  }
-
-  setFilter(d: DeckId, v: number) {
-    this.patch(d, { filter: clamp(v, -1, 1) });
     this.applyMixer(d);
     this.emit();
   }
@@ -982,21 +822,6 @@ class DjEngine {
     return Math.pow(k.fader, 1.5) * x;
   }
 
-  // ------------------------------------------------------------ fx
-  setFx(d: DeckId, p: Partial<DeckState['fx']>) {
-    const r = this.r(d);
-    const fx = { ...this.decks[d].fx, ...p };
-    this.patch(d, { fx });
-    if (r) {
-      r.fx.setBpm(this.effBpm(d) || 128);
-      if (p.type !== undefined) r.fx.setType(p.type);
-      if (p.beats !== undefined) r.fx.setBeats(p.beats);
-      if (p.level !== undefined) r.fx.setLevel(p.level);
-      if (p.on !== undefined) r.fx.setOn(p.on);
-    }
-    this.emit();
-  }
-
   // ------------------------------------------------------------ loading
   setLoading(d: DeckId, msg: string | null) {
     this.patch(d, { loading: msg });
@@ -1010,26 +835,25 @@ class DjEngine {
     if (this.decks[d].playing) this.pause(d);
     if (this.decks[d].scratching) this.scratchEnd(d);
     r.post({ t: 'loop', s: -1 });
-    r.slipScratch = null;
-    r.slipLoop = null;
     r.cuePreview = false;
     const transfer: Transferable[] = [L.buffer as ArrayBuffer];
     if (R) transfer.push(R.buffer as ArrayBuffer);
     r.post({ t: 'load', L, R, sr, bpm: info.bpm, fb: info.firstBeat }, this.usingWorklet ? transfer : undefined);
 
-    let hotCues: (number | null)[] = Array(HOT_CUE_COUNT).fill(null);
-    try {
-      const raw = localStorage.getItem(this.hotCueKey(info.id));
-      if (raw) {
-        const arr = JSON.parse(raw) as (number | null)[];
-        if (Array.isArray(arr)) hotCues = Array.from({ length: HOT_CUE_COUNT }, (_, i) => (typeof arr[i] === 'number' ? arr[i] : null));
-      }
-    } catch {
-      /* ignore */
-    }
     const bl = 60 / info.bpm;
     const firstGrid = info.source === 'demo' ? 0 : info.firstBeat - Math.floor(info.firstBeat / bl) * bl;
-    this.patch(d, { track: info, loop: null, hotCues, cue: firstGrid, playing: false, scratching: false, bend: 0, loading: null });
+    this.patch(d, {
+      track: info,
+      loop: null,
+      cue: firstGrid,
+      playing: false,
+      scratching: false,
+      tempo: 0,
+      bend: 0,
+      sync: true,
+      loading: null,
+    });
+    r.halfMul = 1;
     r.rpos = 0;
     r.rspeed = 0;
     r.rstamp = performance.now();
@@ -1037,18 +861,23 @@ class DjEngine {
     r.nextSeq = 0;
     r.seekPending = null;
     if (firstGrid > 0) this.seek(d, firstGrid, false);
+
     const o = other(d);
-    if (this.decks[o].playing && this.decks[d].sync) {
+    if (this.decks[o].playing) {
       this.master = o;
-      const halfMul = this.syncTempoUi(d);
-      r.post({ t: 'sync', on: true, master: this.master, halfMul, align: false });
-    } else if (!this.decks[o].playing && this.decks[o].sync && this.decks[o].track && (!this.decks[d].sync || this.master === d)) {
+      this.pushSyncFollower(d, o, false);
+    } else if (this.decks[o].track) {
+      if (this.master === d) {
+        r.post({ t: 'sync', on: true, master: d, halfMul: 1, align: false });
+        this.pushSyncFollower(o, d, false);
+      } else {
+        this.master = o;
+        this.r(o)?.post({ t: 'sync', on: true, master: o, halfMul: this.r(o)?.halfMul ?? 1, align: false });
+        this.pushSyncFollower(d, o, false);
+      }
+    } else {
       this.master = d;
-      const halfMul = this.syncTempoUi(o);
-      this.r(o)?.post({ t: 'sync', on: true, master: this.master, halfMul, align: false });
-    } else if (this.decks[d].sync && this.decks[o].track && this.master !== d) {
-      const halfMul = this.syncTempoUi(d);
-      r.post({ t: 'sync', on: true, master: this.master, halfMul, align: false });
+      r.post({ t: 'sync', on: true, master: d, halfMul: 1, align: false });
     }
     this.applyMixer(d);
     this.applySpeed(d, 0.01);

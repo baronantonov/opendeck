@@ -2,7 +2,7 @@
 // user-loaded smartphone audio files.
 // - Low = red, Mid = green, High = blue, mirrored around the centre axis
 // - Beat grid aligned to `track.firstBeat` and `track.bpm`
-// - Renders main CUE (orange), memory cues (red), hot cues (mint/green), and active Beat Loop region.
+// - Renders main CUE (orange), memory cues (red), and active Beat Loop region.
 
 import type { TrackInfo } from '../../audio/dj/DjEngine';
 
@@ -74,7 +74,6 @@ export interface VerticalOptions {
   phaseColor: string;
   beatsVisible?: number;
   loop?: { start: number; end: number; beats: number } | null;
-  hotCues?: (number | null)[];
 }
 
 /** Zoomed, vertically scrolling waveform (rekordbox mobile centre view). */
@@ -180,9 +179,7 @@ export function drawVertical(
     ctx.fill();
   };
   track.cues.forEach((c) => c > 0.05 && marker(c, 'rgba(255,40,40,0.85)'));
-  opts.hotCues?.forEach((c) => c !== null && marker(c, '#00f0b5'));
   marker(cueSec, '#f39321');
-
   ctx.restore();
 
   // Playhead
@@ -209,7 +206,6 @@ export function drawOverview(
   posSec: number,
   cueSec: number,
   loop?: { start: number; end: number; beats: number } | null,
-  hotCues?: (number | null)[],
 ) {
   const { ctx, w, h } = prepareCanvas(canvas);
   if (!ctx || w < 2 || h < 2) return;
@@ -260,7 +256,6 @@ export function drawOverview(
     ctx.fill();
   };
   track.cues.forEach((c) => c > 0.05 && tri(c, '#ff2d2d'));
-  hotCues?.forEach((c) => c !== null && tri(c, '#00f0b5'));
   tri(cueSec, '#f39321');
 
   // Playhead

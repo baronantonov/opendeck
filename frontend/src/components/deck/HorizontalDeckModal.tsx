@@ -10,9 +10,8 @@ import { triggerCelebrationConfetti } from '../ConfettiEffect';
 import type { Lesson } from '../../types';
 import { drawOverview, drawVertical, levelAt } from './waveform';
 import {
-  DeckFxPanel,
+  DeckLoopPanel,
   DeckOrientationContext,
-  DeckPadPanel,
   DeckTempoPanel,
   HapticHelper,
   MixerOverlay,
@@ -29,7 +28,7 @@ interface HorizontalDeckModalProps {
   lesson?: Lesson | any;
 }
 
-type DeckViewMode = 'jog' | 'fx' | 'pad' | 'tempo';
+type DeckViewMode = 'jog' | 'loop' | 'tempo';
 
 const ORANGE = '#f39321';
 const GREEN = '#f5926e';
@@ -322,13 +321,12 @@ export const HorizontalDeckModal: React.FC<HorizontalDeckModalProps> = ({ isOpen
           angleRef.current[k.d] = (angleRef.current[k.d] + dt * spd * PLATTER_DEG_PER_SEC) % 360;
         }
 
-        if (k.ov.current) drawOverview(k.ov.current, track, pos, deck.cue, deck.loop, deck.hotCues);
+        if (k.ov.current) drawOverview(k.ov.current, track, pos, deck.cue, deck.loop);
         if (k.v.current) {
           drawVertical(k.v.current, track, pos, deck.cue, {
             markerSide: k.side,
             phaseColor: k.phase,
             loop: deck.loop,
-            hotCues: deck.hotCues,
           });
         }
 
@@ -644,64 +642,36 @@ export const HorizontalDeckModal: React.FC<HorizontalDeckModalProps> = ({ isOpen
   const toggleDeckView = (d: DeckId, target: DeckViewMode) => {
     const next: DeckViewMode = viewMode[d] === target ? 'jog' : target;
     setViewMode((prev) => ({ ...prev, [d]: next }));
-    // When opening FX panel for the first time, engage Beat FX immediately so user hears it
-    if (target === 'fx' && next === 'fx' && !djEngine.decks[d].fx.on) {
-      djEngine.setFx(d, { on: true });
-    }
   };
 
   const sideButtons = (d: DeckId) => {
     const deck = djEngine.decks[d];
     const mode = viewMode[d];
     return (
-      <div className="flex h-full w-[46px] shrink-0 flex-col justify-around py-[2%]">
+      <div className="flex h-full w-[46px] shrink-0 flex-col justify-center gap-3 py-[2%]">
         <SideButton
-          title="Beat Sync"
+          title="Beat Sync (всегда активен)"
           ariaLabel={`Sync deck ${d}`}
-          active={deck.sync}
+          active={true}
           activeColor={SYNC_BLUE}
           onClick={() => {
             haptic.light();
-            djEngine.setSync(d, !deck.sync);
+            djEngine.setSync(d, true);
           }}
         >
           SYNC
         </SideButton>
         <SideButton
-          title="Hot Cue & Beat Loop"
-          ariaLabel={`Performance pads deck ${d}`}
-          active={mode === 'pad' || deck.loop !== null}
+          title="Beat Loop"
+          ariaLabel={`Beat loop deck ${d}`}
+          active={mode === 'loop' || deck.loop !== null}
           activeColor={deck.loop ? ORANGE : SYNC_BLUE}
           onClick={() => {
             haptic.light();
-            toggleDeckView(d, 'pad');
+            toggleDeckView(d, 'loop');
           }}
         >
           <PadIcon />
-        </SideButton>
-        <SideButton
-          title="Beat FX"
-          ariaLabel={`Beat FX deck ${d}`}
-          active={deck.fx.on || mode === 'fx'}
-          activeColor={deck.fx.on ? ORANGE : '#5a5a5a'}
-          onClick={() => {
-            haptic.light();
-            toggleDeckView(d, 'fx');
-          }}
-        >
-          FX
-        </SideButton>
-        <SideButton
-          title="Slip Mode"
-          ariaLabel={`Slip mode deck ${d}`}
-          active={deck.slip}
-          activeColor="#e04040"
-          onClick={() => {
-            haptic.light();
-            djEngine.setSlip(d, !deck.slip);
-          }}
-        >
-          SLIP
         </SideButton>
       </div>
     );
@@ -743,15 +713,9 @@ export const HorizontalDeckModal: React.FC<HorizontalDeckModalProps> = ({ isOpen
         </div>
         <div className="mt-[1px] flex min-w-0 items-center justify-between gap-1">
           <span className="min-w-0 truncate text-[9px] leading-none text-[#8c8c8c]">{artist}</span>
-          {(deck.fx.on || Math.abs(deck.filter) > 0.04 || deck.loop) && (
+          {deck.loop && (
             <span className="shrink-0 whitespace-nowrap text-[8px] font-bold uppercase tracking-wider text-[#f39321]">
-              {[
-                deck.fx.on ? deck.fx.type.toUpperCase() : '',
-                deck.filter < -0.04 ? 'LPF' : deck.filter > 0.04 ? 'HPF' : '',
-                deck.loop ? `LOOP ${deck.loop.beats === 0.5 ? '1/2' : deck.loop.beats}B` : '',
-              ]
-                .filter(Boolean)
-                .join(' · ')}
+              {`LOOP ${deck.loop.beats === 0.5 ? '1/2' : deck.loop.beats}B`}
             </span>
           )}
         </div>
@@ -767,11 +731,8 @@ export const HorizontalDeckModal: React.FC<HorizontalDeckModalProps> = ({ isOpen
   const renderDeckCenter = (d: DeckId) => {
     const deck = djEngine.decks[d];
     const mode = viewMode[d];
-    if (mode === 'fx') {
-      return <DeckFxPanel deck={deck} haptic={haptic} onClosePanel={() => setViewMode((s) => ({ ...s, [d]: 'jog' }))} />;
-    }
-    if (mode === 'pad') {
-      return <DeckPadPanel deck={deck} haptic={haptic} onClosePanel={() => setViewMode((s) => ({ ...s, [d]: 'jog' }))} />;
+    if (mode === 'loop') {
+      return <DeckLoopPanel deck={deck} haptic={haptic} onClosePanel={() => setViewMode((s) => ({ ...s, [d]: 'jog' }))} />;
     }
     if (mode === 'tempo') {
       return <DeckTempoPanel deck={deck} haptic={haptic} onClosePanel={() => setViewMode((s) => ({ ...s, [d]: 'jog' }))} />;
@@ -784,7 +745,6 @@ export const HorizontalDeckModal: React.FC<HorizontalDeckModalProps> = ({ isOpen
         speedTextRef={d === 'A' ? speedA : speedB}
         highlight={(d === 'A' && step === 'play_a') || (d === 'B' && step === 'play_b')}
         scratching={deck.scratching}
-        fxActive={deck.fx.on}
         loopActive={deck.loop !== null}
         haptic={haptic}
         onRotationDelta={(dDeg) => {
@@ -798,8 +758,6 @@ export const HorizontalDeckModal: React.FC<HorizontalDeckModalProps> = ({ isOpen
   };
 
   const hasEqOrFilter =
-    Math.abs(deckA.filter) > 0.04 ||
-    Math.abs(deckB.filter) > 0.04 ||
     Math.abs(deckA.eq.low) > 0.04 ||
     Math.abs(deckB.eq.low) > 0.04 ||
     Math.abs(deckA.eq.mid) > 0.04 ||
@@ -905,7 +863,7 @@ export const HorizontalDeckModal: React.FC<HorizontalDeckModalProps> = ({ isOpen
                   background: mixerOpen ? ORANGE : hasEqOrFilter ? '#4a3820' : '#383838',
                   border: hasEqOrFilter ? `1px solid ${ORANGE}` : undefined,
                 }}
-                title="Открыть микшер (EQ и Фильтры)"
+                title="Открыть микшер (EQ)"
                 aria-label="Open mixer"
                 onClick={() => {
                   haptic.light();

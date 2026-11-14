@@ -3,11 +3,9 @@ import {
   DeckId,
   DeckState,
   djEngine,
-  HOT_CUE_COUNT,
   PLATTER_DEG_PER_SEC,
   TEMPO_RANGES,
 } from '../../audio/dj/DjEngine';
-import { FX_BEATS, FX_LIST, FxType } from '../../audio/dj/fx';
 import { DEMOS, DemoId } from '../../audio/dj/demoTracks';
 import { AUDIO_ACCEPT, deleteTrack, listTracks, StoredTrack } from '../../audio/dj/library';
 import { loadDemoToDeck, loadFileToDeck, loadStoredToDeck } from '../../audio/dj/trackLoader';
@@ -209,7 +207,6 @@ interface ScratchJogProps {
   speedTextRef?: React.RefObject<SVGTextElement>;
   highlight: boolean;
   scratching: boolean;
-  fxActive: boolean;
   loopActive: boolean;
   haptic: HapticHelper;
   onRotationDelta: (dDeg: number) => void;
@@ -235,7 +232,6 @@ export const ScratchJogWheel: React.FC<ScratchJogProps> = ({
   speedTextRef,
   highlight,
   scratching,
-  fxActive,
   loopActive,
   haptic,
   onRotationDelta,
@@ -383,7 +379,7 @@ export const ScratchJogWheel: React.FC<ScratchJogProps> = ({
     }
   };
 
-  const ringStroke = scratching ? MINT : loopActive ? ORANGE : fxActive ? SYNC_BLUE : '#c7c7c7';
+  const ringStroke = scratching ? MINT : loopActive ? ORANGE : '#c7c7c7';
 
   return (
     <svg
@@ -490,166 +486,10 @@ export const ScratchJogWheel: React.FC<ScratchJogProps> = ({
 };
 
 // ============================================================================
-// 2. BEAT FX + FILTER PANEL (per deck)
+// 2. BEAT LOOP PANEL (per deck)
 // ============================================================================
 
-interface DeckFxPanelProps {
-  deck: DeckState;
-  haptic: HapticHelper;
-  onClosePanel: () => void;
-}
-
-export const DeckFxPanel: React.FC<DeckFxPanelProps> = ({ deck, haptic, onClosePanel }) => {
-  const { id, fx, filter } = deck;
-
-  const selectType = (t: FxType) => {
-    haptic.selection();
-    djEngine.setFx(id, { type: t, on: true });
-  };
-
-  const selectBeat = (b: number) => {
-    haptic.selection();
-    djEngine.setFx(id, { beats: b });
-  };
-
-  const toggleOn = () => {
-    haptic.medium();
-    pulseVibrate(8);
-    djEngine.setFx(id, { on: !fx.on });
-  };
-
-  const beatLabel = (b: number) => (b === 0.25 ? '1/4' : b === 0.5 ? '1/2' : b === 0.75 ? '3/4' : String(b));
-
-  return (
-    <div className="flex h-full w-full flex-col justify-between rounded-[6px] border border-[#363636] bg-[#121212] p-2 text-white">
-      {/* Header row */}
-      <div className="flex items-center justify-between gap-1">
-        <div className="flex items-center gap-1.5">
-          <span className="text-[10px] font-bold tracking-wider text-[#9a9a9a]">BEAT FX · ДЕКА {id}</span>
-          <button
-            onClick={toggleOn}
-            className="rounded-[3px] px-2 py-0.5 text-[10px] font-extrabold tracking-wider transition-all active:scale-95"
-            style={{
-              background: fx.on ? ORANGE : '#2e2e2e',
-              color: fx.on ? '#000' : '#ccc',
-              boxShadow: fx.on ? `0 0 10px ${ORANGE}88` : undefined,
-            }}
-          >
-            {fx.on ? 'FX ON' : 'FX OFF'}
-          </button>
-        </div>
-        <button
-          onClick={() => {
-            haptic.light();
-            onClosePanel();
-          }}
-          className="rounded-[3px] border border-[#484848] bg-[#262626] px-2 py-0.5 text-[10px] font-semibold text-[#ddd] active:bg-[#383838]"
-        >
-          ДЖОГ
-        </button>
-      </div>
-
-      {/* 4 FX Type buttons */}
-      <div className="grid grid-cols-4 gap-1">
-        {FX_LIST.map((item) => {
-          const active = fx.type === item.id;
-          return (
-            <button
-              key={item.id}
-              onClick={() => selectType(item.id)}
-              className="flex h-[26px] items-center justify-center rounded-[3px] text-[10px] font-bold tracking-wide active:scale-95"
-              style={{
-                background: active ? (fx.on ? ORANGE : '#4a4a4a') : '#262626',
-                color: active && fx.on ? '#000' : '#e6e6e6',
-                border: active ? `1px solid ${ORANGE}` : '1px solid #333',
-              }}
-            >
-              {item.label}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Beat division buttons */}
-      <div className="grid grid-cols-6 gap-1">
-        {FX_BEATS.slice(0, 6).map((b) => {
-          const active = Math.abs(fx.beats - b) < 0.01;
-          return (
-            <button
-              key={b}
-              onClick={() => selectBeat(b)}
-              className="flex h-[22px] items-center justify-center rounded-[3px] text-[10px] font-semibold tabular-nums"
-              style={{
-                background: active ? SYNC_BLUE : '#242424',
-                color: active ? '#fff' : '#bbb',
-              }}
-            >
-              {beatLabel(b)}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* FX Level / Depth slider */}
-      <div className="flex flex-col gap-0.5">
-        <div className="flex justify-between text-[9px] text-[#aaa]">
-          <span>DEPTH / LEVEL</span>
-          <span className="tabular-nums font-bold text-white">{Math.round(fx.level * 100)}%</span>
-        </div>
-        <TouchSlider
-          value={fx.level * 100}
-          min={0}
-          max={100}
-          defaultValue={60}
-          accentColor={ORANGE}
-          ariaLabel={`FX depth deck ${id}`}
-          haptic={haptic}
-          onChange={(v) => djEngine.setFx(id, { level: v / 100 })}
-        />
-      </div>
-
-      {/* Color Filter (LPF <-> HPF) */}
-      <div className="flex flex-col gap-0.5">
-        <div className="flex items-center justify-between text-[9px] text-[#aaa]">
-          <span>
-            FILTER:{' '}
-            <strong className="text-white">
-              {filter < -0.04 ? `LPF ${Math.round(-filter * 100)}%` : filter > 0.04 ? `HPF ${Math.round(filter * 100)}%` : 'OFF'}
-            </strong>
-          </span>
-          {Math.abs(filter) > 0.02 && (
-            <button
-              onClick={() => {
-                haptic.light();
-                djEngine.setFilter(id, 0);
-              }}
-              className="rounded bg-[#2e2e2e] px-1.5 text-[9px] text-[#00f0b5]"
-            >
-              СБРОС
-            </button>
-          )}
-        </div>
-        <TouchSlider
-          value={filter * 100}
-          min={-100}
-          max={100}
-          defaultValue={0}
-          centerSnap={5}
-          accentColor={MINT}
-          ariaLabel={`Color filter deck ${id}`}
-          haptic={haptic}
-          onChange={(v) => djEngine.setFilter(id, Math.abs(v) < 5 ? 0 : v / 100)}
-        />
-      </div>
-    </div>
-  );
-};
-
-// ============================================================================
-// 3. PERFORMANCE PADS PANEL (Hot Cues + Beat Loop)
-// ============================================================================
-
-interface DeckPadPanelProps {
+interface DeckLoopPanelProps {
   deck: DeckState;
   haptic: HapticHelper;
   onClosePanel: () => void;
@@ -657,13 +497,13 @@ interface DeckPadPanelProps {
 
 const LOOP_SIZES = [0.5, 1, 2, 4];
 
-export const DeckPadPanel: React.FC<DeckPadPanelProps> = ({ deck, haptic, onClosePanel }) => {
-  const { id, hotCues, loop } = deck;
+export const DeckLoopPanel: React.FC<DeckLoopPanelProps> = ({ deck, haptic, onClosePanel }) => {
+  const { id, loop } = deck;
 
   return (
     <div className="flex h-full w-full flex-col justify-between rounded-[6px] border border-[#363636] bg-[#121212] p-2 text-white">
       <div className="flex items-center justify-between gap-1">
-        <span className="truncate whitespace-nowrap text-[9.5px] font-bold tracking-wider text-[#9a9a9a]">CUE / LOOP · {id}</span>
+        <span className="truncate whitespace-nowrap text-[9.5px] font-bold tracking-wider text-[#9a9a9a]">BEAT LOOP · ДЕКА {id}</span>
         <div className="flex shrink-0 items-center gap-1">
           {loop && (
             <button
@@ -688,52 +528,7 @@ export const DeckPadPanel: React.FC<DeckPadPanelProps> = ({ deck, haptic, onClos
         </div>
       </div>
 
-      {/* Row 1: 4 Hot Cues */}
-      <div className="grid grid-cols-4 gap-1.5 flex-1 my-1">
-        {[0, 1, 2, 3].slice(0, HOT_CUE_COUNT).map((idx) => {
-          const val = hotCues[idx];
-          const has = val !== null && val !== undefined;
-          return (
-            <div key={idx} className="relative flex">
-              <button
-                onClick={() => {
-                  haptic.medium();
-                  pulseVibrate(6);
-                  djEngine.hotCue(id, idx);
-                }}
-                className="flex w-full flex-col items-center justify-center rounded-[4px] border text-[10px] font-bold transition-transform active:scale-95"
-                style={{
-                  background: has ? 'rgba(0, 240, 181, 0.16)' : '#222',
-                  borderColor: has ? MINT : '#3a3a3a',
-                  color: has ? MINT : '#999',
-                }}
-              >
-                <span>CUE {String.fromCharCode(65 + idx)}</span>
-                <span className="text-[8px] font-normal tabular-nums opacity-80">
-                  {has ? `${Math.floor(val / 60)}:${String(Math.floor(val % 60)).padStart(2, '0')}` : 'ПУСТО'}
-                </span>
-              </button>
-              {has && (
-                <button
-                  onPointerDown={(e) => e.stopPropagation()}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    haptic.light();
-                    djEngine.deleteHotCue(id, idx);
-                  }}
-                  title="Удалить метку"
-                  className="absolute -top-1.5 -right-1.5 z-10 flex h-5 w-5 items-center justify-center rounded-full border border-[#555] bg-black/90 text-[9px] font-bold text-[#bbb] transition-transform active:scale-90 active:text-white"
-                >
-                  ✕
-                </button>
-              )}
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Row 2: 4 Beat Loops */}
-      <div className="grid grid-cols-4 gap-1.5 flex-1">
+      <div className="grid grid-cols-2 grid-rows-2 gap-1.5 flex-1 mt-1.5">
         {LOOP_SIZES.map((beats) => {
           const active = loop !== null && Math.abs(loop.beats - beats) < 0.01;
           return (
@@ -752,7 +547,7 @@ export const DeckPadPanel: React.FC<DeckPadPanelProps> = ({ deck, haptic, onClos
               }}
             >
               <span>LOOP</span>
-              <span className="text-[11px] font-extrabold tabular-nums">{beats === 0.5 ? '1/2' : beats} B</span>
+              <span className="text-[12px] font-extrabold tabular-nums">{beats === 0.5 ? '1/2' : beats} B</span>
             </button>
           );
         })}
@@ -858,7 +653,7 @@ interface MixerOverlayProps {
 
 export const MixerOverlay: React.FC<MixerOverlayProps> = ({ deckA, deckB, haptic, onClose }) => {
   const renderDeckEq = (deck: DeckState) => {
-    const { id, eq, filter, fader } = deck;
+    const { id, eq, fader } = deck;
     const bands: { key: 'hi' | 'mid' | 'low'; label: string }[] = [
       { key: 'hi', label: 'HI' },
       { key: 'mid', label: 'MID' },
@@ -868,7 +663,7 @@ export const MixerOverlay: React.FC<MixerOverlayProps> = ({ deckA, deckB, haptic
       <div className="flex flex-1 flex-col justify-between rounded-[6px] border border-[#333] bg-[#161616] p-2">
         <div className="flex items-center justify-between border-b border-[#2a2a2a] pb-1">
           <span className="text-[10px] font-extrabold tracking-wider" style={{ color: id === 'A' ? CORAL : SYNC_BLUE }}>
-            КАНАЛ {id} · EQ & FILTER
+            КАНАЛ {id} · EQ
           </span>
           <button
             onClick={() => {
@@ -876,7 +671,6 @@ export const MixerOverlay: React.FC<MixerOverlayProps> = ({ deckA, deckB, haptic
               djEngine.setEq(id, 'hi', 0);
               djEngine.setEq(id, 'mid', 0);
               djEngine.setEq(id, 'low', 0);
-              djEngine.setFilter(id, 0);
               djEngine.setFader(id, 1);
             }}
             className="rounded bg-[#282828] px-1.5 py-0.5 text-[9px] font-semibold text-[#bbb] active:text-white"
@@ -909,26 +703,6 @@ export const MixerOverlay: React.FC<MixerOverlayProps> = ({ deckA, deckB, haptic
           );
         })}
 
-        {/* Color Filter */}
-        <div className="flex items-center gap-2">
-          <span className="w-7 text-[9px] font-bold text-[#00f0b5]">FLTR</span>
-          <TouchSlider
-            value={filter * 100}
-            min={-100}
-            max={100}
-            defaultValue={0}
-            centerSnap={5}
-            accentColor={MINT}
-            ariaLabel={`Mixer filter deck ${id}`}
-            haptic={haptic}
-            className="min-w-0 flex-1"
-            onChange={(v) => djEngine.setFilter(id, Math.abs(v) < 5 ? 0 : v / 100)}
-          />
-          <span className="w-9 text-right text-[9px] tabular-nums text-[#00f0b5]">
-            {filter < -0.04 ? 'LPF' : filter > 0.04 ? 'HPF' : 'OFF'}
-          </span>
-        </div>
-
         {/* Channel Volume */}
         <div className="flex items-center gap-2">
           <span className="w-7 text-[9px] font-bold text-[#aaa]">VOL</span>
@@ -952,7 +726,7 @@ export const MixerOverlay: React.FC<MixerOverlayProps> = ({ deckA, deckB, haptic
   return (
     <div className="absolute inset-0 z-30 flex flex-col bg-black/95 p-2.5 text-white">
       <div className="mb-1.5 flex items-center justify-between">
-        <span className="text-[11px] font-bold tracking-wider text-white">МИКШЕР · 3-ПОЛОСНЫЙ EQ & SOUND COLOR FILTER</span>
+        <span className="text-[11px] font-bold tracking-wider text-white">МИКШЕР · 3-ПОЛОСНЫЙ EQ</span>
         <button
           onClick={() => {
             haptic.light();

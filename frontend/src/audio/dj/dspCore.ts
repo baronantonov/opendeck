@@ -28,7 +28,7 @@ function makeSlot(sr) {
     // Бит-сетка и аудио-потоковый Beat Sync
     bpm: 0, fb: 0, beatSrc: 0,
     playing: false,
-    sync: false, master: 0, halfMul: 1, manualBend: false,
+    sync: true, master: 0, halfMul: 1, manualBend: false,
     seq: 0,
     ended: false, endedFlag: false
   };

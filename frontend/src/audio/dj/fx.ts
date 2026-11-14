@@ -39,6 +39,7 @@ export class BeatFx {
   private ctx: AudioContext;
   private trans: GainNode;
   private transLfo: OscillatorNode | null = null;
+  private stoppingTransLfo: { osc: OscillatorNode; timer: number } | null = null;
   private transDepth: GainNode;
   private transSmooth: BiquadFilterNode;
   private echoSend: GainNode;
@@ -193,6 +194,16 @@ export class BeatFx {
     this.flWet.gain.setTargetAtTime(on && t === 'flanger' ? 0.55 + 0.35 * this.level : 0, now, TC);
 
     if (on && t === 'trans') {
+      if (this.stoppingTransLfo) {
+        window.clearTimeout(this.stoppingTransLfo.timer);
+        try {
+          this.stoppingTransLfo.osc.disconnect();
+          this.stoppingTransLfo.osc.stop();
+        } catch {
+          /* ignore */
+        }
+        this.stoppingTransLfo = null;
+      }
       const depth = 0.35 + 0.65 * this.level;
       this.trans.gain.setTargetAtTime(1 - depth / 2, now, TC);
       this.transDepth.gain.setTargetAtTime(depth / 2, now, TC);
@@ -202,7 +213,7 @@ export class BeatFx {
         lfo.frequency.value = 1 / Math.max(0.03, this.beats * this.beatSec);
         lfo.connect(this.transSmooth);
         const nextB = this.nextBeatTime();
-        const start = Number.isFinite(nextB) && nextB > now ? nextB : now + 0.005;
+        const start = Number.isFinite(nextB) && nextB > now ? Math.min(nextB, now + 0.5) : now + 0.005;
         lfo.start(start);
         this.transLfo = lfo;
       }
@@ -217,7 +228,15 @@ export class BeatFx {
         } catch {
           /* ignore */
         }
-        window.setTimeout(() => lfo.disconnect(), 200);
+        const timer = window.setTimeout(() => {
+          try {
+            lfo.disconnect();
+          } catch {
+            /* ignore */
+          }
+          if (this.stoppingTransLfo?.osc === lfo) this.stoppingTransLfo = null;
+        }, 160);
+        this.stoppingTransLfo = { osc: lfo, timer };
       }
     }
   }

@@ -11,6 +11,7 @@ import type { Lesson } from '../../types';
 import { drawOverview, drawVertical, levelAt } from './waveform';
 import {
   DeckFxPanel,
+  DeckOrientationContext,
   DeckPadPanel,
   DeckTempoPanel,
   HapticHelper,
@@ -20,7 +21,7 @@ import {
 } from './DeckPanels';
 import { useRegisterModal } from '../../lib/navigation';
 import { useSafeArea } from '../../lib/safeArea';
-import { apiProgress } from '../../api/client';
+import { useToast } from '../Toast';
 
 interface HorizontalDeckModalProps {
   isOpen: boolean;
@@ -127,8 +128,9 @@ const BpmBox: React.FC<{
   active?: boolean;
   onClick?: () => void;
 }> = ({ mirrored, bpmValue, tempoPct, keyName, active, onClick }) => {
-  const whole = Math.floor(bpmValue);
-  const tenths = Math.floor(Math.round((bpmValue - whole) * 10)) % 10;
+  const roundedTenths = Math.round(Math.max(0, bpmValue) * 10);
+  const whole = Math.floor(roundedTenths / 10);
+  const tenths = roundedTenths % 10;
   const pctStr = `${tempoPct >= 0 ? '+' : ''}${(tempoPct * 100).toFixed(1)}%`;
 
   const bpm = (
@@ -162,7 +164,8 @@ const BpmBox: React.FC<{
 // ================================================================== component
 
 export const HorizontalDeckModal: React.FC<HorizontalDeckModalProps> = ({ isOpen, onClose, lesson }) => {
-  const { completeLesson } = useApp();
+  const { completeLesson, course } = useApp();
+  const { toast } = useToast();
   const haptic = useMemo<HapticHelper>(() => {
     const fn = ((kind: any = 'light') => rawHaptic(kind)) as HapticHelper;
     fn.light = () => rawHaptic('light');
@@ -195,8 +198,14 @@ export const HorizontalDeckModal: React.FC<HorizontalDeckModalProps> = ({ isOpen
   const quickFileInputRef = useRef<HTMLInputElement | null>(null);
 
   const xfRef = useRef(0);
-  const isLessonDone = lesson ? Boolean((lesson as any).isCompleted) : false;
-  const claimedRef = useRef(isLessonDone);
+  const lessonId = lesson?.id ?? 1;
+  const isLessonDone = lesson
+    ? Boolean((lesson as { isCompleted?: boolean }).isCompleted) || course.completedLessons.includes(lessonId)
+    : false;
+  const isMissionMode = Boolean(lesson) && !isLessonDone;
+  const isMissionModeRef = useRef(isMissionMode);
+  isMissionModeRef.current = isMissionMode;
+  const claimedRef = useRef(!isMissionMode);
   const lastHapticXf = useRef(0);
 
   // DOM refs
@@ -221,14 +230,15 @@ export const HorizontalDeckModal: React.FC<HorizontalDeckModalProps> = ({ isOpen
   const containerRef = useRef<HTMLDivElement>(null);
   const safeViewportRef = useRef<HTMLDivElement>(null);
   const crossfaderTrackRef = useRef<HTMLDivElement>(null);
-  const isDraggingXf = useRef(false);
+  const xfPointerIdRef = useRef<number | null>(null);
+  const cuePointerRef = useRef<Record<DeckId, number | null>>({ A: null, B: null });
   const [frameSize, setFrameSize] = useState({ w: 0, h: 0 });
   const [portrait, setPortrait] = useState(false);
   const [flip180, setFlip180] = useState(false);
 
   useRegisterModal('horizontal-deck-modal', isOpen, onClose);
-  useRegisterModal('deck-browser-modal', isOpen && browserDeck !== null, () => setBrowserDeck(null));
   useRegisterModal('deck-mixer-modal', isOpen && mixerOpen, () => setMixerOpen(false));
+  useRegisterModal('deck-browser-modal', isOpen && browserDeck !== null, () => setBrowserDeck(null));
 
   useEffect(() => {
     if (!safeViewportRef.current) return;
@@ -246,8 +256,11 @@ export const HorizontalDeckModal: React.FC<HorizontalDeckModalProps> = ({ isOpen
   // Open / close lifecycle: load default Rekordbox school tracks if decks are empty
   useEffect(() => {
     if (!isOpen) return;
-    claimedRef.current = isLessonDone;
+    claimedRef.current = !isMissionModeRef.current;
     setIsMatched(false);
+    setMixerOpen(false);
+    setBrowserDeck(null);
+    setViewMode({ A: 'jog', B: 'jog' });
     djEngine.setCrossfader(xfRef.current);
 
     const tasks: Promise<void>[] = [];
@@ -266,9 +279,11 @@ export const HorizontalDeckModal: React.FC<HorizontalDeckModalProps> = ({ isOpen
         window.clearTimeout(celebrationTimerRef.current);
         celebrationTimerRef.current = null;
       }
+      cuePointerRef.current = { A: null, B: null };
+      xfPointerIdRef.current = null;
       djEngine.suspend();
     };
-  }, [isOpen, isLessonDone]);
+  }, [isOpen]);
 
   // 60fps render loop for waveforms, platter angle, time & VU meters
   useEffect(() => {
@@ -324,7 +339,8 @@ export const HorizontalDeckModal: React.FC<HorizontalDeckModalProps> = ({ isOpen
         k.ring.current?.setAttribute('stroke-dasharray', `${(1 - progress) * 100} 100`);
         k.ring.current?.setAttribute('transform', `rotate(${-90 + progress * 360} 50 50)`);
         if (k.speed.current) {
-          k.speed.current.textContent = `${spd >= 0 ? '' : ''}${spd.toFixed(2)}x`;
+          const displaySpd = Math.abs(spd) < 0.005 ? 0 : spd;
+          k.speed.current.textContent = `${displaySpd.toFixed(2)}x`;
         }
         if (k.time.current) {
           k.time.current.textContent = track ? fmtRemain(track.duration - pos) : '-00:00';
@@ -416,16 +432,16 @@ export const HorizontalDeckModal: React.FC<HorizontalDeckModalProps> = ({ isOpen
       haptic.success();
     } catch {
       haptic.error();
+      toast('!', 'Не удалось загрузить аудиофайл');
     }
   };
 
   const handleSuccessfulBeatmatch = useCallback(() => {
+    if (!isMissionModeRef.current || claimedRef.current) return;
     claimedRef.current = true;
     setIsMatched(true);
     haptic.success();
     triggerCelebrationConfetti();
-    const lessonId = lesson?.id || 1;
-    void apiProgress('dj-basics', lessonId).catch(() => {});
     completeLesson(lessonId);
     if (celebrationTimerRef.current !== null) {
       window.clearTimeout(celebrationTimerRef.current);
@@ -434,7 +450,7 @@ export const HorizontalDeckModal: React.FC<HorizontalDeckModalProps> = ({ isOpen
       celebrationTimerRef.current = null;
       onClose();
     }, 2500);
-  }, [completeLesson, haptic, lesson, onClose]);
+  }, [completeLesson, haptic, lessonId, onClose]);
 
   const updateCrossfaderFromPointer = useCallback(
     (clientX: number, clientY: number) => {
@@ -444,10 +460,12 @@ export const HorizontalDeckModal: React.FC<HorizontalDeckModalProps> = ({ isOpen
 
       let val = 0;
       if (rect.height > rect.width) {
-        const raw = flip180 ? (rect.bottom - clientY) / rect.height : (clientY - rect.top) / rect.height;
+        const usable = Math.max(1, rect.height - 16);
+        const raw = flip180 ? (rect.bottom - 8 - clientY) / usable : (clientY - (rect.top + 8)) / usable;
         val = Math.max(0, Math.min(1, raw));
       } else {
-        const raw = (clientX - rect.left) / rect.width;
+        const usable = Math.max(1, rect.width - 16);
+        const raw = (clientX - (rect.left + 8)) / usable;
         val = Math.max(0, Math.min(1, raw));
       }
 
@@ -463,7 +481,14 @@ export const HorizontalDeckModal: React.FC<HorizontalDeckModalProps> = ({ isOpen
         haptic.selection();
       }
 
-      if (!claimedRef.current && djEngine.decks.A.playing && djEngine.decks.B.playing && val >= 0.45 && val <= 0.55) {
+      if (
+        isMissionModeRef.current &&
+        !claimedRef.current &&
+        djEngine.decks.A.playing &&
+        djEngine.decks.B.playing &&
+        val >= 0.45 &&
+        val <= 0.55
+      ) {
         handleSuccessfulBeatmatch();
       }
     },
@@ -471,9 +496,10 @@ export const HorizontalDeckModal: React.FC<HorizontalDeckModalProps> = ({ isOpen
   );
 
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (xfPointerIdRef.current !== null) return;
     e.preventDefault();
     e.stopPropagation();
-    isDraggingXf.current = true;
+    xfPointerIdRef.current = e.pointerId;
     try {
       e.currentTarget.setPointerCapture(e.pointerId);
     } catch {
@@ -483,15 +509,15 @@ export const HorizontalDeckModal: React.FC<HorizontalDeckModalProps> = ({ isOpen
   };
 
   const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!isDraggingXf.current && e.buttons === 0) return;
+    if (xfPointerIdRef.current !== e.pointerId) return;
     e.preventDefault();
     e.stopPropagation();
     updateCrossfaderFromPointer(e.clientX, e.clientY);
   };
 
   const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!isDraggingXf.current) return;
-    isDraggingXf.current = false;
+    if (xfPointerIdRef.current !== e.pointerId) return;
+    xfPointerIdRef.current = null;
     try {
       if (e.currentTarget.hasPointerCapture(e.pointerId)) {
         e.currentTarget.releasePointerCapture(e.pointerId);
@@ -502,7 +528,8 @@ export const HorizontalDeckModal: React.FC<HorizontalDeckModalProps> = ({ isOpen
   };
 
   const handlePointerCancel = (e: React.PointerEvent<HTMLDivElement>) => {
-    isDraggingXf.current = false;
+    if (xfPointerIdRef.current !== e.pointerId) return;
+    xfPointerIdRef.current = null;
     try {
       if (e.currentTarget.hasPointerCapture(e.pointerId)) {
         e.currentTarget.releasePointerCapture(e.pointerId);
@@ -522,14 +549,21 @@ export const HorizontalDeckModal: React.FC<HorizontalDeckModalProps> = ({ isOpen
     setCrossfader(next);
     djEngine.setCrossfader(next);
     haptic.selection();
-    if (!claimedRef.current && djEngine.decks.A.playing && djEngine.decks.B.playing && next >= 0.45 && next <= 0.55) {
+    if (
+      isMissionModeRef.current &&
+      !claimedRef.current &&
+      djEngine.decks.A.playing &&
+      djEngine.decks.B.playing &&
+      next >= 0.45 &&
+      next <= 0.55
+    ) {
       handleSuccessfulBeatmatch();
     }
   };
 
   if (!isOpen) return null;
 
-  const step = isMatched ? 'matched' : !playingA ? 'play_a' : !playingB ? 'play_b' : 'crossfade';
+  const step = !isMissionMode ? null : isMatched ? 'matched' : !playingA ? 'play_a' : !playingB ? 'play_b' : 'crossfade';
   const hint =
     step === 'play_a'
       ? { text: 'Шаг 1 · Нажми PLAY на левой деке (крути джог для скретча)', color: ORANGE }
@@ -570,13 +604,37 @@ export const HorizontalDeckModal: React.FC<HorizontalDeckModalProps> = ({ isOpen
     </button>
   );
 
+  const endCueDrag = (d: DeckId, e: React.PointerEvent<HTMLButtonElement>) => {
+    if (cuePointerRef.current[d] !== e.pointerId) return;
+    cuePointerRef.current[d] = null;
+    try {
+      if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+        e.currentTarget.releasePointerCapture(e.pointerId);
+      }
+    } catch {
+      /* ignore */
+    }
+    handleCueUp(d);
+  };
+
   const cueBtn = (d: DeckId, playing: boolean) => (
     <button
-      onPointerDown={() => handleCueDown(d)}
-      onPointerUp={() => handleCueUp(d)}
-      onPointerCancel={() => handleCueUp(d)}
-      className="flex aspect-square h-[68%] min-h-[44px] min-w-[44px] max-h-[52px] items-center justify-center rounded-full border-[1.5px] text-[12px] tracking-wide active:scale-95 active:brightness-150"
-      style={{ borderColor: playing ? '#8a8a8a' : ORANGE + 'aa', color: ORANGE }}
+      onPointerDown={(e) => {
+        if (cuePointerRef.current[d] !== null) return;
+        e.preventDefault();
+        cuePointerRef.current[d] = e.pointerId;
+        try {
+          e.currentTarget.setPointerCapture(e.pointerId);
+        } catch {
+          /* ignore */
+        }
+        handleCueDown(d);
+      }}
+      onPointerUp={(e) => endCueDrag(d, e)}
+      onPointerCancel={(e) => endCueDrag(d, e)}
+      onLostPointerCapture={(e) => endCueDrag(d, e)}
+      className="flex aspect-square h-[68%] min-h-[44px] min-w-[44px] max-h-[52px] touch-none select-none items-center justify-center rounded-full border-[1.5px] text-[12px] tracking-wide active:scale-95 active:brightness-150"
+      style={{ touchAction: 'none', borderColor: playing ? '#8a8a8a' : ORANGE + 'aa', color: ORANGE }}
       aria-label={`Cue deck ${d}`}
     >
       CUE
@@ -584,14 +642,12 @@ export const HorizontalDeckModal: React.FC<HorizontalDeckModalProps> = ({ isOpen
   );
 
   const toggleDeckView = (d: DeckId, target: DeckViewMode) => {
-    setViewMode((prev) => {
-      const next = prev[d] === target ? 'jog' : target;
-      // When opening FX panel for the first time, engage Beat FX immediately so user hears it
-      if (target === 'fx' && next === 'fx' && !djEngine.decks[d].fx.on) {
-        djEngine.setFx(d, { on: true });
-      }
-      return { ...prev, [d]: next };
-    });
+    const next: DeckViewMode = viewMode[d] === target ? 'jog' : target;
+    setViewMode((prev) => ({ ...prev, [d]: next }));
+    // When opening FX panel for the first time, engage Beat FX immediately so user hears it
+    if (target === 'fx' && next === 'fx' && !djEngine.decks[d].fx.on) {
+      djEngine.setFx(d, { on: true });
+    }
   };
 
   const sideButtons = (d: DeckId) => {
@@ -685,14 +741,14 @@ export const HorizontalDeckModal: React.FC<HorizontalDeckModalProps> = ({ isOpen
             </span>
           </div>
         </div>
-        <div className="mt-[1px] flex items-center justify-between">
-          <span className="truncate text-[9px] leading-none text-[#8c8c8c]">{artist}</span>
+        <div className="mt-[1px] flex min-w-0 items-center justify-between gap-1">
+          <span className="min-w-0 truncate text-[9px] leading-none text-[#8c8c8c]">{artist}</span>
           {(deck.fx.on || Math.abs(deck.filter) > 0.04 || deck.loop) && (
-            <span className="text-[8px] font-bold uppercase tracking-wider text-[#f39321]">
+            <span className="shrink-0 whitespace-nowrap text-[8px] font-bold uppercase tracking-wider text-[#f39321]">
               {[
                 deck.fx.on ? deck.fx.type.toUpperCase() : '',
                 deck.filter < -0.04 ? 'LPF' : deck.filter > 0.04 ? 'HPF' : '',
-                deck.loop ? `LOOP ${deck.loop.beats}B` : '',
+                deck.loop ? `LOOP ${deck.loop.beats === 0.5 ? '1/2' : deck.loop.beats}B` : '',
               ]
                 .filter(Boolean)
                 .join(' · ')}
@@ -777,9 +833,10 @@ export const HorizontalDeckModal: React.FC<HorizontalDeckModalProps> = ({ isOpen
         ref={safeViewportRef}
         className="relative flex h-full w-full items-center justify-center overflow-hidden p-1 sm:p-2"
       >
+        <DeckOrientationContext.Provider value={{ portrait, flip180 }}>
         <div style={frameStyle} className="relative flex flex-col overflow-hidden bg-black text-[#d6d6d6]">
           {/* ============ ROW 1 · track info + overview waveforms ============ */}
-          <div className="flex shrink-0 items-stretch gap-2 px-3 pt-1.5" style={{ height: '15%' }}>
+          <div className="flex shrink-0 items-stretch gap-1.5 px-2 pt-1" style={{ height: '15%' }}>
             <button
               onClick={() => {
                 haptic.light();
@@ -791,17 +848,17 @@ export const HorizontalDeckModal: React.FC<HorizontalDeckModalProps> = ({ isOpen
               <VinylArt artUrl={deckA.track?.artUrl} />
             </button>
             {header('A')}
-            <div className="flex shrink-0 items-center justify-center gap-1.5">
+            <div className="flex shrink-0 items-center justify-center gap-1">
               <button
                 onClick={onClose}
                 title="Выйти из пульта"
-                className="flex h-[76%] min-h-[36px] items-center justify-center gap-1.5 rounded-[4px] border border-[#5a5a5a] bg-[#2c2c2c] px-2.5 text-[11px] font-bold text-white hover:bg-[#3a3a3a] active:scale-95 shadow-md"
+                className="flex h-[76%] min-h-[34px] items-center justify-center gap-1 rounded-[4px] border border-[#5a5a5a] bg-[#2c2c2c] px-2 text-[10px] font-bold text-white hover:bg-[#3a3a3a] active:scale-95 shadow-md"
               >
-                <div className="h-4 w-4 flex items-center justify-center">
+                <div className="h-3.5 w-3.5 flex items-center justify-center">
                   <RekordboxLogo />
                 </div>
-                <span className="text-xs font-black text-[#f5926e]">✕</span>
-                <span className="text-[10px] tracking-wider uppercase">ВЫХОД</span>
+                <span className="text-[11px] font-black text-[#f5926e]">✕</span>
+                <span className="text-[9px] tracking-wider uppercase">ВЫХОД</span>
               </button>
               {portrait && (
                 <button
@@ -810,7 +867,7 @@ export const HorizontalDeckModal: React.FC<HorizontalDeckModalProps> = ({ isOpen
                     setFlip180((f) => !f);
                   }}
                   title="Повернуть на 180°"
-                  className="flex h-[76%] min-h-[36px] px-1.5 items-center justify-center rounded-[4px] border border-[#4a4a4a] bg-[#2c2c2c] text-[10px] font-bold text-[#bbb] active:bg-[#3a3a3a]"
+                  className="flex h-[76%] min-h-[34px] px-1.5 items-center justify-center rounded-[4px] border border-[#4a4a4a] bg-[#2c2c2c] text-[9px] font-bold text-[#bbb] active:bg-[#3a3a3a]"
                 >
                   180°
                 </button>
@@ -982,6 +1039,7 @@ export const HorizontalDeckModal: React.FC<HorizontalDeckModalProps> = ({ isOpen
               onPointerMove={handlePointerMove}
               onPointerUp={handlePointerUp}
               onPointerCancel={handlePointerCancel}
+              onLostPointerCapture={handlePointerCancel}
               onKeyDown={handleKeyDown}
               className="group relative h-[72%] flex-1 touch-none select-none cursor-pointer focus:outline-none"
               style={{ touchAction: 'none' }}
@@ -1028,6 +1086,7 @@ export const HorizontalDeckModal: React.FC<HorizontalDeckModalProps> = ({ isOpen
             />
           )}
         </div>
+        </DeckOrientationContext.Provider>
       </div>
     </div>
   );

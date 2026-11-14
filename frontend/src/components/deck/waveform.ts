@@ -91,7 +91,7 @@ export function drawVertical(
   ctx.fillStyle = '#000';
   ctx.fillRect(0, 0, w, h);
 
-  if (!track) return;
+  if (!track || track.duration <= 0) return;
 
   const beatLen = 60 / Math.max(40, track.bpm);
   const curBeatFloat = (posSec - track.firstBeat) / beatLen;

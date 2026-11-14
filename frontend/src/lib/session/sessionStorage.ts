@@ -136,7 +136,7 @@ export function buildPreviewMockSession(): {
   const previewLessons =
     !secured.isTampered && secured.completedLessons.length > 0
       ? secured.completedLessons
-      : [1];
+      : [];
   const previewPaid = Boolean(
     !secured.isTampered && secured.isValid && secured.isCoursePurchased,
   );
@@ -217,7 +217,7 @@ export function saveSessionSnapshot(params: {
       completedLessons: (
         init?.course.completed_lessons ||
         lessons?.completed ||
-        localSecuredCompleted || [1]
+        localSecuredCompleted || []
       ).slice(),
       currentLessonId: init?.course.current_lesson_id ?? null,
       freeLessons: init?.course.free_lessons ?? 1,

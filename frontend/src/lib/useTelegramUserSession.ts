@@ -115,8 +115,7 @@ export function useTelegramUserSession(): TelegramUserSession {
     (paid: boolean, full = false) => {
       setIsPaid(paid);
       setPaidFull(full || paid);
-      const lessonsToSave = course.completedLessons.length > 0 ? course.completedLessons : [1];
-      saveSecuredProgress(getEffectiveUserId(), paid, lessonsToSave);
+      saveSecuredProgress(getEffectiveUserId(), paid, course.completedLessons);
       try {
         const existing = readCachedSession();
         if (existing) writeCachedSession({ ...existing, isPaid: paid, paidFull: full || paid });
@@ -133,6 +132,7 @@ export function useTelegramUserSession(): TelegramUserSession {
 
   const completeLesson = useCallback(
     (lessonId: number) => {
+      if (course.completedLessons.includes(lessonId)) return;
       setCourseState((s) => {
         if (s.completedLessons.includes(lessonId)) return s;
         const next = [...s.completedLessons, lessonId];
@@ -146,7 +146,7 @@ export function useTelegramUserSession(): TelegramUserSession {
         })
         .catch(() => {});
     },
-    [isPaid],
+    [course.completedLessons, isPaid],
   );
 
   const completeBonusLesson = useCallback((bonusId: number) => {

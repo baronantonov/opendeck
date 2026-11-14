@@ -27,12 +27,20 @@ function buildPhraseCues(firstBeat: number, bpm: number, duration: number): numb
   return cues;
 }
 
+function computeAutoGain(rms: number, minGain = 0.35, maxGain = 2.2): number {
+  return Math.max(minGain, Math.min(maxGain, 0.22 / Math.max(0.03, rms)));
+}
+
+const loadSeq: Record<DeckId, number> = { A: 0, B: 0 };
+
 export async function loadDemoToDeck(d: DeckId, demoId: DemoId): Promise<void> {
+  const seq = ++loadSeq[d];
   const meta = DEMOS[demoId];
   djEngine.setLoading(d, 'Синтез трека…');
   try {
     await djEngine.ensure();
     const { L, sr, cues, analysis } = await buildDemoTrack(demoId);
+    if (loadSeq[d] !== seq) return;
     const info: TrackInfo = {
       id: `demo:${demoId}`,
       title: meta.title,
@@ -44,11 +52,11 @@ export async function loadDemoToDeck(d: DeckId, demoId: DemoId): Promise<void> {
       cues,
       wave: analysis.wave,
       source: 'demo',
-      gain: 1,
+      gain: computeAutoGain(analysis.rms, 0.65, 1.8),
     };
     await djEngine.loadTrack(d, info, L, null, sr);
   } finally {
-    djEngine.setLoading(d, null);
+    if (loadSeq[d] === seq) djEngine.setLoading(d, null);
   }
 }
 
@@ -57,6 +65,7 @@ export async function loadBlobToDeck(
   blob: Blob,
   opts: { id?: string; title?: string; artist?: string; name?: string; art?: Blob; save?: boolean },
 ): Promise<StoredTrack> {
+  const seq = ++loadSeq[d];
   djEngine.setLoading(d, 'Декодирование аудио…');
   try {
     await djEngine.ensure();
@@ -69,7 +78,7 @@ export async function loadBlobToDeck(
     const id = opts.id || newTrackId();
 
     const buf = await decodeAudio(ctx, await blob.arrayBuffer());
-    djEngine.setLoading(d, 'Анализ BPM и волны…');
+    if (loadSeq[d] === seq) djEngine.setLoading(d, 'Анализ BPM и волны…');
 
     // Copy channel data into standalone Float32Arrays (safe for transferable worklet postMessage)
     const ch0 = buf.getChannelData(0);
@@ -83,7 +92,7 @@ export async function loadBlobToDeck(
     }
 
     const analysis = await analyzeAudio(L, R, buf.sampleRate);
-    const autoGain = Math.max(0.35, Math.min(2.2, 0.22 / Math.max(0.03, analysis.rms)));
+    const autoGain = computeAutoGain(analysis.rms);
     const cues = buildPhraseCues(analysis.firstBeat, analysis.bpm, analysis.wave.duration);
 
     const info: TrackInfo = {
@@ -120,10 +129,12 @@ export async function loadBlobToDeck(
       await updateTrack(id, { bpm: analysis.bpm, duration: analysis.wave.duration });
     }
 
-    await djEngine.loadTrack(d, info, L, R, buf.sampleRate);
+    if (loadSeq[d] === seq) {
+      await djEngine.loadTrack(d, info, L, R, buf.sampleRate);
+    }
     return stored;
   } finally {
-    djEngine.setLoading(d, null);
+    if (loadSeq[d] === seq) djEngine.setLoading(d, null);
   }
 }
 

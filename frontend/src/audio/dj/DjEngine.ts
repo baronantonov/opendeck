@@ -7,7 +7,7 @@
 // UI подписывается через subscribe()/version (useSyncExternalStore), а позиции
 // читает каждый кадр через getPos() — без лишних ре-рендеров.
 
-import { WORKLET_SOURCE, createMainThreadCore } from './dspCore';
+import { WORKLET_SOURCE, createMainThreadDualCore } from './dspCore';
 import { BeatFx, FxType } from './fx';
 import type { WaveData } from './analysis';
 
@@ -62,6 +62,14 @@ interface SlipAnchor {
   rate: number;
 }
 
+interface CoreReport {
+  p: number;
+  s: number;
+  e?: boolean;
+  m?: number;
+  q?: number;
+}
+
 interface Runtime {
   post: (m: Record<string, unknown>, transfer?: Transferable[]) => void;
   rpos: number;
@@ -69,6 +77,9 @@ interface Runtime {
   rstamp: number;
   seekPending: number | null;
   seekAt: number;
+  seekSeq: number;
+  nextSeq: number;
+  halfMul: number;
   cuePreview: boolean;
   slipScratch: SlipAnchor | null;
   slipLoop: SlipAnchor | null;
@@ -89,6 +100,13 @@ const clamp = (v: number, a: number, b: number) => (v < a ? a : v > b ? b : v);
 const frac = (v: number) => v - Math.floor(v);
 const other = (d: DeckId): DeckId => (d === 'A' ? 'B' : 'A');
 
+/** Быстрая клубная кривая кроссфейдера: входящий трек открывается сразу от края, центр без провала. */
+function xfCurve(open: number): number {
+  const x = clamp(open, 0, 1);
+  if (x <= 0) return 0;
+  return Math.sin(Math.min(1, Math.pow(x / 0.65, 0.5)) * 0.5 * Math.PI);
+}
+
 function initialDeck(id: DeckId): DeckState {
   return {
     id,
@@ -99,7 +117,7 @@ function initialDeck(id: DeckId): DeckState {
     tempo: 0,
     tempoRange: 0.1,
     bend: 0,
-    sync: true,
+    sync: false,
     slip: false,
     quantize: true,
     scratching: false,
@@ -115,7 +133,7 @@ function initialDeck(id: DeckId): DeckState {
 
 function eqDb(v: number): number {
   if (v >= 0) return 6 * v;
-  if (v <= -0.97) return -40;
+  if (v <= -0.96) return -40;
   return 26 * v;
 }
 
@@ -128,9 +146,11 @@ class DjEngine {
   version = 0;
 
   private rt: Partial<Record<DeckId, Runtime>> = {};
+  private sendCore: ((m: Record<string, unknown>, transfer?: Transferable[]) => void) | null = null;
   private listeners = new Set<() => void>();
   private ready: Promise<void> | null = null;
   private unlocked = false;
+  private suspendTimer: number | null = null;
 
   // ------------------------------------------------------------ store
   subscribe = (fn: () => void) => {
@@ -195,37 +215,58 @@ class DjEngine {
 
     let worklet = false;
     if (ctx.audioWorklet && typeof AudioWorkletNode === 'function') {
+      const url = URL.createObjectURL(new Blob([WORKLET_SOURCE], { type: 'text/javascript' }));
       try {
-        const url = URL.createObjectURL(new Blob([WORKLET_SOURCE], { type: 'text/javascript' }));
         await ctx.audioWorklet.addModule(url);
         worklet = true;
       } catch (e) {
         console.warn('[dj] AudioWorklet unavailable, fallback to ScriptProcessor', e);
+      } finally {
+        URL.revokeObjectURL(url);
       }
     }
     this.usingWorklet = worklet;
 
-    for (const d of DECK_IDS) {
-      let src: AudioNode;
-      let post: Runtime['post'];
-      if (worklet) {
-        const node = new AudioWorkletNode(ctx, 'od-deck', { numberOfInputs: 0, numberOfOutputs: 1, outputChannelCount: [2] });
-        node.port.onmessage = (e: MessageEvent) => this.onReport(d, e.data);
-        post = (m, tr) => node.port.postMessage(m, tr || []);
-        src = node;
-      } else {
-        const core = createMainThreadCore(ctx.sampleRate);
-        const sp = ctx.createScriptProcessor(1024, 1, 2);
-        sp.onaudioprocess = (ev) => {
-          const o = ev.outputBuffer;
-          core.render(o.getChannelData(0), o.getChannelData(1), o.length);
-          this.onReport(d, { p: core.pos / core.srcSr, s: core.speed, e: core.endedFlag });
-          core.endedFlag = false;
-        };
-        post = (m) => core.msg(m);
-        src = sp;
-      }
+    let workletNode: AudioWorkletNode | null = null;
+    let spSplitter: ChannelSplitterNode | null = null;
+    let spMergerA: ChannelMergerNode | null = null;
+    let spMergerB: ChannelMergerNode | null = null;
 
+    if (worklet) {
+      workletNode = new AudioWorkletNode(ctx, 'od-dual-deck', {
+        numberOfInputs: 0,
+        numberOfOutputs: 2,
+        outputChannelCount: [2, 2],
+      });
+      workletNode.port.onmessage = (e: MessageEvent<{ A: CoreReport; B: CoreReport }>) => this.onDualReport(e.data);
+      this.sendCore = (m, tr) => workletNode!.port.postMessage(m, tr || []);
+    } else {
+      const core = createMainThreadDualCore(ctx.sampleRate);
+      const sp = ctx.createScriptProcessor(1024, 1, 4);
+      spSplitter = ctx.createChannelSplitter(4);
+      spMergerA = ctx.createChannelMerger(2);
+      spMergerB = ctx.createChannelMerger(2);
+      sp.connect(spSplitter);
+      spSplitter.connect(spMergerA, 0, 0);
+      spSplitter.connect(spMergerA, 1, 1);
+      spSplitter.connect(spMergerB, 2, 0);
+      spSplitter.connect(spMergerB, 3, 1);
+      sp.onaudioprocess = (ev) => {
+        const o = ev.outputBuffer;
+        core.renderDual(o.getChannelData(0), o.getChannelData(1), o.getChannelData(2), o.getChannelData(3), o.length);
+        const a = core.decks[0];
+        const b = core.decks[1];
+        this.onDualReport({
+          A: { p: a.pos / Math.max(1, a.srcSr), s: a.speed, e: a.endedFlag, m: a.mode, q: a.seq },
+          B: { p: b.pos / Math.max(1, b.srcSr), s: b.speed, e: b.endedFlag, m: b.mode, q: b.seq },
+        });
+        a.endedFlag = false;
+        b.endedFlag = false;
+      };
+      this.sendCore = (m) => core.msg(m);
+    }
+
+    for (const d of DECK_IDS) {
       const trim = ctx.createGain();
       const eqLow = ctx.createBiquadFilter();
       eqLow.type = 'lowshelf';
@@ -249,7 +290,13 @@ class DjEngine {
       const analyser = ctx.createAnalyser();
       analyser.fftSize = 256;
 
-      src.connect(trim);
+      if (workletNode) {
+        workletNode.connect(trim, d === 'A' ? 0 : 1, 0);
+      } else if (d === 'A' && spMergerA) {
+        spMergerA.connect(trim);
+      } else if (d === 'B' && spMergerB) {
+        spMergerB.connect(trim);
+      }
       trim.connect(eqLow);
       eqLow.connect(eqMid);
       eqMid.connect(eqHigh);
@@ -262,12 +309,15 @@ class DjEngine {
       xf.connect(master);
 
       this.rt[d] = {
-        post,
+        post: (m, tr) => this.sendCore?.({ ...m, d }, tr),
         rpos: 0,
         rspeed: 0,
         rstamp: performance.now(),
         seekPending: null,
         seekAt: 0,
+        seekSeq: 0,
+        nextSeq: 0,
+        halfMul: 1,
         cuePreview: false,
         slipScratch: null,
         slipLoop: null,
@@ -290,6 +340,15 @@ class DjEngine {
 
   /** Вызывать из обработчиков жестов (iOS требует resume внутри user gesture). */
   resume() {
+    if (this.suspendTimer !== null) {
+      window.clearTimeout(this.suspendTimer);
+      this.suspendTimer = null;
+    }
+    const now = performance.now();
+    for (const d of DECK_IDS) {
+      const r = this.r(d);
+      if (r && r.seekPending !== null) r.seekAt = now;
+    }
     const ctx = this.ctx;
     if (!ctx) return;
     if (ctx.state !== 'running') void ctx.resume().catch(() => {});
@@ -312,33 +371,56 @@ class DjEngine {
       if (this.decks[d].playing) this.pause(d);
       if (this.decks[d].scratching) this.scratchEnd(d);
     }
+    if (this.suspendTimer !== null) {
+      window.clearTimeout(this.suspendTimer);
+      this.suspendTimer = null;
+    }
     const ctx = this.ctx;
-    if (ctx) window.setTimeout(() => void ctx.suspend().catch(() => {}), 150);
+    if (ctx) {
+      this.suspendTimer = window.setTimeout(() => {
+        this.suspendTimer = null;
+        void ctx.suspend().catch(() => {});
+      }, 150);
+    }
   }
 
   private r(d: DeckId): Runtime | null {
     return this.rt[d] ?? null;
   }
 
-  // ------------------------------------------------------------ position
-  private onReport(d: DeckId, m: { p: number; s: number; e?: boolean }) {
-    const r = this.r(d);
-    if (!r) return;
+  // ------------------------------------------------------------ position (единый сэмпл-синхронный отчёт!)
+  private onDualReport(msg: { A: CoreReport; B: CoreReport }) {
     const now = performance.now();
-    if (r.seekPending !== null) {
-      if (Math.abs(m.p - r.seekPending) < 0.08 || now - r.seekAt > 160) r.seekPending = null;
-      else return;
+    for (const d of DECK_IDS) {
+      const m = msg[d];
+      const r = this.r(d);
+      if (!r || !m) continue;
+      if (r.seekPending !== null) {
+        const q = typeof m.q === 'number' ? m.q : r.seekSeq;
+        if (q === r.seekSeq || now - r.seekAt > 200) r.seekPending = null;
+        else continue;
+      }
+      r.rpos = m.p;
+      r.rspeed = m.s;
+      r.rstamp = now;
+      if (m.e) this.onEnded(d);
     }
-    r.rpos = m.p;
-    r.rspeed = m.s;
-    r.rstamp = now;
-    if (m.e) this.onEnded(d);
   }
 
   private latency(): number {
     const c = this.ctx as (AudioContext & { outputLatency?: number }) | null;
     if (!c) return 0;
     return Math.min(0.25, (c.outputLatency || 0) + (c.baseLatency || 0));
+  }
+
+  /** Текущая позиция (сек) внутри аудио-ворклета (без вычета outputLatency). */
+  private enginePos(d: DeckId): number {
+    const k = this.decks[d];
+    const r = this.r(d);
+    if (!k.track || !r) return 0;
+    if (r.seekPending !== null) return r.seekPending;
+    const dt = Math.min(0.08, (performance.now() - r.rstamp) / 1000);
+    return clamp(r.rpos + r.rspeed * dt, 0, k.track.duration);
   }
 
   /** Позиция (сек), которую сейчас слышно (с учётом задержки вывода). */
@@ -376,7 +458,8 @@ class DjEngine {
     const tr = this.decks[d].track;
     if (!tr) return t;
     const bl = 60 / tr.bpm;
-    return Math.max(0, tr.firstBeat + Math.round((t - tr.firstBeat) / bl) * bl);
+    const snapped = Math.max(0, tr.firstBeat + Math.round((t - tr.firstBeat) / bl) * bl);
+    return Math.min(Math.max(0, tr.duration - 0.05), snapped);
   }
 
   private nextBeatTime(d: DeckId): number {
@@ -405,12 +488,26 @@ class DjEngine {
   }
 
   // ------------------------------------------------------------ transport
-  private applySpeed(d: DeckId, tau: number) {
+  private applySpeed(
+    d: DeckId,
+    tau: number,
+    opts?: { instant?: boolean; align?: boolean; alignFollower?: boolean },
+  ) {
     const k = this.decks[d];
     const r = this.r(d);
     if (!r || k.scratching) return;
-    const v = k.playing ? (1 + k.tempo) * (1 + k.bend) : 0;
-    r.post({ t: 'speed', v, tau });
+    const v = k.playing ? (1 + k.tempo) * clamp(1 + k.bend, 0.2, 4) : 0;
+    r.post({
+      t: 'speed',
+      v,
+      tau,
+      master: this.master,
+      halfMul: r.halfMul,
+      bend: Math.abs(k.bend) >= 1e-4,
+      instant: opts?.instant ?? false,
+      align: opts?.align ?? false,
+      alignFollower: opts?.alignFollower ?? false,
+    });
     r.fx.setBpm(this.effBpm(d) || 128);
   }
 
@@ -419,23 +516,40 @@ class DjEngine {
     const r = this.r(d);
     if (!k.track || k.loading || !r) return;
     this.resume();
-    if (this.getPos(d) >= k.track.duration - 0.05) this.seek(d, k.cue);
-    const o = this.decks[other(d)];
-    if (k.sync && o.track && o.playing && this.master !== d) {
-      this.matchTempo(d);
-      this.alignPhase(d);
+    if (this.enginePos(d) >= k.track.duration - 0.05) this.seek(d, k.cue);
+    const oId = other(d);
+    const o = this.decks[oId];
+    let align = false;
+    let alignFollower = false;
+
+    if (k.sync && o.track && (o.playing || !o.sync)) {
+      this.master = oId;
+      this.syncTempoUi(d);
+      align = o.playing;
+    } else {
+      if (!o.playing || (!k.sync && o.sync)) this.master = d;
+      if (o.playing && o.sync && o.track) {
+        this.syncTempoUi(oId);
+        alignFollower = true;
+      }
     }
-    if (!o.playing) this.master = d;
     r.cuePreview = false;
     this.patch(d, { playing: true });
-    this.applySpeed(d, 0.008);
+    this.applySpeed(d, 0.004, { instant: true, align, alignFollower });
     this.emit();
+  }
+
+  private releaseMasterOnStop(d: DeckId) {
+    if (this.master === d && this.decks[other(d)].playing) {
+      this.master = other(d);
+    }
   }
 
   pause(d: DeckId) {
     const r = this.r(d);
     if (r) r.cuePreview = false;
     this.patch(d, { playing: false });
+    this.releaseMasterOnStop(d);
     this.applySpeed(d, 0.025);
     this.emit();
   }
@@ -444,6 +558,12 @@ class DjEngine {
     const r = this.r(d);
     if (r?.cuePreview) {
       r.cuePreview = false; // PLAY во время удержания CUE — продолжаем играть
+      const k = this.decks[d];
+      const o = this.decks[other(d)];
+      if (k.sync && o.track && o.playing && this.master !== d) {
+        this.syncTempoUi(d);
+        this.alignPhase(d);
+      }
       this.emit();
       return;
     }
@@ -455,10 +575,11 @@ class DjEngine {
   cueDown(d: DeckId) {
     const k = this.decks[d];
     const r = this.r(d);
-    if (!k.track || !r) return;
+    if (!k.track || k.loading || !r) return;
     this.resume();
     if (k.playing && !r.cuePreview) {
       this.patch(d, { playing: false });
+      this.releaseMasterOnStop(d);
       this.applySpeed(d, 0.004);
       this.seek(d, k.cue);
       this.emit();
@@ -466,9 +587,17 @@ class DjEngine {
     }
     const pos = this.getPos(d);
     if (Math.abs(pos - k.cue) < 0.03) {
+      const oId = other(d);
+      const o = this.decks[oId];
+      let align = false;
+      if (k.sync && o.track && (o.playing || !o.sync)) {
+        this.master = oId;
+        this.syncTempoUi(d);
+        align = o.playing;
+      }
       r.cuePreview = true;
       this.patch(d, { playing: true });
-      this.applySpeed(d, 0.006);
+      this.applySpeed(d, 0.004, { instant: true, align });
     } else {
       const cue = k.quantize ? this.snapBeat(d, pos) : pos;
       this.patch(d, { cue });
@@ -482,17 +611,21 @@ class DjEngine {
     if (!r?.cuePreview) return;
     r.cuePreview = false;
     this.patch(d, { playing: false });
+    this.releaseMasterOnStop(d);
     this.applySpeed(d, 0.004);
     this.seek(d, this.decks[d].cue);
     this.emit();
   }
 
-  seek(d: DeckId, t: number) {
+  seek(d: DeckId, t: number, alignPhase?: boolean) {
     const k = this.decks[d];
     const r = this.r(d);
     if (!k.track || !r) return;
     const v = clamp(t, 0, Math.max(0, k.track.duration - 0.02));
-    r.post({ t: 'seek', v });
+    const align = alignPhase ?? (k.sync && this.master !== d && k.playing && this.decks[other(d)].playing);
+    r.nextSeq += 1;
+    r.seekSeq = r.nextSeq;
+    r.post({ t: 'seek', v, q: r.seekSeq, align });
     const now = performance.now();
     r.seekPending = v;
     r.seekAt = now;
@@ -518,9 +651,9 @@ class DjEngine {
     this.emit();
   }
 
-  /** disp — смещение пластины с начала касания (сек аудио), vel — скорость (1 = номинал). */
-  scratchMove(d: DeckId, disp: number, vel: number) {
-    this.r(d)?.post({ t: 'scratch', d: disp, v: vel });
+  /** dDisp — дельта смещения пластины (сек аудио), vel — скорость (1 = номинал). */
+  scratchMove(d: DeckId, dDisp: number, vel: number) {
+    this.r(d)?.post({ t: 'scratch', dd: dDisp, v: vel });
   }
 
   scratchEnd(d: DeckId) {
@@ -528,18 +661,21 @@ class DjEngine {
     const r = this.r(d);
     if (!r || !k.scratching) return;
     this.patch(d, { scratching: false });
+    const o = this.decks[other(d)];
     if (r.slipScratch && this.ctx) {
       const s = r.slipScratch;
       r.slipScratch = null;
-      if (k.playing) this.seek(d, s.pos + (this.ctx.currentTime - s.at) * s.rate);
+      if (k.playing) this.seek(d, s.pos + (this.ctx.currentTime - s.at) * s.rate, k.sync && this.master !== d && o.playing);
     }
-    this.applySpeed(d, k.playing ? 0.05 : 0.012);
-    const o = this.decks[other(d)];
-    if (k.sync && k.playing && o.playing && this.master !== d) {
-      window.setTimeout(() => {
-        if (!this.decks[d].scratching) this.alignPhase(d);
-      }, 140);
-    }
+    const v = k.playing ? (1 + k.tempo) * clamp(1 + k.bend, 0.2, 4) : 0;
+    const align = k.sync && k.playing && o.playing && this.master !== d;
+    r.post({
+      t: 'scratchEnd',
+      playing: k.playing,
+      v,
+      tau: k.playing ? 0.04 : 0.012,
+      align,
+    });
     this.emit();
   }
 
@@ -556,59 +692,107 @@ class DjEngine {
     const k = this.decks[d];
     const tempo = clamp(t, -k.tempoRange, k.tempoRange);
     const p: Partial<DeckState> = { tempo };
-    if (fromUser && k.sync && this.master !== d && this.decks[other(d)].track) p.sync = false;
+    const oId = other(d);
+    if (fromUser && k.sync && this.master !== d && this.decks[oId].track) p.sync = false;
     this.patch(d, p);
-    this.applySpeed(d, 0.05);
-    const o = other(d);
-    if (this.decks[o].sync && this.master === d) this.matchTempo(o);
+    if (p.sync === false) {
+      this.master = this.decks[oId].sync ? d : this.master;
+      this.r(d)?.post({ t: 'sync', on: false, master: this.master, halfMul: 1 });
+    }
+    this.applySpeed(d, 0.02);
+    if (this.decks[oId].sync && this.master === d) {
+      const halfMul = this.syncTempoUi(oId);
+      const ro = this.r(oId);
+      const ko = this.decks[oId];
+      if (ro) {
+        ro.post({
+          t: 'sync',
+          on: true,
+          master: this.master,
+          halfMul,
+          v: ko.playing ? (1 + this.decks[oId].tempo) * clamp(1 + ko.bend, 0.2, 4) : undefined,
+          align: false,
+        });
+      }
+    }
     this.emit();
   }
 
   setTempoRange(d: DeckId, range: number) {
     const k = this.decks[d];
     this.patch(d, { tempoRange: range, tempo: clamp(k.tempo, -range, range) });
-    this.applySpeed(d, 0.05);
+    this.applySpeed(d, 0.02);
+    const oId = other(d);
+    if (this.decks[oId].sync && this.master === d) {
+      const halfMul = this.syncTempoUi(oId);
+      const ro = this.r(oId);
+      const ko = this.decks[oId];
+      if (ro) {
+        ro.post({
+          t: 'sync',
+          on: true,
+          master: this.master,
+          halfMul,
+          v: ko.playing ? (1 + this.decks[oId].tempo) * clamp(1 + ko.bend, 0.2, 4) : undefined,
+          align: false,
+        });
+      }
+    }
     this.emit();
   }
 
-  private matchTempo(d: DeckId) {
+  /** Вычисляет pitch/halfMul ведомой деки относительно мастера и обновляет UI/FX без дрейфа в DSP. */
+  private syncTempoUi(d: DeckId): number {
     const k = this.decks[d];
-    const o = this.decks[other(d)];
-    if (!k.track || !o.track) return;
-    let ratio = (o.track.bpm * (1 + o.tempo)) / k.track.bpm;
-    if (ratio > 1.5) ratio /= 2;
-    else if (ratio < 0.75) ratio *= 2;
-    const t = clamp(ratio - 1, -0.5, 0.5);
+    const mId = this.master === d ? other(d) : this.master;
+    const m = this.decks[mId];
+    const r = this.r(d);
+    if (!k.track || !m.track || !k.track.bpm || !m.track.bpm) return 1;
+    const raw = (m.track.bpm * (1 + m.tempo)) / k.track.bpm;
+    let halfMul = 1;
+    if (raw > 1.5) halfMul = 0.5;
+    else if (raw < 0.75) halfMul = 2;
+    const t = clamp(raw * halfMul - 1, -0.5, 0.5);
     let range = k.tempoRange;
     if (Math.abs(t) > range) range = TEMPO_RANGES.find((x) => x >= Math.abs(t)) ?? 0.5;
+    if (r) r.halfMul = halfMul;
     this.patch(d, { tempo: t, tempoRange: range });
-    this.applySpeed(d, 0.05);
+    r?.fx.setBpm(k.track.bpm * (1 + t));
+    return halfMul;
   }
 
   alignPhase(d: DeckId) {
     const k = this.decks[d];
     const o = this.decks[other(d)];
-    if (!k.track || !o.track) return;
-    const pM = this.getPos(other(d));
-    const pD = this.getPos(d);
-    const effM = this.effBpm(other(d));
-    const effD = this.effBpm(d);
-    if (!effM || !effD) return;
-    const target = frac((this.beatAt(other(d), pM) * effD) / effM);
-    let diff = target - frac(this.beatAt(d, pD));
-    if (diff > 0.5) diff -= 1;
-    if (diff < -0.5) diff += 1;
-    if (Math.abs(diff) < 0.004) return;
-    this.seek(d, pD + diff * this.beatLen(d));
+    const r = this.r(d);
+    if (!k.track || !o.track || !r) return;
+    r.post({ t: 'sync', on: k.sync, master: this.master, halfMul: r.halfMul, align: true });
   }
 
   setSync(d: DeckId, on: boolean) {
-    const o = other(d);
+    const oId = other(d);
+    const k = this.decks[d];
+    const o = this.decks[oId];
+    const r = this.r(d);
     this.patch(d, { sync: on });
-    if (on && this.decks[o].track) {
-      this.master = o;
-      this.matchTempo(d);
-      if (this.decks[d].playing && this.decks[o].playing) this.alignPhase(d);
+    if (on && o.track) {
+      if (k.playing && !o.playing && o.sync) {
+        this.master = d;
+        const halfMul = this.syncTempoUi(oId);
+        this.r(oId)?.post({ t: 'sync', on: true, master: this.master, halfMul, align: false });
+        r?.post({ t: 'sync', on: true, master: this.master, halfMul: r.halfMul, align: false });
+      } else {
+        this.master = oId;
+        const halfMul = this.syncTempoUi(d);
+        const align = k.playing && o.playing;
+        const v = k.playing ? (1 + this.decks[d].tempo) * clamp(1 + k.bend, 0.2, 4) : undefined;
+        r?.post({ t: 'sync', on: true, master: this.master, halfMul, v, align });
+      }
+    } else if (!on) {
+      if (o.sync && o.track) this.master = d;
+      r?.post({ t: 'sync', on: false, master: this.master, halfMul: 1 });
+      this.applySpeed(d, 0.02);
+      if (o.sync && o.track && this.master === d) this.syncTempoUi(oId);
     }
     this.emit();
   }
@@ -689,12 +873,16 @@ class DjEngine {
       const q = Math.min(1, beats) * bl;
       start = k.quantize ? k.track.firstBeat + Math.floor((pos - k.track.firstBeat) / q + 1e-6) * q : pos;
       if (start < 0) start = 0;
+      if (start >= k.track.duration - 0.05) {
+        start = Math.max(0, k.track.duration - Math.max(0.05, beats * bl));
+      }
       if (k.slip && k.playing && this.ctx) r.slipLoop = { pos, at: this.ctx.currentTime, rate: 1 + k.tempo };
     }
     const end = Math.min(k.track.duration - 0.01, start + beats * bl);
+    if (end - start < 0.04) start = Math.max(0, end - 0.04);
     r.post({ t: 'loop', s: start, e: end });
-    if (pos >= end || pos < start) {
-      const len = end - start;
+    const len = end - start;
+    if (len > 0 && (pos >= end || pos < start)) {
       this.seek(d, start + (((pos - start) % len) + len) % len);
     }
     this.patch(d, { loop: { start, end, beats } });
@@ -753,8 +941,8 @@ class DjEngine {
     if (!ctx) return;
     const v = this.crossfader;
     const now = ctx.currentTime;
-    this.r('A')?.xf.gain.setTargetAtTime(Math.cos(v * 0.5 * Math.PI), now, 0.01);
-    this.r('B')?.xf.gain.setTargetAtTime(Math.cos((1 - v) * 0.5 * Math.PI), now, 0.01);
+    this.r('A')?.xf.gain.setTargetAtTime(xfCurve(1 - v), now, 0.004);
+    this.r('B')?.xf.gain.setTargetAtTime(xfCurve(v), now, 0.004);
   }
 
   setEq(d: DeckId, band: 'hi' | 'mid' | 'low', v: number) {
@@ -790,7 +978,7 @@ class DjEngine {
   /** Сколько дека слышна в мастере (канал × кроссфейдер), 0..1 */
   audibility(d: DeckId): number {
     const k = this.decks[d];
-    const x = d === 'A' ? Math.cos(this.crossfader * 0.5 * Math.PI) : Math.cos((1 - this.crossfader) * 0.5 * Math.PI);
+    const x = d === 'A' ? xfCurve(1 - this.crossfader) : xfCurve(this.crossfader);
     return Math.pow(k.fader, 1.5) * x;
   }
 
@@ -827,7 +1015,7 @@ class DjEngine {
     r.cuePreview = false;
     const transfer: Transferable[] = [L.buffer as ArrayBuffer];
     if (R) transfer.push(R.buffer as ArrayBuffer);
-    r.post({ t: 'load', L, R, sr }, this.usingWorklet ? transfer : undefined);
+    r.post({ t: 'load', L, R, sr, bpm: info.bpm, fb: info.firstBeat }, this.usingWorklet ? transfer : undefined);
 
     let hotCues: (number | null)[] = Array(HOT_CUE_COUNT).fill(null);
     try {
@@ -845,9 +1033,23 @@ class DjEngine {
     r.rpos = 0;
     r.rspeed = 0;
     r.rstamp = performance.now();
-    if (firstGrid > 0) this.seek(d, firstGrid);
+    r.seekSeq = 0;
+    r.nextSeq = 0;
+    r.seekPending = null;
+    if (firstGrid > 0) this.seek(d, firstGrid, false);
     const o = other(d);
-    if (this.decks[d].sync && this.decks[o].track && this.master !== d) this.matchTempo(d);
+    if (this.decks[o].playing && this.decks[d].sync) {
+      this.master = o;
+      const halfMul = this.syncTempoUi(d);
+      r.post({ t: 'sync', on: true, master: this.master, halfMul, align: false });
+    } else if (!this.decks[o].playing && this.decks[o].sync && this.decks[o].track && (!this.decks[d].sync || this.master === d)) {
+      this.master = d;
+      const halfMul = this.syncTempoUi(o);
+      this.r(o)?.post({ t: 'sync', on: true, master: this.master, halfMul, align: false });
+    } else if (this.decks[d].sync && this.decks[o].track && this.master !== d) {
+      const halfMul = this.syncTempoUi(d);
+      r.post({ t: 'sync', on: true, master: this.master, halfMul, align: false });
+    }
     this.applyMixer(d);
     this.applySpeed(d, 0.01);
     this.emit();

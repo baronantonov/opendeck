@@ -159,10 +159,12 @@ export function useNavigation(): NavigationContextType {
  */
 export function useRegisterModal(id: string, isOpen: boolean, onClose: () => void) {
   const { registerModal } = useNavigation();
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   useEffect(() => {
     if (!isOpen) return;
-    const unregister = registerModal(id, onClose);
+    const unregister = registerModal(id, () => onCloseRef.current());
     return unregister;
-  }, [id, isOpen, onClose, registerModal]);
+  }, [id, isOpen, registerModal]);
 }

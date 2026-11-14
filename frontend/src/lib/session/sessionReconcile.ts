@@ -39,7 +39,7 @@ export function extractCompletedNumbers(
       ...(isTampered ? [] : securedLessons),
     ]),
   ).sort((a, b) => a - b);
-  return merged.length > 0 ? merged : [1];
+  return merged;
 }
 
 export function reconcileInitialCourse(
@@ -47,7 +47,7 @@ export function reconcileInitialCourse(
   secured: SecuredProgressResult,
 ): CourseProgress {
   if (secured.isTampered) {
-    return { ...base, completedLessons: [1] };
+    return { ...base, completedLessons: [] };
   }
   const mergedLessons =
     secured.completedLessons.length > 0 ? secured.completedLessons : base.completedLessons;
@@ -68,7 +68,7 @@ export function reconcileInitialPaid(
     saveSecuredProgress(
       uid,
       true,
-      secured.completedLessons.length > 0 ? secured.completedLessons : [1],
+      secured.completedLessons,
     );
   }
   return securedPaid || cachedPaid;
@@ -166,7 +166,7 @@ export function reconcileSecuredProgress(
 
   if (isActuallyPaid) {
     const effectiveLessons = extractCompletedNumbers(
-      init?.course.completed_lessons || lessons?.completed || [1],
+      init?.course.completed_lessons || lessons?.completed || [],
       localSecured.completedLessons,
       localSecured.isTampered,
     );

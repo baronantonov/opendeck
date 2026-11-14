@@ -211,14 +211,14 @@ export function loadSecuredProgress(userId?: number | string): {
   const key = getStorageKey(uid);
 
   if (typeof window === 'undefined') {
-    return { isCoursePurchased: false, completedLessons: [1], isValid: true, isTampered: false };
+    return { isCoursePurchased: false, completedLessons: [], isValid: true, isTampered: false };
   }
 
   try {
     const raw = localStorage.getItem(key);
     if (!raw) {
       // Инициализируем безопасный дефолт и подписываем его
-      const defaultState = saveSecuredProgress(uid, false, [1]);
+      const defaultState = saveSecuredProgress(uid, false, []);
       return {
         isCoursePurchased: defaultState.isCoursePurchased,
         completedLessons: defaultState.completedLessons,
@@ -233,10 +233,10 @@ export function loadSecuredProgress(userId?: number | string): {
     if (!isValid) {
       console.warn('[SecurityGuard] State tampering detected for user:', uid);
       // Сброс до безопасного дефолта
-      saveSecuredProgress(uid, false, [1]);
+      saveSecuredProgress(uid, false, []);
       return {
         isCoursePurchased: false,
-        completedLessons: [1],
+        completedLessons: [],
         isValid: false,
         isTampered: true,
       };
@@ -250,10 +250,10 @@ export function loadSecuredProgress(userId?: number | string): {
     };
   } catch (err) {
     console.error('[SecurityGuard] Error loading secured progress:', err);
-    saveSecuredProgress(uid, false, [1]);
+    saveSecuredProgress(uid, false, []);
     return {
       isCoursePurchased: false,
-      completedLessons: [1],
+      completedLessons: [],
       isValid: false,
       isTampered: true,
     };
@@ -304,7 +304,7 @@ export function saveSecuredProgress(
  */
 export function resetSecuredProgress(userId?: number | string): SecuredProgressState {
   const uid = userId ?? getEffectiveUserId();
-  return saveSecuredProgress(uid, false, [1]);
+  return saveSecuredProgress(uid, false, []);
 }
 
 /**
@@ -373,8 +373,7 @@ export function guardTribeAccess(
 
   if (isPurchased || secured.isCoursePurchased) {
     if (!secured.isCoursePurchased) {
-      const lessonsToKeep = secured.completedLessons.length > 0 ? secured.completedLessons : [1];
-      saveSecuredProgress(userId, true, lessonsToKeep);
+      saveSecuredProgress(userId, true, secured.completedLessons);
     }
     return { allowed: true, reason: 'ok' };
   }

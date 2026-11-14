@@ -110,7 +110,7 @@ export function CourseProgressProvider({ children }: { children: ReactNode }) {
     resetSecuredProgress(userId);
     setPaid(false, false);
     setCourse({
-      completedLessons: [1],
+      completedLessons: [],
       currentLessonId: 1,
       freeLessons: 1,
     });

@@ -60,37 +60,17 @@ export function LessonScreen() {
     setIsFinishing(false);
   }, [lessonId, alreadyCompleted, isFirstLesson]);
 
-  // Настройка Telegram WebApp SDK: защита от свайпов и перехват нативной кнопки «Назад»
+  // Настройка Telegram WebApp SDK: защита от свайпов (кнопкой «Назад» управляет NavigationProvider)
   useEffect(() => {
     const tw = getTelegramWebApp();
 
     try {
       tw?.disableVerticalSwipes?.();
       tw?.enableClosingConfirmation?.();
-      tw?.BackButton?.show?.();
     } catch {
       /* fallback */
     }
-
-    const handleBack = () => {
-      haptic('light');
-      navigate('/learn');
-    };
-
-    try {
-      tw?.BackButton?.onClick?.(handleBack);
-    } catch {
-      /* fallback */
-    }
-
-    return () => {
-      try {
-        tw?.BackButton?.offClick?.(handleBack);
-      } catch {
-        /* fallback */
-      }
-    };
-  }, [navigate]);
+  }, []);
 
   // Если доступ заблокирован (например, попытка перехода по URL без сдачи предыдущих уроков)
   useEffect(() => {
@@ -161,7 +141,14 @@ export function LessonScreen() {
 
   const canComplete = isFirstLesson || videoFinished || alreadyCompleted;
   const videoSourceUrl = resolveVideoSource(lesson);
-  const fallbackLessonForDeck = COURSE_LESSONS[lessonIndex] || COURSE_LESSONS[0];
+  const fallbackLessonForDeck = useMemo(
+    () => ({
+      ...(COURSE_LESSONS[lessonIndex] || COURSE_LESSONS[0]),
+      id: lessonId,
+      isCompleted: alreadyCompleted,
+    }),
+    [lessonIndex, lessonId, alreadyCompleted],
+  );
   const tw = getTelegramWebApp();
   const isInsideTelegram = Boolean(tw?.initData);
 

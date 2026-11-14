@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import {
   DeckId,
   DeckState,
@@ -17,6 +17,166 @@ const CORAL = '#f5926e';
 const MINT = '#00f0b5';
 const SYNC_BLUE = '#1a73e8';
 const GROOVES = Array.from({ length: 15 }, (_, i) => 16.5 + i * 1.3);
+
+export const DeckOrientationContext = createContext<{ portrait: boolean; flip180: boolean }>({
+  portrait: false,
+  flip180: false,
+});
+
+interface TouchSliderProps {
+  value: number;
+  min: number;
+  max: number;
+  defaultValue: number;
+  centerSnap?: number;
+  accentColor: string;
+  ariaLabel: string;
+  haptic: HapticHelper;
+  onChange: (value: number) => void;
+  className?: string;
+}
+
+const TouchSlider: React.FC<TouchSliderProps> = ({
+  value,
+  min,
+  max,
+  defaultValue,
+  centerSnap = 0,
+  accentColor,
+  ariaLabel,
+  haptic,
+  onChange,
+  className = 'w-full',
+}) => {
+  const { flip180 } = useContext(DeckOrientationContext);
+  const trackRef = useRef<HTMLDivElement>(null);
+  const pointerIdRef = useRef<number | null>(null);
+  const lastTapRef = useRef<{ at: number; x: number; y: number }>({ at: 0, x: 0, y: 0 });
+  const span = Math.max(1e-6, max - min);
+  const clamped = Math.max(min, Math.min(max, value));
+  const pct = ((clamped - min) / span) * 100;
+  const bipolar = min < 0 && max > 0;
+
+  const updateFromClient = (clientX: number, clientY: number) => {
+    const el = trackRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const raw =
+      rect.height > rect.width
+        ? flip180
+          ? (rect.bottom - clientY) / Math.max(1, rect.height)
+          : (clientY - rect.top) / Math.max(1, rect.height)
+        : (clientX - rect.left) / Math.max(1, rect.width);
+    const frac = Math.max(0, Math.min(1, raw));
+    let next = min + frac * span;
+    if (centerSnap > 0 && Math.abs(next) <= centerSnap) next = 0;
+    else next = Math.round(next * 10) / 10;
+    onChange(next);
+  };
+
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (pointerIdRef.current !== null) return;
+    e.preventDefault();
+    e.stopPropagation();
+
+    const now = performance.now();
+    const prev = lastTapRef.current;
+    if (now - prev.at < 280 && Math.hypot(e.clientX - prev.x, e.clientY - prev.y) < 18) {
+      lastTapRef.current = { at: 0, x: 0, y: 0 };
+      haptic.light();
+      onChange(defaultValue);
+      return;
+    }
+    lastTapRef.current = { at: now, x: e.clientX, y: e.clientY };
+
+    pointerIdRef.current = e.pointerId;
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {
+      /* ignore */
+    }
+    updateFromClient(e.clientX, e.clientY);
+  };
+
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (pointerIdRef.current !== e.pointerId) return;
+    e.preventDefault();
+    e.stopPropagation();
+    updateFromClient(e.clientX, e.clientY);
+  };
+
+  const endDrag = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (pointerIdRef.current !== e.pointerId) return;
+    pointerIdRef.current = null;
+    try {
+      if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+        e.currentTarget.releasePointerCapture(e.pointerId);
+      }
+    } catch {
+      /* ignore */
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    const step = span * 0.05;
+    let next = clamped;
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') next = Math.max(min, clamped - step);
+    else if (e.key === 'ArrowRight' || e.key === 'ArrowUp') next = Math.min(max, clamped + step);
+    else if (e.key === 'Home') next = defaultValue;
+    else return;
+    e.preventDefault();
+    if (centerSnap > 0 && Math.abs(next) <= centerSnap) next = 0;
+    onChange(Math.round(next * 10) / 10);
+  };
+
+  return (
+    <div
+      ref={trackRef}
+      role="slider"
+      aria-label={ariaLabel}
+      aria-valuemin={min}
+      aria-valuemax={max}
+      aria-valuenow={Math.round(clamped)}
+      tabIndex={0}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={endDrag}
+      onPointerCancel={endDrag}
+      onLostPointerCapture={endDrag}
+      onKeyDown={handleKeyDown}
+      className={`relative flex h-6 touch-none select-none items-center cursor-pointer focus:outline-none ${className}`}
+      style={{ touchAction: 'none' }}
+    >
+      <div className="relative h-1.5 w-full rounded-full bg-[#2a2a2a]">
+        {bipolar ? (
+          <>
+            <div className="absolute top-[-2px] bottom-[-2px] left-1/2 w-px -translate-x-1/2 bg-[#666]" />
+            <div
+              className="absolute top-0 bottom-0 rounded-full"
+              style={{
+                background: accentColor,
+                left: pct >= 50 ? '50%' : `${pct}%`,
+                width: `${Math.abs(pct - 50)}%`,
+              }}
+            />
+          </>
+        ) : (
+          <div
+            className="absolute top-0 bottom-0 left-0 rounded-full"
+            style={{ background: accentColor, width: `${pct}%` }}
+          />
+        )}
+      </div>
+      <div
+        className="pointer-events-none absolute top-1/2 h-3.5 w-3.5 -translate-y-1/2 rounded-full border border-black/70 shadow"
+        style={{
+          left: `calc(${pct}% - 7px)`,
+          background: accentColor,
+        }}
+      />
+    </div>
+  );
+};
 
 export interface HapticHelper {
   (kind?: 'light' | 'medium' | 'heavy' | 'success' | 'warning' | 'error' | 'selection'): void;
@@ -93,6 +253,7 @@ export const ScratchJogWheel: React.FC<ScratchJogProps> = ({
   }, [id]);
 
   const handlePointerDown = (e: React.PointerEvent<SVGSVGElement>) => {
+    if (dragRef.current) return;
     e.preventDefault();
     e.stopPropagation();
     const svg = svgRef.current;
@@ -173,8 +334,8 @@ export const ScratchJogWheel: React.FC<ScratchJogProps> = ({
     onRotationDelta(dDeg);
 
     if (st.mode === 'scratch') {
-      const dispSec = st.accumDeg / PLATTER_DEG_PER_SEC;
-      djEngine.scratchMove(id, dispSec, st.smoothRate);
+      const dDisp = dDeg / PLATTER_DEG_PER_SEC;
+      djEngine.scratchMove(id, dDisp, st.smoothRate);
 
       // Direction reversal "chirp" haptic
       if (prevRate * st.smoothRate < 0 && Math.abs(st.smoothRate - prevRate) > 0.35 && now - st.lastHapticAt > 24) {
@@ -308,7 +469,7 @@ export const ScratchJogWheel: React.FC<ScratchJogProps> = ({
         fontSize="4.6"
         fontWeight="700"
       >
-        1.00x
+        0.00x
       </text>
       {/* rotating position marker */}
       <g ref={markerRef}>
@@ -435,16 +596,15 @@ export const DeckFxPanel: React.FC<DeckFxPanelProps> = ({ deck, haptic, onCloseP
           <span>DEPTH / LEVEL</span>
           <span className="tabular-nums font-bold text-white">{Math.round(fx.level * 100)}%</span>
         </div>
-        <input
-          type="range"
+        <TouchSlider
+          value={fx.level * 100}
           min={0}
           max={100}
-          value={Math.round(fx.level * 100)}
-          onChange={(e) => {
-            djEngine.setFx(id, { level: Number(e.target.value) / 100 });
-          }}
-          aria-label={`FX depth deck ${id}`}
-          className="h-2 w-full cursor-pointer accent-[#f39321]"
+          defaultValue={60}
+          accentColor={ORANGE}
+          ariaLabel={`FX depth deck ${id}`}
+          haptic={haptic}
+          onChange={(v) => djEngine.setFx(id, { level: v / 100 })}
         />
       </div>
 
@@ -469,17 +629,16 @@ export const DeckFxPanel: React.FC<DeckFxPanelProps> = ({ deck, haptic, onCloseP
             </button>
           )}
         </div>
-        <input
-          type="range"
+        <TouchSlider
+          value={filter * 100}
           min={-100}
           max={100}
-          value={Math.round(filter * 100)}
-          onChange={(e) => {
-            const v = Number(e.target.value) / 100;
-            djEngine.setFilter(id, Math.abs(v) < 0.05 ? 0 : v);
-          }}
-          aria-label={`Color filter deck ${id}`}
-          className="h-2 w-full cursor-pointer accent-[#00f0b5]"
+          defaultValue={0}
+          centerSnap={5}
+          accentColor={MINT}
+          ariaLabel={`Color filter deck ${id}`}
+          haptic={haptic}
+          onChange={(v) => djEngine.setFilter(id, Math.abs(v) < 5 ? 0 : v / 100)}
         />
       </div>
     </div>
@@ -503,16 +662,16 @@ export const DeckPadPanel: React.FC<DeckPadPanelProps> = ({ deck, haptic, onClos
 
   return (
     <div className="flex h-full w-full flex-col justify-between rounded-[6px] border border-[#363636] bg-[#121212] p-2 text-white">
-      <div className="flex items-center justify-between">
-        <span className="text-[10px] font-bold tracking-wider text-[#9a9a9a]">HOT CUE & BEAT LOOP · {id}</span>
-        <div className="flex items-center gap-1">
+      <div className="flex items-center justify-between gap-1">
+        <span className="truncate whitespace-nowrap text-[9.5px] font-bold tracking-wider text-[#9a9a9a]">CUE / LOOP · {id}</span>
+        <div className="flex shrink-0 items-center gap-1">
           {loop && (
             <button
               onClick={() => {
                 haptic.medium();
                 djEngine.exitLoop(id);
               }}
-              className="rounded-[3px] bg-[#f39321] px-2 py-0.5 text-[9px] font-bold text-black"
+              className="whitespace-nowrap shrink-0 rounded-[3px] bg-[#f39321] px-2 py-0.5 text-[9px] font-bold text-black"
             >
               EXIT LOOP
             </button>
@@ -522,7 +681,7 @@ export const DeckPadPanel: React.FC<DeckPadPanelProps> = ({ deck, haptic, onClos
               haptic.light();
               onClosePanel();
             }}
-            className="rounded-[3px] border border-[#484848] bg-[#262626] px-2 py-0.5 text-[10px] font-semibold text-[#ddd]"
+            className="whitespace-nowrap shrink-0 rounded-[3px] border border-[#484848] bg-[#262626] px-2 py-0.5 text-[10px] font-semibold text-[#ddd]"
           >
             ДЖОГ
           </button>
@@ -556,13 +715,14 @@ export const DeckPadPanel: React.FC<DeckPadPanelProps> = ({ deck, haptic, onClos
               </button>
               {has && (
                 <button
+                  onPointerDown={(e) => e.stopPropagation()}
                   onClick={(e) => {
                     e.stopPropagation();
                     haptic.light();
                     djEngine.deleteHotCue(id, idx);
                   }}
                   title="Удалить метку"
-                  className="absolute -top-1 -right-1 z-10 flex h-4 w-4 items-center justify-center rounded-full border border-[#555] bg-black/90 text-[9px] font-bold text-[#bbb] transition-transform active:scale-90 active:text-white"
+                  className="absolute -top-1.5 -right-1.5 z-10 flex h-5 w-5 items-center justify-center rounded-full border border-[#555] bg-black/90 text-[9px] font-bold text-[#bbb] transition-transform active:scale-90 active:text-white"
                 >
                   ✕
                 </button>
@@ -638,16 +798,18 @@ export const DeckTempoPanel: React.FC<DeckTempoPanelProps> = ({ deck, haptic, on
         </span>
       </div>
 
-      <input
-        type="range"
+      <TouchSlider
+        value={(tempo / tempoRange) * 100}
         min={-100}
         max={100}
-        value={Math.round((tempo / tempoRange) * 100)}
-        onChange={(e) => {
-          const norm = Number(e.target.value) / 100;
-          djEngine.setTempo(id, Math.abs(norm) < 0.02 ? 0 : norm * tempoRange);
+        defaultValue={0}
+        centerSnap={2}
+        accentColor={MINT}
+        ariaLabel={`Tempo deck ${id}`}
+        haptic={haptic}
+        onChange={(norm) => {
+          djEngine.setTempo(id, Math.abs(norm) < 2 ? 0 : (norm / 100) * tempoRange);
         }}
-        className="h-2 w-full cursor-pointer accent-[#00f0b5]"
       />
 
       <div className="flex items-center justify-between gap-1">
@@ -728,17 +890,17 @@ export const MixerOverlay: React.FC<MixerOverlayProps> = ({ deckA, deckB, haptic
           return (
             <div key={b.key} className="flex items-center gap-2">
               <span className="w-7 text-[9px] font-bold text-[#aaa]">{b.label}</span>
-              <input
-                type="range"
+              <TouchSlider
+                value={val * 100}
                 min={-100}
                 max={100}
-                value={Math.round(val * 100)}
-                onChange={(e) => {
-                  const v = Number(e.target.value) / 100;
-                  djEngine.setEq(id, b.key, Math.abs(v) < 0.05 ? 0 : v);
-                }}
-                aria-label={`EQ ${b.label} deck ${id}`}
-                className="h-1.5 flex-1 cursor-pointer accent-[#f39321]"
+                defaultValue={0}
+                centerSnap={5}
+                accentColor={ORANGE}
+                ariaLabel={`EQ ${b.label} deck ${id}`}
+                haptic={haptic}
+                className="min-w-0 flex-1"
+                onChange={(v) => djEngine.setEq(id, b.key, Math.abs(v) < 5 ? 0 : v / 100)}
               />
               <span className="w-9 text-right text-[9px] tabular-nums text-[#ccc]">
                 {val <= -0.96 ? 'KILL' : `${val >= 0 ? '+' : ''}${Math.round(val * (val >= 0 ? 6 : 26))}dB`}
@@ -750,17 +912,17 @@ export const MixerOverlay: React.FC<MixerOverlayProps> = ({ deckA, deckB, haptic
         {/* Color Filter */}
         <div className="flex items-center gap-2">
           <span className="w-7 text-[9px] font-bold text-[#00f0b5]">FLTR</span>
-          <input
-            type="range"
+          <TouchSlider
+            value={filter * 100}
             min={-100}
             max={100}
-            value={Math.round(filter * 100)}
-            onChange={(e) => {
-              const v = Number(e.target.value) / 100;
-              djEngine.setFilter(id, Math.abs(v) < 0.05 ? 0 : v);
-            }}
-            aria-label={`Mixer filter deck ${id}`}
-            className="h-1.5 flex-1 cursor-pointer accent-[#00f0b5]"
+            defaultValue={0}
+            centerSnap={5}
+            accentColor={MINT}
+            ariaLabel={`Mixer filter deck ${id}`}
+            haptic={haptic}
+            className="min-w-0 flex-1"
+            onChange={(v) => djEngine.setFilter(id, Math.abs(v) < 5 ? 0 : v / 100)}
           />
           <span className="w-9 text-right text-[9px] tabular-nums text-[#00f0b5]">
             {filter < -0.04 ? 'LPF' : filter > 0.04 ? 'HPF' : 'OFF'}
@@ -770,14 +932,16 @@ export const MixerOverlay: React.FC<MixerOverlayProps> = ({ deckA, deckB, haptic
         {/* Channel Volume */}
         <div className="flex items-center gap-2">
           <span className="w-7 text-[9px] font-bold text-[#aaa]">VOL</span>
-          <input
-            type="range"
+          <TouchSlider
+            value={fader * 100}
             min={0}
             max={100}
-            value={Math.round(fader * 100)}
-            onChange={(e) => djEngine.setFader(id, Number(e.target.value) / 100)}
-            aria-label={`Volume deck ${id}`}
-            className="h-1.5 flex-1 cursor-pointer accent-white"
+            defaultValue={100}
+            accentColor="#ffffff"
+            ariaLabel={`Volume deck ${id}`}
+            haptic={haptic}
+            className="min-w-0 flex-1"
+            onChange={(v) => djEngine.setFader(id, v / 100)}
           />
           <span className="w-9 text-right text-[9px] tabular-nums text-[#ccc]">{Math.round(fader * 100)}%</span>
         </div>
@@ -881,6 +1045,9 @@ export const TrackBrowserOverlay: React.FC<TrackBrowserProps> = ({
       await loadDemoToDeck(d, demoId);
       haptic.success();
       onClose();
+    } catch {
+      haptic.error();
+      setErr('Не удалось загрузить встроенный трек.');
     } finally {
       setBusy(null);
     }
@@ -973,24 +1140,27 @@ export const TrackBrowserOverlay: React.FC<TrackBrowserProps> = ({
             </div>
             <div className="flex items-center gap-1">
               <button
+                disabled={Boolean(busy)}
                 onClick={() => void handleLoadStored(t, 'A')}
-                className="rounded bg-[#f5926e]/20 border border-[#f5926e]/60 px-2 py-0.5 text-[10px] font-bold text-[#f5926e]"
+                className="rounded bg-[#f5926e]/20 border border-[#f5926e]/60 px-2 py-0.5 text-[10px] font-bold text-[#f5926e] disabled:opacity-50"
               >
                 ДЕКА A
               </button>
               <button
+                disabled={Boolean(busy)}
                 onClick={() => void handleLoadStored(t, 'B')}
-                className="rounded bg-[#1a73e8]/25 border border-[#1a73e8]/70 px-2 py-0.5 text-[10px] font-bold text-[#6eb0ff]"
+                className="rounded bg-[#1a73e8]/25 border border-[#1a73e8]/70 px-2 py-0.5 text-[10px] font-bold text-[#6eb0ff] disabled:opacity-50"
               >
                 ДЕКА B
               </button>
               <button
+                disabled={Boolean(busy)}
                 onClick={async () => {
                   haptic.light();
                   await deleteTrack(t.id);
                   await refresh();
                 }}
-                className="ml-1 rounded bg-[#2a2a2a] px-1.5 py-0.5 text-[10px] text-[#999] hover:text-white"
+                className="ml-1 rounded bg-[#2a2a2a] px-1.5 py-0.5 text-[10px] text-[#999] hover:text-white disabled:opacity-50"
                 title="Удалить из списка"
               >
                 ✕
@@ -1016,14 +1186,16 @@ export const TrackBrowserOverlay: React.FC<TrackBrowserProps> = ({
               </div>
               <div className="flex items-center gap-1">
                 <button
+                  disabled={Boolean(busy)}
                   onClick={() => void handleLoadDemo(demoId, 'A')}
-                  className="rounded bg-[#f5926e]/20 border border-[#f5926e]/60 px-2 py-0.5 text-[10px] font-bold text-[#f5926e]"
+                  className="rounded bg-[#f5926e]/20 border border-[#f5926e]/60 px-2 py-0.5 text-[10px] font-bold text-[#f5926e] disabled:opacity-50"
                 >
                   ДЕКА A
                 </button>
                 <button
+                  disabled={Boolean(busy)}
                   onClick={() => void handleLoadDemo(demoId, 'B')}
-                  className="rounded bg-[#1a73e8]/25 border border-[#1a73e8]/70 px-2 py-0.5 text-[10px] font-bold text-[#6eb0ff]"
+                  className="rounded bg-[#1a73e8]/25 border border-[#1a73e8]/70 px-2 py-0.5 text-[10px] font-bold text-[#6eb0ff] disabled:opacity-50"
                 >
                   ДЕКА B
                 </button>
